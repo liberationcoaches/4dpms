@@ -1,0 +1,113 @@
+[
+  {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "mobile": "9876543210",
+    "companyName": "Tech Corp",
+    "industry": "Technology",
+    "isEmailVerified": false,
+    "isMobileVerified": false,
+    "isActive": true
+  },
+  {
+    "name": "Jane Smith",
+    "email": "jane.smith@healthcare.com",
+    "mobile": "9876543211",
+    "companyName": "Health Solutions",
+    "industry": "Healthcare",
+    "isEmailVerified": true,
+    "isMobileVerified": true,
+    "isActive": true
+  },
+  {
+    "name": "Bob Wilson",
+    "email": "bob.wilson@finance.com",
+    "mobile": "9876543212",
+    "companyName": "Finance Hub",
+    "industry": "Finance",
+    "isEmailVerified": true,
+    "isMobileVerified": false,
+    "isActive": true
+  },
+  {
+    "name": "Alice Brown",
+    "email": "alice.brown@education.edu",
+    "mobile": "9876543213",
+    "companyName": "EduTech Inc",
+    "industry": "Education",
+    "isEmailVerified": false,
+    "isMobileVerified": true,
+    "isActive": true
+  },
+  {
+    "name": "Charlie Davis",
+    "email": "charlie.davis@manufacturing.com",
+    "mobile": "9876543214",
+    "companyName": "Manufacturing Plus",
+    "industry": "Manufacturing",
+    "isEmailVerified": false,
+    "isMobileVerified": false,
+    "isActive": false
+  },
+  {
+    "name": "Diana Miller",
+    "email": "diana.miller@retail.com",
+    "mobile": "9876543215",
+    "companyName": "Retail Solutions",
+    "industry": "Retail",
+    "isEmailVerified": true,
+    "isMobileVerified": true,
+    "isActive": true
+  },
+  {
+    "name": "Edward Johnson",
+    "email": "edward.johnson@consulting.com",
+    "mobile": "9876543216",
+    "companyName": "Consulting Experts",
+    "industry": "Consulting",
+    "isEmailVerified": true,
+    "isMobileVerified": false,
+    "isActive": true
+  },
+  {
+    "name": "Fiona Taylor",
+    "email": "fiona.taylor@other.com",
+    "mobile": "9876543217",
+    "companyName": "Other Industries LLC",
+    "industry": "Other",
+    "isEmailVerified": false,
+    "isMobileVerified": false,
+    "isActive": true
+  },
+  {
+    "name": "George White",
+    "email": "george.white@example.com",
+    "mobile": "9876543218",
+    "companyName": "White Enterprises",
+    "industry": "Technology",
+    "isEmailVerified": true,
+    "isMobileVerified": true,
+    "isActive": true
+  },
+  {
+    "name": "Helen Black",
+    "email": "helen.black@edgecase.com",
+    "mobile": "0000000000",
+    "companyName": "Edge Case Corp",
+    "industry": "Technology",
+    "isEmailVerified": false,
+    "isMobileVerified": false,
+    "isActive": true
+  },
+  {
+    "name": "Ian Green",
+    "email": "verylongemailaddressthatmightexceednormalboundaries@extremelylongdomainname.com",
+    "mobile": "9999999999",
+    "companyName": "A",
+    "industry": "Other",
+    "isEmailVerified": false,
+    "isMobileVerified": false,
+    "isActive": true
+  }
+]
+

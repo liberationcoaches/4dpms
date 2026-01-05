@@ -1,0 +1,326 @@
+.authContainer {
+  display: flex;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, rgba(33, 150, 243, 0.12), transparent 35%),
+    radial-gradient(circle at 80% 10%, rgba(46, 125, 50, 0.12), transparent 32%),
+    radial-gradient(circle at 50% 80%, rgba(255, 180, 0, 0.1), transparent 30%),
+    var(--color-core-white);
+}
+
+.sidebar {
+  width: 340px;
+  background: var(--color-primary-main-blue);
+  display: flex;
+  align-items: flex-start;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.sidebarTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-36);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-core-white);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: var(--line-height-auto);
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 2vw, 3rem);
+  background-color: transparent;
+}
+
+.formCard {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: clamp(2.5rem, 2vw, 3rem);
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  position: relative;
+}
+
+.backButton {
+  position: absolute;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+  background: transparent;
+  border: none;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-60);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.backButton:hover {
+  color: var(--color-main-black-100);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto var(--spacing-xl);
+}
+
+.logoImage {
+  width: 96px;
+  height: auto;
+  display: block;
+}
+
+.logoText {
+  font-family: var(--font-inter);
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  letter-spacing: 0.5px;
+}
+
+.badge {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  background: linear-gradient(135deg, #42a5f5, #7e57c2);
+  color: var(--color-core-white);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+
+.greeting {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-36);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  text-align: center;
+  margin: 0 0 var(--spacing-sm);
+}
+
+.subGreeting {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-grey-60);
+  text-align: center;
+  margin: 0 0 var(--spacing-xl);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.otpSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.label {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+}
+
+.otpInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.otpInput {
+  width: 100%;
+  padding: var(--spacing-md) 3rem var(--spacing-md) 0;
+  border: 1px solid rgba(33, 150, 243, 0.18);
+  border-radius: var(--radius-sm);
+  background: var(--color-core-white);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  outline: none;
+  transition: border-color 0.2s;
+  letter-spacing: 0.5rem;
+  text-align: center;
+}
+
+.otpInput:focus {
+  border-color: var(--color-primary-main-blue);
+  box-shadow: 0 10px 30px rgba(33, 150, 243, 0.12), 0 0 0 3px rgba(33, 150, 243, 0.18);
+}
+
+.otpInput::placeholder {
+  color: var(--color-main-grey-60);
+  letter-spacing: normal;
+  font-weight: var(--font-weight-regular);
+}
+
+.inputError {
+  border-bottom-color: var(--color-error-100);
+}
+
+.inputValid {
+  border-bottom-color: var(--color-valid-100);
+}
+
+.checkmark {
+  position: absolute;
+  right: var(--spacing-sm);
+  width: 28px;
+  height: 28px;
+  background: var(--color-valid-100);
+  color: var(--color-core-white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  flex-shrink: 0;
+}
+
+.errorText {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-error-100);
+  margin-top: calc(var(--spacing-sm) * -1);
+}
+
+.resendLinks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.link {
+  color: var(--color-main-black-60);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.link:hover {
+  color: var(--color-primary-main-blue);
+  text-decoration: underline;
+}
+
+.resendButton {
+  background: transparent;
+  border: none;
+  color: var(--color-primary-main-blue);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+  text-align: right;
+}
+
+.resendButton:hover:not(:disabled) {
+  color: var(--color-primary-deep1-blue);
+  text-decoration: underline;
+}
+
+.resendButton:disabled {
+  color: var(--color-main-grey-60);
+  cursor: not-allowed;
+}
+
+.primaryButton {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-primary-main-blue);
+  color: var(--color-core-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: var(--spacing-sm);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--color-primary-deep1-blue);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+
+  .sidebarTitle {
+    font-size: var(--font-size-24);
+  }
+}
+
+@media (max-width: 768px) {
+  .authContainer {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding: var(--spacing-xl);
+    justify-content: center;
+    align-items: center;
+  }
+
+  .sidebarTitle {
+    font-size: var(--font-size-24);
+  }
+
+  .content {
+    padding: var(--spacing-lg);
+  }
+
+  .formCard {
+    padding: var(--spacing-xl);
+  }
+
+  .greeting {
+    font-size: var(--font-size-24);
+  }
+
+  .otpInput {
+    font-size: var(--font-size-16);
+    letter-spacing: 0.25rem;
+  }
+}
+

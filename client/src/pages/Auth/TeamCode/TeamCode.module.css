@@ -1,0 +1,276 @@
+.authContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: clamp(1.5rem, 2vw, 3rem);
+  background-color: transparent;
+  max-width: 1200px;
+}
+
+.formCard {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: clamp(2.5rem, 2vw, 3rem);
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto var(--spacing-xl);
+}
+
+.logoImage {
+  width: 96px;
+  height: auto;
+  display: block;
+}
+
+.logoText {
+  font-family: var(--font-inter);
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  letter-spacing: 0.5px;
+}
+
+.accentOne,
+.accentTwo,
+.accentGrid {
+  position: absolute;
+  filter: blur(40px);
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.accentOne {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(33, 150, 243, 0.28), transparent 60%);
+  top: 8%;
+  left: 10%;
+}
+
+.accentTwo {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(126, 87, 194, 0.28), transparent 60%);
+  bottom: 6%;
+  right: 12%;
+}
+
+.accentGrid {
+  inset: 10% 8%;
+  background-image: linear-gradient(rgba(33, 150, 243, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(33, 150, 243, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  filter: blur(0);
+  opacity: 0.4;
+}
+
+.backButton {
+  position: absolute;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+  background: transparent;
+  border: none;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-60);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  transition: color 0.2s, transform 0.2s;
+  line-height: 1;
+}
+
+.backButton:hover {
+  color: var(--color-main-black-100);
+  transform: translateX(-2px);
+}
+
+.greeting {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-32, 32px);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  text-align: center;
+  margin: 0 0 var(--spacing-sm);
+}
+
+.subGreeting {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-grey-60);
+  text-align: center;
+  margin: 0 0 var(--spacing-xl);
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.label {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+}
+
+.input {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 1px solid rgba(33, 150, 243, 0.18);
+  border-radius: var(--radius-sm);
+  background: var(--color-core-white);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-main-black-100);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input:focus {
+  border-color: var(--color-primary-main-blue);
+  box-shadow: 0 10px 30px rgba(33, 150, 243, 0.12), 0 0 0 3px rgba(33, 150, 243, 0.18);
+}
+
+.inputError {
+  border-color: var(--color-error-100);
+}
+
+.inlineInput {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  color: var(--color-core-white);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 24px rgba(33, 150, 243, 0.25);
+}
+
+.iconButton:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 14px 30px rgba(126, 87, 194, 0.25);
+}
+
+.iconButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorText {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-error-100);
+  margin-top: calc(var(--spacing-xs) * -1);
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: var(--spacing-xs);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-main-blue);
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.linkButton:hover {
+  color: var(--color-primary-deep1-blue);
+  text-decoration: underline;
+}
+
+.primaryButton {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  color: var(--color-core-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  box-shadow: 0 10px 24px rgba(33, 150, 243, 0.25);
+  margin-top: var(--spacing-md);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(33, 150, 243, 0.35);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .formCard {
+    padding: var(--spacing-xl);
+  }
+
+  .greeting {
+    font-size: var(--font-size-24);
+  }
+
+  .iconButton {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+
+

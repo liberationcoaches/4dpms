@@ -1,0 +1,354 @@
+/* ============================================
+   MANAGER DASHBOARD COMPONENT SPECIFIC STYLES
+   Only styles unique to this component
+   ============================================ */
+
+/* Team Stats Section */
+.teamStats {
+  margin-bottom: var(--spacing-xl);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.statCard {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  background-color: #cce5ff;
+  text-align: center;
+}
+
+.statCard h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-main-black-100);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-medium);
+}
+
+.statValue {
+  font-size: 2.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  font-family: var(--font-inter);
+}
+
+/* Performance Section */
+.performanceSection {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-md);
+}
+
+.performanceSection h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-main-black-100);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-semibold);
+}
+
+.performersList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.performerCard {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-md);
+}
+
+.rank {
+  font-weight: var(--font-weight-bold);
+  color: #2196f3;
+  min-width: 40px;
+  font-family: var(--font-inter);
+}
+
+.name {
+  flex: 1;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-100);
+  font-family: var(--font-inter);
+}
+
+.score {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  font-size: var(--font-size-18);
+  font-family: var(--font-inter);
+}
+
+/* Employees Section */
+.employees {
+  margin-top: var(--spacing-xl);
+}
+
+.employeesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.employeeCard {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.employeeCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.employeeCard h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-main-black-100);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-20);
+  font-weight: var(--font-weight-semibold);
+}
+
+.employeeCard p {
+  margin: var(--spacing-sm) 0;
+  color: var(--color-main-grey-60);
+  font-size: var(--font-size-14);
+  font-family: var(--font-inter);
+}
+
+.employeeCard strong {
+  color: var(--color-main-black-100);
+}
+
+.scoreBadge {
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, #cce5ff, #b3d9ff);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-family: var(--font-inter);
+}
+
+.scoreBadge strong {
+  color: var(--color-main-black-100);
+}
+
+.createdDate {
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  font-family: var(--font-inter);
+}
+
+.viewDetailsButton {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  color: white;
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-inter);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.viewDetailsButton:hover {
+  opacity: 0.9;
+}
+
+/* Create Form */
+.createForm {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.createForm h2 {
+  margin-bottom: 1.5rem;
+  color: #1a1a1a;
+}
+
+/* Dimension Weights Styles */
+.weightsForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.weightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.weightInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+}
+
+.weightLabel {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+}
+
+.required {
+  color: var(--color-error-100);
+}
+
+.optional {
+  font-weight: var(--font-weight-regular);
+  color: var(--color-main-grey-60);
+}
+
+.weightInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.weightInput {
+  flex: 1;
+  padding: var(--spacing-md);
+  border: 2px solid;
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-main-black-100);
+  background-color: var(--color-core-white);
+  outline: none;
+  transition: box-shadow 0.2s;
+}
+
+.weightInput:focus {
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+}
+
+.percentSymbol {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-semibold);
+  min-width: 30px;
+}
+
+.totalDisplay {
+  padding: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  text-align: center;
+}
+
+.totalError {
+  color: var(--color-error-100);
+  font-weight: var(--font-weight-regular);
+}
+
+/* Profile Form */
+.profileForm {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+}
+
+/* My KRAs Section */
+.myKRAsSection {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.myKRAsSection h2 {
+  margin: 0 0 1.5rem 0;
+  color: #1a1a1a;
+  font-size: 1.5rem;
+}
+
+.krasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.kraCategory {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.kraCategory h3 {
+  margin: 0 0 0.75rem 0;
+  color: #1a1a1a;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.kraCategory ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #666;
+}
+
+.kraCategory li {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.kraCategory p {
+  margin: 0;
+  color: #999;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .statsGrid,
+  .employeesGrid,
+  .weightsGrid,
+  .krasGrid {
+    grid-template-columns: 1fr;
+  }
+}

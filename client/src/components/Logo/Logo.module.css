@@ -1,0 +1,21 @@
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.logoImage {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+}
+
+.logoText {
+  font-family: var(--font-inter);
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  letter-spacing: 0.5px;
+}

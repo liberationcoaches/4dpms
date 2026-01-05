@@ -1,0 +1,353 @@
+.container {
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.title {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  margin: 0;
+}
+
+.editButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  color: var(--color-main-black-80);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.editButton:hover {
+  color: var(--color-primary-main-blue);
+}
+
+.editIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--color-main-grey-40);
+  margin-bottom: var(--spacing-lg);
+}
+
+.teamList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.memberCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background-color: var(--color-core-white);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.memberCard:hover {
+  border-color: var(--color-primary-main-blue);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.memberInfo {
+  flex: 1;
+}
+
+.memberName {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.memberRole {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-main-grey-60);
+  margin: 0;
+}
+
+.chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-main-grey-60);
+  flex-shrink: 0;
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  color: var(--color-main-grey-60);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+}
+
+.loading {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  color: var(--color-main-grey-60);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+}
+
+.memberMobile {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-main-grey-60);
+  margin: var(--spacing-xs) 0 0 0;
+}
+
+.memberActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.actionButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  color: var(--color-main-grey-60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+}
+
+.actionButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.actionButton:hover {
+  background: var(--color-primary-main-grey);
+  color: var(--color-primary-main-blue);
+}
+
+.deleteButton:hover {
+  color: var(--color-error-100);
+  background: rgba(198, 40, 40, 0.1);
+}
+
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md);
+  background: var(--color-primary-main-grey);
+  border-radius: var(--radius-md);
+}
+
+.editInput {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.editInput:focus {
+  border-color: var(--color-primary-main-blue);
+}
+
+.editActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.saveButton {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary-main-blue);
+  color: var(--color-core-white);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.saveButton:hover {
+  background: var(--color-primary-deep1-blue);
+}
+
+.cancelButton {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  color: var(--color-main-grey-60);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelButton:hover {
+  background: var(--color-main-grey-20);
+  border-color: var(--color-main-grey-60);
+}
+
+.deleteConfirm {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-core-white);
+  border: 1px solid var(--color-error-100);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.deleteConfirm p {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-black-100);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.deleteActions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.confirmDeleteButton {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-error-100);
+  color: var(--color-core-white);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.confirmDeleteButton:hover {
+  background: #b71c1c;
+}
+
+.cancelDeleteButton {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  color: var(--color-main-grey-60);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelDeleteButton:hover {
+  background: var(--color-main-grey-20);
+}
+
+.memberCard {
+  position: relative;
+}
+
+/* Notification Toast */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  min-width: 300px;
+  max-width: 400px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: slideIn 0.3s ease-out;
+}
+
+.notificationSuccess {
+  background: var(--color-core-white);
+  color: var(--color-valid-100);
+  border-left: 4px solid var(--color-valid-100);
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
+}
+
+.notificationError {
+  background: var(--color-core-white);
+  color: var(--color-error-100);
+  border-left: 4px solid var(--color-error-100);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.2);
+}
+
+.notificationContent {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+}
+
+.notificationIcon {
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-bold);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .memberCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .memberActions {
+    margin-top: var(--spacing-sm);
+    align-self: flex-end;
+  }
+
+  .notification {
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+  }
+}
+

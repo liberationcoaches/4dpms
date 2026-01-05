@@ -1,0 +1,18 @@
+.container {
+  padding: var(--spacing-xl);
+}
+
+.title {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  margin-bottom: var(--spacing-md);
+}
+
+.description {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  color: var(--color-main-grey-60);
+}
+

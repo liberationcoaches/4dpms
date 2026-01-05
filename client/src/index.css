@@ -1,0 +1,33 @@
+@import './styles/design-system.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-family: var(--font-inter);
+  line-height: var(--line-height-normal);
+  font-weight: var(--font-weight-regular);
+  color-scheme: light;
+  color: var(--color-main-black-100);
+  background-color: var(--color-core-white);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--color-core-white);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+

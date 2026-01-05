@@ -1,0 +1,183 @@
+.notifications {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.unreadBadge {
+  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.markAllButton {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.markAllButton:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.empty p {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.notificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.notificationCard {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  border-left: 4px solid transparent;
+}
+
+.notificationCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.notificationCard.unread {
+  border-left-color: #2196f3;
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.notificationIcon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.notificationContent {
+  flex: 1;
+}
+
+.notificationContent h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1a1a1a;
+  font-size: 1.1rem;
+}
+
+.notificationContent p {
+  margin: 0 0 0.5rem 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+.metadata {
+  display: inline-block;
+  background: rgba(33, 150, 243, 0.1);
+  color: #2196f3;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.timestamp {
+  display: block;
+  color: #999;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.unreadIndicator {
+  width: 8px;
+  height: 8px;
+  background: #2196f3;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.notificationCard.reviewPeriod {
+  border-left-color: #ff9800;
+}
+
+.notificationCard.success {
+  border-left-color: #4caf50;
+}
+
+.notificationCard.warning {
+  border-left-color: #ff9800;
+}
+
+.notificationCard.error {
+  border-left-color: #f44336;
+}
+
+.notificationCard.info {
+  border-left-color: #2196f3;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .notifications {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .notificationCard {
+    flex-direction: column;
+  }
+
+  .notificationIcon {
+    align-self: flex-start;
+  }
+}

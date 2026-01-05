@@ -1,0 +1,59 @@
+graph TB
+    Start([New Organization Signs Up]) --> Admin[Platform Admin Dashboard]
+    
+    Admin --> AdminCapture[Capture Org Info:<br/>Name, Industry, Size, Contact]
+    AdminCapture --> CreateWorkspace[Create Isolated<br/>Org Workspace]
+    CreateWorkspace --> AssignReviewer[Admin Assigns<br/>Reviewer to Org]
+    
+    AssignReviewer --> BossSetup[Boss First Login]
+    BossSetup --> BossActions{Boss Actions}
+    
+    BossActions --> CreateManagers[Create Manager<br/>Accounts]
+    BossActions --> SetReviewCycle[Configure Review<br/>Cycles & Frequency]
+    
+    CreateManagers --> ManagerSetup[Manager Login]
+    ManagerSetup --> CreateEmployees[Manager Creates<br/>Employee Accounts]
+    
+    CreateEmployees --> Hierarchy[System Establishes<br/>Hierarchy]
+    SetReviewCycle --> Hierarchy
+    
+    Hierarchy --> ReviewPeriod{Review Period<br/>Starts?}
+    ReviewPeriod -->|Yes| Notifications[Send Notifications<br/>to All Users]
+    ReviewPeriod -->|No| Wait[Wait for Next Cycle]
+    Wait --> ReviewPeriod
+    
+    Notifications --> ReviewerWork[Reviewer Accesses<br/>Scoring System]
+    ReviewerWork --> EnterScores[Enter Scores,<br/>Comments & Feedback]
+    EnterScores --> LockReview[Timestamp &<br/>Lock Review]
+    
+    LockReview --> Distribution{Distribute to<br/>User Levels}
+    
+    Distribution --> EmployeeDash[Employee Dashboard]
+    Distribution --> ManagerDash[Manager Dashboard]
+    Distribution --> BossDash[Boss Dashboard]
+    
+    EmployeeDash --> EmpView[View:<br/>• Current Score<br/>• Historical Trends<br/>• Next Review Date<br/>• Feedback/Comments<br/>• Improvement Actions]
+    
+    ManagerDash --> MgrView[View:<br/>• All Team Members<br/>• Team Performance<br/>• Comparisons/Rankings<br/>• Add Extra Feedback<br/>• Alerts]
+    
+    BossDash --> BossView[View:<br/>• All Managers & Teams<br/>• Dept Comparisons<br/>• Org-wide Trends<br/>• Drill-down Capability<br/>• Analytics]
+    
+    EmpView --> Acknowledge[Employee Acknowledges<br/>& Creates Action Plan]
+    MgrView --> MidCycle[Manager Adds<br/>Mid-cycle Notes]
+    BossView --> Strategic[Boss Makes<br/>Strategic Decisions]
+    
+    Acknowledge --> ContinuousFeedback[Continuous Feedback Loop]
+    MidCycle --> ContinuousFeedback
+    Strategic --> ContinuousFeedback
+    
+    ContinuousFeedback --> ReviewPeriod
+    
+    Admin --> AdminPanel[Admin Panel Monitors:<br/>• All Orgs<br/>• Subscription Status<br/>• Reviewer Assignments<br/>• System Analytics<br/>• Revenue Metrics]
+    
+    style Start fill:#e1f5ff
+    style Admin fill:#fff3cd
+    style EmployeeDash fill:#d4edda
+    style ManagerDash fill:#cce5ff
+    style BossDash fill:#f8d7da
+    style AdminPanel fill:#fff3cd
+    style Distribution fill:#e7e7e7
