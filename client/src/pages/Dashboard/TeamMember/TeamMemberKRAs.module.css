@@ -118,6 +118,10 @@
   background: var(--color-primary-deep1-blue);
 }
 
+.kraFormContainer {
+  margin: 1rem 0;
+}
+
 .addKRAForm {
   background: var(--color-primary-main-grey);
   padding: var(--spacing-md);
@@ -481,6 +485,229 @@
 
 .addButton:disabled:hover {
   background: var(--color-main-grey-40);
+}
+
+/* KPI List Styles */
+.kpiList {
+  list-style: none;
+  padding: 0;
+  margin: var(--spacing-xs) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.kpiList li {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-primary-main-grey);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-black-100);
+}
+
+.kpiTarget {
+  color: var(--color-main-grey-60);
+  font-size: var(--font-size-13);
+  margin-left: var(--spacing-xs);
+}
+
+/* Proof/Reports Styles */
+.proofList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: var(--spacing-xs) 0;
+}
+
+.proofItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-primary-main-grey);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  gap: var(--spacing-xs);
+}
+
+.driveLink {
+  color: var(--color-primary-main-blue);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+}
+
+.driveLink:hover {
+  text-decoration: underline;
+}
+
+.fileItem {
+  color: var(--color-main-black-100);
+  font-weight: var(--font-weight-medium);
+}
+
+.noData {
+  color: var(--color-main-grey-60);
+  font-style: italic;
+  font-size: var(--font-size-13);
+  margin: var(--spacing-xs) 0;
+}
+
+.removeProof {
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.removeProof:hover {
+  background: #d32f2f;
+}
+
+.addProofBtn {
+  background: var(--color-primary-main-blue);
+  color: white;
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--spacing-xs);
+  transition: background 0.2s;
+}
+
+.addProofBtn:hover {
+  background: #0056b3;
+}
+
+/* Proof Dialog */
+.proofDialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.proofDialog {
+  background: white;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.proofDialog h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-main-black-100);
+  font-size: var(--font-size-18);
+}
+
+.proofTypeSelector {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.proofTypeSelector button {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-main-grey-40);
+  background: white;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-14);
+  transition: all 0.2s;
+}
+
+.proofTypeSelector button.active {
+  background: var(--color-primary-main-blue);
+  color: white;
+  border-color: var(--color-primary-main-blue);
+}
+
+.proofInput {
+  margin-bottom: var(--spacing-md);
+}
+
+.proofInput label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-100);
+}
+
+.proofInput input {
+  width: 100%;
+  padding: var(--spacing-xs);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-14);
+  box-sizing: border-box;
+}
+
+.fileHint {
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.addBtn {
+  background: var(--color-primary-main-blue);
+  color: white;
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--spacing-sm);
+}
+
+.addBtn:hover {
+  background: #0056b3;
+}
+
+.cancelBtn {
+  background: var(--color-main-grey-40);
+  color: var(--color-main-black-100);
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--spacing-sm);
+  width: 100%;
+}
+
+.cancelBtn:hover {
+  background: var(--color-main-grey-60);
+}
+
+.optionalLabel {
+  color: var(--color-main-grey-60);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-12);
 }
 
 @media (max-width: 768px) {

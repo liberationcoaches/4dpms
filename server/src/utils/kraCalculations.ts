@@ -205,15 +205,47 @@ export function validateFunctionalKRA(kra: Partial<IFunctionalKRA>): { valid: bo
   if (!kra.kra || !kra.kra.trim()) {
     errors.push('KRA name is required');
   }
+  
+  // Validate KPIs
+  if (!kra.kpis || !Array.isArray(kra.kpis) || kra.kpis.length === 0) {
+    errors.push('At least one KPI is required');
+  } else {
+    kra.kpis.forEach((kpi, index) => {
+      if (!kpi.kpi || !kpi.kpi.trim()) {
+        errors.push(`KPI ${index + 1} is required`);
+      }
+    });
+  }
+  
+  // Validate pilot score (0-5)
+  if (kra.pilotScore !== undefined && kra.pilotScore !== null) {
+    if (isNaN(kra.pilotScore) || kra.pilotScore < 0 || kra.pilotScore > 5) {
+      errors.push('Pilot score must be between 0 and 5');
+    }
+  }
+  
+  // Validate review scores (0-5)
   const scoreFields = ['r1Score', 'r2Score', 'r3Score', 'r4Score'] as const;
   scoreFields.forEach((field) => {
     const score = kra[field];
     if (score !== undefined && score !== null) {
-      if (isNaN(score) || score < 0 || score > 100) {
-        errors.push(`${field} must be between 0 and 100`);
+      if (isNaN(score) || score < 0 || score > 5) {
+        errors.push(`${field} must be between 0 and 5`);
       }
     }
   });
+  
+  // Validate weights (10-100, multiples of 10)
+  const weightFields = ['pilotWeight', 'r1Weight', 'r2Weight', 'r3Weight', 'r4Weight'] as const;
+  weightFields.forEach((field) => {
+    const weight = kra[field];
+    if (weight !== undefined && weight !== null) {
+      if (isNaN(weight) || weight < 10 || weight > 100 || weight % 10 !== 0) {
+        errors.push(`${field} must be between 10 and 100 and a multiple of 10`);
+      }
+    }
+  });
+  
   return { valid: errors.length === 0, errors };
 }
 

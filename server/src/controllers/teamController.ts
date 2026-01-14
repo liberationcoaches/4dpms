@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Team } from '../models/Team';
 import { User } from '../models/User';
+import { Organization } from '../models/Organization';
 import { z } from 'zod';
 import { generateAndSaveOTP } from '../services/authService';
 
@@ -595,13 +596,29 @@ export async function getDimensionWeights(
       return;
     }
 
-    // Return dimension weights or default values
-    const weights = team.dimensionWeights || {
-      functional: 0,
-      organizational: 0,
-      selfDevelopment: 0,
-      developingOthers: 0,
-    };
+    // Return dimension weights, fallback to organization weights, then default values
+    let weights = team.dimensionWeights;
+    
+    // If team doesn't have weights, try to get from organization
+    if (!weights && user.organizationId) {
+      const organization = await Organization.findById(user.organizationId);
+      if (organization && organization.dimensionWeights) {
+        weights = organization.dimensionWeights;
+        // Also update the team with organization weights for future use
+        team.dimensionWeights = organization.dimensionWeights;
+        await team.save();
+      }
+    }
+    
+    // Final fallback to default values
+    if (!weights) {
+      weights = {
+        functional: 0,
+        organizational: 0,
+        selfDevelopment: 0,
+        developingOthers: 0,
+      };
+    }
 
     res.status(200).json({
       status: 'success',

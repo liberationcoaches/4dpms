@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ReviewerDashboard.module.css';
 import logo from '@/assets/logo.png';
+import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
 
 interface Organization {
   _id: string;
@@ -99,7 +100,7 @@ function ReviewerDashboard() {
     navigate('/dashboard/notifications');
   };
 
-  const handleLogoClick = () => {
+  const handleLogoClick = (): void => {
     navigate('/reviewer/dashboard');
   };
 
@@ -275,7 +276,7 @@ function ReviewerDashboard() {
               <span className={baseStyles.profileName}>{user?.name || 'Reviewer'}</span>
               <span className={baseStyles.profileEmail}>{user?.email || ''}</span>
             </div>
-          </div>
+          </div>  
         </div>
       </header>
 
@@ -415,20 +416,16 @@ function ReviewerDashboard() {
           ) : (
             <div className={styles.employeesGrid}>
               {employees.map((employee) => (
-                <div
+                <TeamMemberCard
                   key={employee._id}
-                  className={styles.employeeCard}
+                  name={employee.name}
+                  email={employee.email}
+                  mobile={employee.mobile}
+                  buttonText="Enter Scores →"
                   onClick={() => navigate(`/reviewer/scoring/${employee._id}`)}
                 >
-                  <div className={styles.employeeAvatar}>
-                    {employee.name.charAt(0)}
-                  </div>
-                  <h3>{employee.name}</h3>
-                  <p><strong>Email:</strong> {employee.email}</p>
-                  <p><strong>Mobile:</strong> {employee.mobile}</p>
-                  <p><strong>Manager:</strong> {employee.manager}</p>
-                  <div className={styles.actionButton}>Enter Scores</div>
-                </div>
+                  {employee.manager && <p><strong>Manager:</strong> {employee.manager}</p>}
+                </TeamMemberCard>
               ))}
             </div>
             )}

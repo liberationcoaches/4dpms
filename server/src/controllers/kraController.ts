@@ -4,24 +4,56 @@ import { User } from '../models/User';
 import { z } from 'zod';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 
+// KPI Schema
+const kpiSchema = z.object({
+  kpi: z.string().min(1),
+  target: z.string().optional(),
+});
+
+// Proof/Report Schema
+const proofSchema = z.object({
+  type: z.enum(['drive_link', 'file_upload']),
+  value: z.string().min(1),
+  fileName: z.string().optional(),
+  uploadedAt: z.string().optional(),
+});
+
+// Updated KRA Schema with new structure
 const kraSchema = z.object({
   kra: z.string().min(1),
-  kpiTarget: z.string().optional(),
-  reportsGenerated: z.string().optional(),
-  pilotWeight: z.number().optional(),
+  kpis: z.array(kpiSchema).min(1, 'At least one KPI is required'),
+  reportsGenerated: z.array(proofSchema).optional(),
+  pilotWeight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
+    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
+  }).optional(),
+  pilotScore: z.number().min(0).max(5).optional(),
   pilotActualPerf: z.string().optional(),
-  r1Weight: z.number().optional(),
-  r1Score: z.number().optional(),
-  r2Weight: z.number().optional(),
-  r2Score: z.number().optional(),
-  r3Weight: z.number().optional(),
-  r3Score: z.number().optional(),
-  r4Weight: z.number().optional(),
-  r4Score: z.number().optional(),
+  r1Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
+    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
+  }).optional(),
+  r1Score: z.number().min(0).max(5).optional(),
   r1ActualPerf: z.string().optional(),
+  r1ReviewedBy: z.string().optional(),
+  r2Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
+    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
+  }).optional(),
+  r2Score: z.number().min(0).max(5).optional(),
   r2ActualPerf: z.string().optional(),
+  r2ReviewedBy: z.string().optional(),
+  r3Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
+    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
+  }).optional(),
+  r3Score: z.number().min(0).max(5).optional(),
   r3ActualPerf: z.string().optional(),
+  r3ReviewedBy: z.string().optional(),
+  r4Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
+    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
+  }).optional(),
+  r4Score: z.number().min(0).max(5).optional(),
   r4ActualPerf: z.string().optional(),
+  r4ReviewedBy: z.string().optional(),
+  // Legacy fields for backward compatibility
+  kpiTarget: z.string().optional(),
 });
 
 /**
@@ -41,16 +73,38 @@ export async function addKRA(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const validatedKRA = kraSchema.parse(req.body);
-    const validation = validateFunctionalKRA(validatedKRA);
-
-    if (!validation.valid) {
+    // Parse and validate KRA data
+    let validatedKRA: any;
+    try {
+      validatedKRA = kraSchema.parse(req.body);
+    } catch (error: any) {
       res.status(400).json({
         status: 'error',
         message: 'Invalid KRA data',
-        errors: validation.errors,
+        errors: error.errors || error.message,
       });
       return;
+    }
+
+    // Handle backward compatibility: convert old structure to new
+    if (!validatedKRA.kpis || !Array.isArray(validatedKRA.kpis)) {
+      // Convert old kpiTarget to new kpis array
+      validatedKRA.kpis = validatedKRA.kpiTarget
+        ? [{ kpi: validatedKRA.kpiTarget, target: '' }]
+        : [{ kpi: '', target: '' }];
+    }
+
+    // Handle backward compatibility: convert old reportsGenerated string to array
+    if (!validatedKRA.reportsGenerated || !Array.isArray(validatedKRA.reportsGenerated)) {
+      if (typeof validatedKRA.reportsGenerated === 'string' && validatedKRA.reportsGenerated.trim()) {
+        validatedKRA.reportsGenerated = [{
+          type: 'drive_link',
+          value: validatedKRA.reportsGenerated,
+          uploadedAt: new Date().toISOString(),
+        }];
+      } else {
+        validatedKRA.reportsGenerated = [];
+      }
     }
 
     const user = await User.findById(userId);
@@ -69,6 +123,20 @@ export async function addKRA(req: Request, res: Response, next: NextFunction): P
         message: 'Team or member not found',
       });
       return;
+    }
+
+    // Ensure pilotScore is set (default to 0 if not provided)
+    if (validatedKRA.pilotScore === undefined) {
+      validatedKRA.pilotScore = 0;
+    }
+
+    // Ensure pilotWeight is set and is a multiple of 10 (default to 10 if not provided)
+    if (validatedKRA.pilotWeight === undefined) {
+      validatedKRA.pilotWeight = 10;
+    } else {
+      // Round to nearest multiple of 10
+      validatedKRA.pilotWeight = Math.round(validatedKRA.pilotWeight / 10) * 10;
+      validatedKRA.pilotWeight = Math.max(10, Math.min(100, validatedKRA.pilotWeight));
     }
 
     // Calculate average score

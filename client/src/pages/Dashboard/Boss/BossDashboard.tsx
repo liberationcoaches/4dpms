@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './BossDashboard.module.css';
 import logo from '@/assets/logo.png';
+import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
+import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
 import { getNavigationItems } from '@/utils/navigationConfig';
 
 interface Manager {
@@ -28,6 +30,13 @@ interface DepartmentStat {
   managerName: string;
   employeeCount: number;
   averageScore: number;
+}
+
+interface Proof {
+  type: 'drive_link' | 'file_upload';
+  value: string;
+  fileName?: string;
+  uploadedAt: string;
 }
 
 interface Analytics {
@@ -72,6 +81,27 @@ function BossDashboard() {
   const [kraType, setKraType] = useState<'functional' | 'organizational' | 'self-development'>('functional');
   const [newKRA, setNewKRA] = useState<any>({});
   const [showKRAsView, setShowKRAsView] = useState<string | null>(null);
+  const [showProofDialog, setShowProofDialog] = useState<{ managerId: string; kraIndex: number; isOpen: boolean }>({
+    managerId: '',
+    kraIndex: -1,
+    isOpen: false,
+  });
+  const [proofInput, setProofInput] = useState<{ type: 'drive_link' | 'file_upload'; value: string }>({
+    type: 'drive_link',
+    value: '',
+  });
+  const [selectedKRA, setSelectedKRA] = useState<{ kra: any; index: number; type: 'self' | string } | null>(null);
+  const [showKRADetailModal, setShowKRADetailModal] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
+    functional: false,
+    organizational: false,
+    selfDevelopment: false,
+  });
+  const [showAllKRAs, setShowAllKRAs] = useState<{ [key: string]: boolean }>({
+    functional: false,
+    organizational: false,
+    selfDevelopment: false,
+  });
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -279,17 +309,29 @@ function BossDashboard() {
     }
   };
 
-  const handleAddManagerKRA = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddManagerKRA = async (formData?: FunctionalKRAFormData) => {
     if (!selectedManager) return;
 
     try {
       const userId = localStorage.getItem('userId');
       const endpoint = `/api/boss/managers/${selectedManager._id}/kras/${kraType}`;
+      
+      // For functional KRAs, use the unified form data
+      // For other types, use the old structure (will be updated later)
+      const requestData = kraType === 'functional' && formData
+        ? {
+            kra: formData.kra,
+            kpis: formData.kpis,
+            reportsGenerated: formData.reportsGenerated || [],
+            pilotWeight: formData.pilotWeight || 0,
+            pilotScore: formData.pilotScore || 0,
+          }
+        : newKRA;
+
       const res = await fetch(`${endpoint}?userId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newKRA),
+        body: JSON.stringify(requestData),
       });
 
       const data = await res.json();
@@ -330,6 +372,175 @@ function BossDashboard() {
       console.error('Failed to create manager:', error);
       alert('Network error. Please check if the server is running.');
     }
+  };
+
+  const handleAddProof = async (managerId: string, kraIndex: number, proof: Proof) => {
+    // Handle boss's own KRAs
+    if (managerId === 'self') {
+      if (!myKRAs || !myKRAs.functionalKRAs) return;
+      const kra = myKRAs.functionalKRAs[kraIndex];
+      if (!kra) return;
+
+      // Convert reportsGenerated to array if it's a string (backward compatibility)
+      let currentProofs: Proof[] = [];
+      if (Array.isArray(kra.reportsGenerated)) {
+        currentProofs = kra.reportsGenerated;
+      } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+        currentProofs = [{
+          type: 'drive_link',
+          value: kra.reportsGenerated,
+          uploadedAt: new Date().toISOString(),
+        }];
+      }
+
+      const updatedProofs = [...currentProofs, proof];
+      
+      // Update the boss's own KRA
+      try {
+        const userId = localStorage.getItem('userId');
+        // Find boss in team to get member index
+        const teamRes = await fetch(`/api/team/members?userId=${userId}`);
+        const teamData = await teamRes.json();
+        if (teamData.status === 'success' && teamData.data) {
+          const userProfile = await fetch(`/api/user/profile?userId=${userId}`).then(r => r.json());
+          if (userProfile.status === 'success' && userProfile.data) {
+            const memberIndex = teamData.data.findIndex((m: any) => m.mobile === userProfile.data.mobile);
+            if (memberIndex !== -1) {
+              const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reportsGenerated: updatedProofs }),
+              });
+
+              const updateData = await updateRes.json();
+              if (updateRes.ok) {
+                // Refresh boss's KRAs
+                fetchMyKRAs();
+                setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false });
+                setProofInput({ type: 'drive_link', value: '' });
+                alert('Proof added successfully!');
+              } else {
+                alert(updateData.message || 'Failed to add proof');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error adding proof:', error);
+        alert('Failed to add proof');
+      }
+      return;
+    }
+
+    // Handle manager KRAs
+    if (!managerKRAs[managerId] || !managerKRAs[managerId].functionalKRAs) return;
+
+    const kra = managerKRAs[managerId].functionalKRAs[kraIndex];
+    if (!kra) return;
+
+    // Convert reportsGenerated to array if it's a string (backward compatibility)
+    let currentProofs: Proof[] = [];
+    if (Array.isArray(kra.reportsGenerated)) {
+      currentProofs = kra.reportsGenerated;
+    } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+      currentProofs = [{
+        type: 'drive_link',
+        value: kra.reportsGenerated,
+        uploadedAt: new Date().toISOString(),
+      }];
+    }
+
+    const updatedProofs = [...currentProofs, proof];
+    
+    // Update the KRA with new proofs
+    try {
+      const userId = localStorage.getItem('userId');
+      // Find manager to get their team and member index
+      const manager = managers.find(m => m._id === managerId);
+      if (!manager) return;
+
+      // Fetch team to find member index
+      const teamRes = await fetch(`/api/team/members?userId=${userId}`);
+      const teamData = await teamRes.json();
+      if (teamData.status === 'success' && teamData.data) {
+        const memberIndex = teamData.data.findIndex((m: any) => m.mobile === manager.mobile);
+        if (memberIndex !== -1) {
+          const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reportsGenerated: updatedProofs }),
+          });
+
+          const updateData = await updateRes.json();
+          if (updateRes.ok) {
+            // Refresh manager KRAs
+            fetchManagerKRAs(managerId);
+            setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false });
+            setProofInput({ type: 'drive_link', value: '' });
+            alert('Proof added successfully!');
+          } else {
+            alert(updateData.message || 'Failed to add proof');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding proof:', error);
+      alert('Failed to add proof');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, managerId: string, kraIndex: number) => {
+    // Handle both 'self' (boss's own KRAs) and manager IDs
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.match(/^image\/(jpeg|jpg|png)$/i) && file.type !== 'application/pdf') {
+      alert('Only JPG, PNG, or PDF files are allowed');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        const newProof: Proof = {
+          type: 'file_upload',
+          value: base64String,
+          fileName: file.name,
+          uploadedAt: new Date().toISOString(),
+        };
+        handleAddProof(managerId, kraIndex, newProof);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file');
+    }
+  };
+
+  const handleAddDriveLink = (managerId: string, kraIndex: number) => {
+    // Handle both 'self' (boss's own KRAs) and manager IDs
+    if (!proofInput.value.trim()) {
+      alert('Please enter a drive link');
+      return;
+    }
+
+    if (!proofInput.value.includes('drive.google.com') && !proofInput.value.includes('docs.google.com')) {
+      alert('Please enter a valid Google Drive link');
+      return;
+    }
+
+    const newProof: Proof = {
+      type: 'drive_link',
+      value: proofInput.value.trim(),
+      uploadedAt: new Date().toISOString(),
+    };
+    handleAddProof(managerId, kraIndex, newProof);
   };
 
   if (isLoading) {
@@ -525,38 +736,309 @@ function BossDashboard() {
                   <h2>My KRAs</h2>
                   <div className={styles.krasGrid}>
                     <div className={styles.kraCategory}>
-                      <h3>Functional KRAs ({myKRAs.functionalKRAs?.length || 0})</h3>
-                      {myKRAs.functionalKRAs?.length > 0 ? (
-                        <ul>
-                          {myKRAs.functionalKRAs.map((kra: any, idx: number) => (
-                            <li key={idx}>{kra.kra}</li>
-                          ))}
-                        </ul>
-                      ) : (
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedCategories({ ...expandedCategories, functional: !expandedCategories.functional })}
+                      >
+                        <h3 style={{ margin: 0 }}>Functional KRAs ({myKRAs.functionalKRAs?.length || 0})</h3>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            color: '#666',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategories({ ...expandedCategories, functional: !expandedCategories.functional });
+                          }}
+                        >
+                          {expandedCategories.functional ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {expandedCategories.functional && myKRAs.functionalKRAs?.length > 0 && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {(showAllKRAs.functional 
+                              ? myKRAs.functionalKRAs 
+                              : myKRAs.functionalKRAs.slice(0, 3)
+                            ).map((kra: any, idx: number) => {
+                              const actualIndex = showAllKRAs.functional ? idx : idx;
+                              return (
+                                <div 
+                                  key={actualIndex} 
+                                  onClick={() => {
+                                    setSelectedKRA({ kra, index: actualIndex, type: 'self' });
+                                    setShowKRADetailModal(true);
+                                  }}
+                              style={{ 
+                                padding: '1.5rem', 
+                                border: '2px solid #e0e0e0', 
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                backgroundColor: '#fff',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = '#2196F3';
+                                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = '#e0e0e0';
+                                e.currentTarget.style.boxShadow = 'none';
+                              }}
+                            >
+                              <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.kra}</h4>
+                              <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+                                {(() => {
+                                  let kpis: Array<{ kpi: string; target?: string }> = [];
+                                  if (Array.isArray(kra.kpis)) {
+                                    kpis = kra.kpis;
+                                  } else if (kra.kpis) {
+                                    kpis = [{ kpi: String(kra.kpis) }];
+                                  }
+                                  return kpis.length > 0 ? `${kpis.length} KPI${kpis.length > 1 ? 's' : ''}` : 'No KPIs';
+                                })()}
+                              </p>
+                              <p style={{ margin: '0.5rem 0 0 0', color: '#999', fontSize: '12px' }}>
+                                {(() => {
+                                  let proofs: any[] = [];
+                                  if (Array.isArray(kra.reportsGenerated)) {
+                                    proofs = kra.reportsGenerated;
+                                  } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+                                    proofs = [{ type: 'drive_link', value: kra.reportsGenerated }];
+                                  }
+                                  return proofs.length > 0 ? `${proofs.length} proof${proofs.length > 1 ? 's' : ''} submitted` : 'No proof submitted';
+                                })()}
+                              </p>
+                              <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                Click to view details →
+                                </div>
+                              </div>
+                            );
+                            })}
+                          </div>
+                          {myKRAs.functionalKRAs.length > 3 && (
+                            <button
+                              onClick={() => setShowAllKRAs({ ...showAllKRAs, functional: !showAllKRAs.functional })}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#f0f0f0',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#2196F3',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {showAllKRAs.functional ? `Show Less (${myKRAs.functionalKRAs.length - 3} hidden)` : `Show All (${myKRAs.functionalKRAs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!expandedCategories.functional && myKRAs.functionalKRAs?.length > 0 && (
+                        <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
+                      )}
+                      {myKRAs.functionalKRAs?.length === 0 && (
                         <p>No Functional KRAs assigned</p>
                       )}
                     </div>
                     <div className={styles.kraCategory}>
-                      <h3>Organizational KRAs ({myKRAs.organizationalKRAs?.length || 0})</h3>
-                      {myKRAs.organizationalKRAs?.length > 0 ? (
-                        <ul>
-                          {myKRAs.organizationalKRAs.map((kra: any, idx: number) => (
-                            <li key={idx}>{kra.coreValues}</li>
-                          ))}
-                        </ul>
-                      ) : (
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational })}
+                      >
+                        <h3 style={{ margin: 0 }}>Organizational KRAs ({myKRAs.organizationalKRAs?.length || 0})</h3>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            color: '#666',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational });
+                          }}
+                        >
+                          {expandedCategories.organizational ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {expandedCategories.organizational && myKRAs.organizationalKRAs?.length > 0 && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {(showAllKRAs.organizational 
+                              ? myKRAs.organizationalKRAs 
+                              : myKRAs.organizationalKRAs.slice(0, 3)
+                            ).map((kra: any, idx: number) => {
+                              const actualIndex = showAllKRAs.organizational ? idx : idx;
+                              return (
+                                <div 
+                                  key={actualIndex} 
+                                  onClick={() => {
+                                    setSelectedKRA({ kra, index: actualIndex, type: 'self' });
+                                    setShowKRADetailModal(true);
+                                  }}
+                                  style={{ 
+                                    padding: '1.5rem', 
+                                    border: '2px solid #e0e0e0', 
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: '#fff',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#2196F3';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#e0e0e0';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.coreValues}</h4>
+                                  <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                    Click to view details →
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {myKRAs.organizationalKRAs.length > 3 && (
+                            <button
+                              onClick={() => setShowAllKRAs({ ...showAllKRAs, organizational: !showAllKRAs.organizational })}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#f0f0f0',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#2196F3',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {showAllKRAs.organizational ? `Show Less (${myKRAs.organizationalKRAs.length - 3} hidden)` : `Show All (${myKRAs.organizationalKRAs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!expandedCategories.organizational && myKRAs.organizationalKRAs?.length > 0 && (
+                        <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
+                      )}
+                      {myKRAs.organizationalKRAs?.length === 0 && (
                         <p>No Organizational KRAs assigned</p>
                       )}
                     </div>
                     <div className={styles.kraCategory}>
-                      <h3>Self Development KRAs ({myKRAs.selfDevelopmentKRAs?.length || 0})</h3>
-                      {myKRAs.selfDevelopmentKRAs?.length > 0 ? (
-                        <ul>
-                          {myKRAs.selfDevelopmentKRAs.map((kra: any, idx: number) => (
-                            <li key={idx}>{kra.areaOfConcern}</li>
-                          ))}
-                        </ul>
-                      ) : (
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment })}
+                      >
+                        <h3 style={{ margin: 0 }}>Self Development KRAs ({myKRAs.selfDevelopmentKRAs?.length || 0})</h3>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            color: '#666',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment });
+                          }}
+                        >
+                          {expandedCategories.selfDevelopment ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {expandedCategories.selfDevelopment && myKRAs.selfDevelopmentKRAs?.length > 0 && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {(showAllKRAs.selfDevelopment 
+                              ? myKRAs.selfDevelopmentKRAs 
+                              : myKRAs.selfDevelopmentKRAs.slice(0, 3)
+                            ).map((kra: any, idx: number) => {
+                              const actualIndex = showAllKRAs.selfDevelopment ? idx : idx;
+                              return (
+                                <div 
+                                  key={actualIndex} 
+                                  onClick={() => {
+                                    setSelectedKRA({ kra, index: actualIndex, type: 'self' });
+                                    setShowKRADetailModal(true);
+                                  }}
+                                  style={{ 
+                                    padding: '1.5rem', 
+                                    border: '2px solid #e0e0e0', 
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: '#fff',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#2196F3';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#e0e0e0';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.areaOfConcern}</h4>
+                                  <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                    Click to view details →
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {myKRAs.selfDevelopmentKRAs.length > 3 && (
+                            <button
+                              onClick={() => setShowAllKRAs({ ...showAllKRAs, selfDevelopment: !showAllKRAs.selfDevelopment })}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#f0f0f0',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#2196F3',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {showAllKRAs.selfDevelopment ? `Show Less (${myKRAs.selfDevelopmentKRAs.length - 3} hidden)` : `Show All (${myKRAs.selfDevelopmentKRAs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!expandedCategories.selfDevelopment && myKRAs.selfDevelopmentKRAs?.length > 0 && (
+                        <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
+                      )}
+                      {myKRAs.selfDevelopmentKRAs?.length === 0 && (
                         <p>No Self Development KRAs assigned</p>
                       )}
                     </div>
@@ -747,17 +1229,19 @@ function BossDashboard() {
               ) : (
                 <div className={styles.managersGrid}>
                   {managers.map((manager) => (
-                    <div key={manager._id} className={styles.managerCard}>
-                      <h3>{manager.name}</h3>
-                      <p><strong>Email:</strong> {manager.email}</p>
-                      <p><strong>Mobile:</strong> {manager.mobile}</p>
-                      <p className={styles.createdDate}>
-                        Created: {new Date(manager.createdAt).toLocaleDateString()}
-                      </p>
+                    <TeamMemberCard
+                      key={manager._id}
+                      name={manager.name}
+                      email={manager.email}
+                      mobile={manager.mobile}
+                      createdAt={manager.createdAt}
+                      buttonText=""
+                    >
                       <div className={styles.managerActions}>
                         <button
                           className={styles.actionButton}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedManager(manager);
                             setShowKRAModal(true);
                             setKraType('functional');
@@ -767,7 +1251,8 @@ function BossDashboard() {
                         </button>
                         <button
                           className={styles.actionButton}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedManager(manager);
                             setShowKRAModal(true);
                             setKraType('organizational');
@@ -777,7 +1262,8 @@ function BossDashboard() {
                         </button>
                         <button
                           className={styles.actionButton}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedManager(manager);
                             setShowKRAModal(true);
                             setKraType('self-development');
@@ -787,7 +1273,8 @@ function BossDashboard() {
                         </button>
                         <button
                           className={styles.actionButton}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (showKRAsView === manager._id) {
                               setShowKRAsView(null);
                             } else {
@@ -803,11 +1290,96 @@ function BossDashboard() {
                         <div className={styles.krasView}>
                           <h4>Functional KRAs</h4>
                           {managerKRAs[manager._id].functionalKRAs?.length > 0 ? (
-                            <ul>
-                              {managerKRAs[manager._id].functionalKRAs.map((kra: any, idx: number) => (
-                                <li key={idx}>{kra.kra}</li>
-                              ))}
-                            </ul>
+                            managerKRAs[manager._id].functionalKRAs.map((kra: any, idx: number) => (
+                              <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+                                <h5 style={{ marginTop: 0, marginBottom: '0.5rem' }}>{kra.kra}</h5>
+                                
+                                {/* KPIs Section */}
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem' }}>KPIs (Key Performance Indicators)</label>
+                                  {(() => {
+                                    let kpis: Array<{ kpi: string; target?: string }> = [];
+                                    if (Array.isArray(kra.kpis)) {
+                                      kpis = kra.kpis.map((kpi: any) => {
+                                        if (typeof kpi === 'string') {
+                                          return { kpi };
+                                        }
+                                        return { kpi: kpi.kpi || '', target: kpi.target };
+                                      });
+                                    } else if (kra.kpis) {
+                                      kpis = [{ kpi: String(kra.kpis) }];
+                                    }
+
+                                    return kpis.length > 0 ? (
+                                      <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                                        {kpis.map((kpi, kpiIndex: number) => (
+                                          <li key={kpiIndex} style={{ marginBottom: '0.25rem' }}>
+                                            <strong>{kpi.kpi}</strong>
+                                            {kpi.target && <span style={{ color: '#666' }}> - Target: {kpi.target}</span>}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p style={{ color: '#999', margin: 0 }}>No KPIs defined</p>
+                                    );
+                                  })()}
+                                </div>
+
+                                {/* Reports/Proof Section */}
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem' }}>
+                                    Reports/Proof of Work <span style={{ color: '#999', fontWeight: 'normal' }}>(Optional)</span>
+                                  </label>
+                                  {(() => {
+                                    let proofs: any[] = [];
+                                    if (Array.isArray(kra.reportsGenerated)) {
+                                      proofs = kra.reportsGenerated;
+                                    } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+                                      proofs = [{
+                                        type: 'drive_link',
+                                        value: kra.reportsGenerated,
+                                        uploadedAt: new Date().toISOString(),
+                                      }];
+                                    }
+
+                                    return proofs.length > 0 ? (
+                                      <div style={{ marginBottom: '0.5rem' }}>
+                                        {proofs.map((proof: any, proofIndex: number) => (
+                                          <div key={proofIndex} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                            {proof.type === 'drive_link' ? (
+                                              <a href={proof.value} target="_blank" rel="noopener noreferrer" style={{ color: '#2196F3', textDecoration: 'none' }}>
+                                                📎 Drive Link
+                                              </a>
+                                            ) : (
+                                              <span style={{ color: '#666' }}>📄 {proof.fileName || 'Uploaded File'}</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p style={{ color: '#999', margin: '0 0 0.5rem 0' }}>No proof submitted</p>
+                                    );
+                                  })()}
+                                  <button
+                                    onClick={() => {
+                                      setShowProofDialog({ managerId: manager._id, kraIndex: idx, isOpen: true });
+                                    }}
+                                    style={{
+                                      padding: '0.5rem 1rem',
+                                      backgroundColor: '#2196F3',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '14px',
+                                    }}
+                                    type="button"
+                                  >
+                                    + Add Proof
+                                  </button>
+                                </div>
+                              </div>
+                            ))
                           ) : (
                             <p>No Functional KRAs</p>
                           )}
@@ -833,7 +1405,7 @@ function BossDashboard() {
                           )}
                         </div>
                       )}
-                    </div>
+                    </TeamMemberCard>
                   ))}
                 </div>
               )}
@@ -1016,59 +1588,330 @@ function BossDashboard() {
               </button>
             </div>
             <div className={styles.modalBody}>
-              <form onSubmit={handleAddManagerKRA}>
-                {kraType === 'functional' && (
-                  <>
+              {kraType === 'functional' ? (
+                <KRAForm
+                  onSubmit={handleAddManagerKRA}
+                  onCancel={() => setShowKRAModal(false)}
+                  mode="add"
+                />
+              ) : (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAddManagerKRA();
+                }}>
+                  {kraType === 'organizational' && (
                     <div className={baseStyles.formGroup}>
-                      <label>KRA *</label>
+                      <label>Core Values *</label>
                       <input
                         type="text"
                         className={baseStyles.input}
-                        value={newKRA.kra || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, kra: e.target.value })}
+                        value={newKRA.coreValues || ''}
+                        onChange={(e) => setNewKRA({ ...newKRA, coreValues: e.target.value })}
                         required
                       />
                     </div>
+                  )}
+                  {kraType === 'self-development' && (
                     <div className={baseStyles.formGroup}>
-                      <label>KPI Target</label>
+                      <label>Area of Concern *</label>
                       <input
                         type="text"
                         className={baseStyles.input}
-                        value={newKRA.kpiTarget || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, kpiTarget: e.target.value })}
+                        value={newKRA.areaOfConcern || ''}
+                        onChange={(e) => setNewKRA({ ...newKRA, areaOfConcern: e.target.value })}
+                        required
                       />
                     </div>
-                  </>
-                )}
-                {kraType === 'organizational' && (
-                  <div className={baseStyles.formGroup}>
-                    <label>Core Values *</label>
-                    <input
-                      type="text"
-                      className={baseStyles.input}
-                      value={newKRA.coreValues || ''}
-                      onChange={(e) => setNewKRA({ ...newKRA, coreValues: e.target.value })}
-                      required
-                    />
+                  )}
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button type="submit" className={baseStyles.submitButton}>
+                      Add KRA
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowKRAModal(false)}
+                      className={baseStyles.cancelButton}
+                      style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd' }}
+                    >
+                      Cancel
+                    </button>
                   </div>
-                )}
-                {kraType === 'self-development' && (
-                  <div className={baseStyles.formGroup}>
-                    <label>Area of Concern *</label>
-                    <input
-                      type="text"
-                      className={baseStyles.input}
-                      value={newKRA.areaOfConcern || ''}
-                      onChange={(e) => setNewKRA({ ...newKRA, areaOfConcern: e.target.value })}
-                      required
-                    />
-                  </div>
-                )}
-                <button type="submit" className={baseStyles.submitButton}>
-                  Add KRA
-                </button>
-              </form>
+                </form>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* KRA Detail Modal */}
+      {showKRADetailModal && selectedKRA && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setShowKRADetailModal(false);
+            setSelectedKRA(null);
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              maxWidth: '700px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>KRA Details</h2>
+              <button
+                onClick={() => {
+                  setShowKRADetailModal(false);
+                  setSelectedKRA(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#333' }}>{selectedKRA.kra.kra}</h3>
+              
+              {/* KPIs Section */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem', fontSize: '16px' }}>KPIs (Key Performance Indicators)</label>
+                {(() => {
+                  let kpis: Array<{ kpi: string; target?: string }> = [];
+                  if (Array.isArray(selectedKRA.kra.kpis)) {
+                    kpis = selectedKRA.kra.kpis.map((kpi: any) => {
+                      if (typeof kpi === 'string') {
+                        return { kpi };
+                      }
+                      return { kpi: kpi.kpi || '', target: kpi.target };
+                    });
+                  } else if (selectedKRA.kra.kpis) {
+                    kpis = [{ kpi: String(selectedKRA.kra.kpis) }];
+                  }
+
+                  return kpis.length > 0 ? (
+                    <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                      {kpis.map((kpi, kpiIndex: number) => (
+                        <li key={kpiIndex} style={{ marginBottom: '0.5rem', padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                          <strong>{kpi.kpi}</strong>
+                          {kpi.target && <span style={{ color: '#666', display: 'block', marginTop: '0.25rem' }}>Target: {kpi.target}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p style={{ color: '#999', margin: 0 }}>No KPIs defined</p>
+                  );
+                })()}
+              </div>
+
+              {/* Reports/Proof Section */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem', fontSize: '16px' }}>
+                  Reports/Proof of Work <span style={{ color: '#999', fontWeight: 'normal' }}>(Optional)</span>
+                </label>
+                {(() => {
+                  let proofs: any[] = [];
+                  if (Array.isArray(selectedKRA.kra.reportsGenerated)) {
+                    proofs = selectedKRA.kra.reportsGenerated;
+                  } else if (typeof selectedKRA.kra.reportsGenerated === 'string' && selectedKRA.kra.reportsGenerated.trim()) {
+                    proofs = [{
+                      type: 'drive_link',
+                      value: selectedKRA.kra.reportsGenerated,
+                      uploadedAt: new Date().toISOString(),
+                    }];
+                  }
+
+                  return proofs.length > 0 ? (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      {proofs.map((proof: any, proofIndex: number) => (
+                        <div key={proofIndex} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          gap: '0.5rem', 
+                          marginBottom: '0.5rem',
+                          padding: '0.75rem',
+                          backgroundColor: '#f5f5f5',
+                          borderRadius: '4px',
+                        }}>
+                          {proof.type === 'drive_link' ? (
+                            <a href={proof.value} target="_blank" rel="noopener noreferrer" style={{ color: '#2196F3', textDecoration: 'none', fontWeight: '500' }}>
+                              📎 Drive Link
+                            </a>
+                          ) : (
+                            <span style={{ color: '#666', fontWeight: '500' }}>📄 {proof.fileName || 'Uploaded File'}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ color: '#999', margin: '0 0 0.5rem 0' }}>No proof submitted</p>
+                  );
+                })()}
+                <button
+                  onClick={() => {
+                    setShowProofDialog({ managerId: selectedKRA.type, kraIndex: selectedKRA.index, isOpen: true });
+                  }}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#2196F3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                  }}
+                  type="button"
+                >
+                  + Add Proof
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proof Dialog */}
+      {showProofDialog.isOpen && showProofDialog.kraIndex !== -1 && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false })}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              maxWidth: '500px',
+              width: '90%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>Add Proof of Work</h3>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+              <button
+                type="button"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: proofInput.type === 'drive_link' ? '#2196F3' : '#e0e0e0',
+                  color: proofInput.type === 'drive_link' ? 'white' : '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setProofInput({ ...proofInput, type: 'drive_link' })}
+              >
+                Drive Link
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: proofInput.type === 'file_upload' ? '#2196F3' : '#e0e0e0',
+                  color: proofInput.type === 'file_upload' ? 'white' : '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setProofInput({ ...proofInput, type: 'file_upload' })}
+              >
+                File Upload
+              </button>
+            </div>
+            {proofInput.type === 'drive_link' ? (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Google Drive Link</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={proofInput.value}
+                  onChange={(e) => setProofInput({ ...proofInput, value: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    marginBottom: '0.5rem',
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginBottom: '1rem' }}>Enter a Google Drive or Google Docs link</p>
+                <button
+                  type="button"
+                  onClick={() => handleAddDriveLink(showProofDialog.managerId, showProofDialog.kraIndex)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Add Link
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Upload File (JPG, PNG, or PDF - Max 10MB)</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => handleFileUpload(e, showProofDialog.managerId, showProofDialog.kraIndex)}
+                  style={{ marginBottom: '1rem' }}
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false })}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#f0f0f0',
+                color: '#333',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginTop: '1rem',
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

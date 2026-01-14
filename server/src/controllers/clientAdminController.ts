@@ -13,10 +13,22 @@ const createBossSchema = z.object({
   mobile: z.string().regex(/^[0-9]{10}$/),
 });
 
+const proofSchema = z.object({
+  type: z.enum(['drive_link', 'file_upload']),
+  value: z.string().min(1),
+  fileName: z.string().optional(),
+  uploadedAt: z.preprocess((val) => {
+    if (val === undefined || val === null) return undefined;
+    if (val instanceof Date) return val;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }, z.date().optional()),
+});
+
 const functionalKRASchema = z.object({
   kra: z.string().min(1),
   kpiTarget: z.string().optional(),
-  reportsGenerated: z.string().optional(),
+  reportsGenerated: z.array(proofSchema).optional(),
   pilotWeight: z.number().optional(),
   pilotActualPerf: z.string().optional(),
   r1Weight: z.number().optional(),
@@ -364,7 +376,7 @@ export async function addBossFunctionalKRA(
     }
 
     const validatedKRA = functionalKRASchema.parse(req.body);
-    const validation = validateFunctionalKRA(validatedKRA);
+    const validation = validateFunctionalKRA(validatedKRA as Partial<IFunctionalKRA>);
 
     if (!validation.valid) {
       res.status(400).json({
@@ -688,6 +700,269 @@ export async function getBossKRAs(
         organizationalKRAs: memberDetails?.organizationalKRAs || [],
         selfDevelopmentKRAs: memberDetails?.selfDevelopmentKRAs || [],
         developingOthersKRAs: memberDetails?.developingOthersKRAs || [],
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get CSA analytics (organization-wide performance metrics)
+ */
+export async function getCSAAnalytics(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+
+    if (!clientAdminId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can access analytics',
+      });
+      return;
+    }
+
+    if (!clientAdmin.organizationId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Client admin must be associated with an organization',
+      });
+      return;
+    }
+
+    // Get all users in organization
+    const bosses = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'boss',
+    });
+    const managers = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'manager',
+    });
+    const employees = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'employee',
+    });
+
+    // Get all teams in organization
+    const allUserIds = [...bosses, ...managers, ...employees].map(u => u._id);
+    const teams = await Team.find({
+      createdBy: { $in: allUserIds },
+    });
+
+    // Get dimension weights from first team (assuming all teams have same weights)
+    const team = teams[0] || await Team.findOne({ createdBy: { $in: allUserIds } });
+    const dimensionWeights = team?.dimensionWeights || {
+      functional: 60,
+      organizational: 20,
+      selfDevelopment: 10,
+      developingOthers: 10,
+    };
+
+    // Calculate performance for all users
+    const userPerformances: Array<{
+      userId: string;
+      name: string;
+      email: string;
+      role: string;
+      functionalScore: number;
+      organizationalScore: number;
+      selfDevelopmentScore: number;
+      developingOthersScore: number;
+      fourDIndex: number;
+    }> = [];
+
+    // Aggregate KRAs from all teams
+    let allFunctionalKRAs: any[] = [];
+    let allOrganizationalKRAs: any[] = [];
+    let allSelfDevelopmentKRAs: any[] = [];
+    let allDevelopingOthersKRAs: any[] = [];
+
+    for (const user of [...bosses, ...managers, ...employees]) {
+      const userTeam = teams.find(t => t.createdBy?.toString() === user._id.toString());
+      if (!userTeam) continue;
+
+      const memberDetails = userTeam.membersDetails.find(
+        (m: any) => m.mobile === user.mobile
+      );
+      if (!memberDetails) continue;
+
+      // Collect KRAs
+      allFunctionalKRAs.push(...(memberDetails.functionalKRAs || []));
+      allOrganizationalKRAs.push(...(memberDetails.organizationalKRAs || []));
+      allSelfDevelopmentKRAs.push(...(memberDetails.selfDevelopmentKRAs || []));
+      allDevelopingOthersKRAs.push(...(memberDetails.developingOthersKRAs || []));
+
+      // Calculate dimension scores
+      let functionalScore = 0;
+      const functionalKRAs = memberDetails.functionalKRAs || [];
+      if (functionalKRAs.length > 0) {
+        const avgScores = functionalKRAs
+          .map((kra: any) => kra.averageScore || 0)
+          .filter((s: number) => s > 0);
+        functionalScore = avgScores.length > 0
+          ? avgScores.reduce((a: number, b: number) => a + b, 0) / avgScores.length
+          : 0;
+      }
+
+      let organizationalScore = 0;
+      const organizationalKRAs = memberDetails.organizationalKRAs || [];
+      if (organizationalKRAs.length > 0) {
+        const avgScores = organizationalKRAs
+          .map((kra: any) => kra.averageScore || 0)
+          .filter((s: number) => s > 0);
+        organizationalScore = avgScores.length > 0
+          ? avgScores.reduce((a: number, b: number) => a + b, 0) / avgScores.length
+          : 0;
+      }
+
+      let selfDevelopmentScore = 0;
+      const selfDevelopmentKRAs = memberDetails.selfDevelopmentKRAs || [];
+      if (selfDevelopmentKRAs.length > 0) {
+        const avgScores = selfDevelopmentKRAs
+          .map((kra: any) => kra.averageScore || 0)
+          .filter((s: number) => s > 0);
+        selfDevelopmentScore = avgScores.length > 0
+          ? avgScores.reduce((a: number, b: number) => a + b, 0) / avgScores.length
+          : 0;
+      }
+
+      let developingOthersScore = 0;
+      const developingOthersKRAs = memberDetails.developingOthersKRAs || [];
+      if (developingOthersKRAs.length > 0) {
+        const avgScores = developingOthersKRAs
+          .map((kra: any) => kra.averageScore || 0)
+          .filter((s: number) => s > 0);
+        developingOthersScore = avgScores.length > 0
+          ? avgScores.reduce((a: number, b: number) => a + b, 0) / avgScores.length
+          : 0;
+      }
+
+      // Calculate 4D Index (weighted average)
+      const fourDIndex = (
+        (functionalScore * dimensionWeights.functional) +
+        (organizationalScore * dimensionWeights.organizational) +
+        (selfDevelopmentScore * dimensionWeights.selfDevelopment) +
+        (developingOthersScore * dimensionWeights.developingOthers)
+      ) / 100;
+
+      userPerformances.push({
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        functionalScore: Math.round(functionalScore * 20), // Convert to percentage
+        organizationalScore: Math.round(organizationalScore * 20),
+        selfDevelopmentScore: Math.round(selfDevelopmentScore * 20),
+        developingOthersScore: Math.round(developingOthersScore * 20),
+        fourDIndex: Math.round(fourDIndex * 20),
+      });
+    }
+
+    // Sort by 4D Index for leaderboard
+    const sortedPerformances = [...userPerformances].sort((a, b) => b.fourDIndex - a.fourDIndex);
+    const topPerformers = sortedPerformances.slice(0, 6);
+
+    // Calculate organization averages
+    const orgFunctional = userPerformances.length > 0
+      ? Math.round(userPerformances.reduce((sum, u) => sum + u.functionalScore, 0) / userPerformances.length)
+      : 0;
+    const orgOrganizational = userPerformances.length > 0
+      ? Math.round(userPerformances.reduce((sum, u) => sum + u.organizationalScore, 0) / userPerformances.length)
+      : 0;
+    const orgSelfDevelopment = userPerformances.length > 0
+      ? Math.round(userPerformances.reduce((sum, u) => sum + u.selfDevelopmentScore, 0) / userPerformances.length)
+      : 0;
+    const orgDevelopingOthers = userPerformances.length > 0
+      ? Math.round(userPerformances.reduce((sum, u) => sum + u.developingOthersScore, 0) / userPerformances.length)
+      : 0;
+    const orgFourDIndex = userPerformances.length > 0
+      ? Math.round(userPerformances.reduce((sum, u) => sum + u.fourDIndex, 0) / userPerformances.length)
+      : 0;
+
+    // Generate trend data (last 5 periods - simulated)
+    const trendData = Array.from({ length: 5 }, (_, i) => ({
+      period: i,
+      functional: Math.max(0, orgFunctional + (Math.random() * 10 - 5)),
+      organizational: Math.max(0, orgOrganizational + (Math.random() * 10 - 5)),
+      selfDevelopment: Math.max(0, orgSelfDevelopment + (Math.random() * 10 - 5)),
+      developingOthers: Math.max(0, orgDevelopingOthers + (Math.random() * 10 - 5)),
+    }));
+
+    // Get unique departments (using boss names as departments for now)
+    const departments = new Set(bosses.map(b => b.name));
+    const departmentCount = departments.size || 1;
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        fourDIndex: {
+          overall: orgFourDIndex,
+          change: 3, // Simulated change percentage
+          dimensions: {
+            functional: orgFunctional,
+            organizational: orgOrganizational,
+            selfDevelopment: orgSelfDevelopment,
+            developingOthers: orgDevelopingOthers,
+          },
+        },
+        summary: {
+          managers: managers.length,
+          employees: employees.length,
+          departments: departmentCount,
+        },
+        topPerformers: topPerformers.map((p, idx) => ({
+          rank: idx + 1,
+          name: p.name,
+          email: p.email,
+          fourDIndex: p.fourDIndex,
+          role: p.role,
+        })),
+        dimensions: {
+          functional: {
+            score: orgFunctional,
+            items: allFunctionalKRAs.length > 0 ? allFunctionalKRAs.slice(0, 5).map((kra: any) => ({
+              title: kra.kra || 'Key title goes here',
+              score: Math.round((kra.averageScore || 0) * 20),
+            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+          },
+          organizational: {
+            score: orgOrganizational,
+            items: allOrganizationalKRAs.length > 0 ? allOrganizationalKRAs.slice(0, 5).map((kra: any) => ({
+              title: kra.coreValues || 'Key title goes here',
+              score: Math.round((kra.averageScore || 0) * 20),
+            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+          },
+          selfDevelopment: {
+            score: orgSelfDevelopment,
+            items: allSelfDevelopmentKRAs.length > 0 ? allSelfDevelopmentKRAs.slice(0, 5).map((kra: any) => ({
+              title: kra.areaOfConcern || 'Key title goes here',
+              score: Math.round((kra.averageScore || 0) * 20),
+            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+          },
+          developingOthers: {
+            score: orgDevelopingOthers,
+            items: allDevelopingOthersKRAs.length > 0 ? allDevelopingOthersKRAs.slice(0, 5).map((kra: any) => ({
+              title: kra.title || 'Key title goes here',
+              score: Math.round((kra.averageScore || 0) * 20),
+            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+          },
+        },
+        trends: trendData,
       },
     });
   } catch (error) {

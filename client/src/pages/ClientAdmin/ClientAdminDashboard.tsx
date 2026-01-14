@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ClientAdminDashboard.module.css';
 import logo from '@/assets/logo.png';
+import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
+import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
+import { PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,   } from 'recharts';
+import { DIMENSION_COLORS } from '@/utils/dimensionColors';
 
 interface Boss {
   _id: string;
@@ -29,6 +33,13 @@ interface OrganizationUsers {
   bosses: Boss[];
   managers: any[];
   employees: any[];
+}
+
+interface Proof {
+  type: 'drive_link' | 'file_upload';
+  value: string;
+  fileName?: string;
+  uploadedAt: string;
 }
 
 function ClientAdminDashboard() {
@@ -61,6 +72,26 @@ function ClientAdminDashboard() {
   const [newKRA, setNewKRA] = useState<any>({});
   const [bossKRAs, setBossKRAs] = useState<{ [bossId: string]: any }>({});
   const [showKRAsView, setShowKRAsView] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [showProofDialog, setShowProofDialog] = useState<{ bossId: string; kraIndex: number; isOpen: boolean }>({
+    bossId: '',
+    kraIndex: -1,
+    isOpen: false,
+  });
+  const [proofInput, setProofInput] = useState<{ type: 'drive_link' | 'file_upload'; value: string }>({
+    type: 'drive_link',
+    value: '',
+  });
+  const [sortPeriod, setSortPeriod] = useState('Last week');
+  const [dimensionWeights, setDimensionWeights] = useState({
+    functional: 0,
+    organizational: 0,
+    selfDevelopment: 0,
+    developingOthers: 0,
+  });
+  const [weightsErrors, setWeightsErrors] = useState<string>('');
+  const [isSavingWeights, setIsSavingWeights] = useState(false);
+  const [weightsSuccessMessage, setWeightsSuccessMessage] = useState('');
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -73,7 +104,35 @@ function ClientAdminDashboard() {
     fetchBosses();
     fetchOrganization();
     fetchOrganizationUsers();
+    fetchAnalytics();
+    fetchDimensionWeights();
   }, [navigate]);
+
+  const fetchAnalytics = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/client-admin/analytics?userId=${userId}`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        setAnalytics(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+    }
+  };
+
+  const fetchDimensionWeights = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/organizations/dimension-weights?userId=${userId}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.data) {
+        setDimensionWeights(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dimension weights:', error);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -189,17 +248,29 @@ function ClientAdminDashboard() {
     }
   };
 
-  const handleAddKRA = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleAddKRA = async (formData?: FunctionalKRAFormData) => {
     if (!selectedBoss) return;
 
     try {
       const userId = localStorage.getItem('userId');
       const endpoint = `/api/client-admin/bosses/${selectedBoss._id}/kras/${kraType}`;
+      
+      // For functional KRAs, use the unified form data
+      // For other types, use the old structure (will be updated later)
+      const requestData = kraType === 'functional' && formData
+        ? {
+            kra: formData.kra,
+            kpis: formData.kpis,
+            reportsGenerated: formData.reportsGenerated || [],
+            pilotWeight: formData.pilotWeight || 10,
+            pilotScore: formData.pilotScore || 0,
+          }
+        : newKRA;
+
       const res = await fetch(`${endpoint}?userId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newKRA),
+        body: JSON.stringify(requestData),
       });
 
       const data = await res.json();
@@ -305,6 +376,176 @@ function ClientAdminDashboard() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleWeightChange = (dimension: keyof typeof dimensionWeights, value: number) => {
+    const numValue = Math.round(Math.max(0, Math.min(100, value)));
+    setDimensionWeights((prev) => ({ ...prev, [dimension]: numValue }));
+    setWeightsErrors('');
+    setWeightsSuccessMessage('');
+  };
+
+  const handleSaveWeights = async (e: FormEvent) => {
+    e.preventDefault();
+    setWeightsErrors('');
+    setWeightsSuccessMessage('');
+
+    // Calculate total
+    const total = dimensionWeights.functional + dimensionWeights.organizational + 
+                  dimensionWeights.selfDevelopment + dimensionWeights.developingOthers;
+
+    // Validate sum is 100%
+    if (total !== 100) {
+      setWeightsErrors(`Weights must sum to 100%. Current sum: ${total}%`);
+      return;
+    }
+
+    // Validate first 3 dimensions are mandatory (> 0)
+    if (dimensionWeights.functional <= 0 || dimensionWeights.organizational <= 0 || 
+        dimensionWeights.selfDevelopment <= 0) {
+      setWeightsErrors('Functional, Organizational, and Self Development dimensions must have weights greater than 0%');
+      return;
+    }
+
+    setIsSavingWeights(true);
+    const userId = localStorage.getItem('userId') || '';
+
+    try {
+      const response = await fetch(`/api/organizations/dimension-weights?userId=${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dimensionWeights),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setWeightsSuccessMessage('Dimension weights saved successfully! These weights will apply to all users in your organization.');
+        setTimeout(() => setWeightsSuccessMessage(''), 5000);
+      } else {
+        setWeightsErrors(data.message || 'Failed to save dimension weights');
+      }
+    } catch (error) {
+      setWeightsErrors('Network error. Please try again.');
+    } finally {
+      setIsSavingWeights(false);
+    }
+  };
+
+  const calculateTotal = () => {
+    return dimensionWeights.functional + dimensionWeights.organizational + 
+           dimensionWeights.selfDevelopment + dimensionWeights.developingOthers;
+  };
+
+  const handleAddProof = async (bossId: string, kraIndex: number, proof: Proof) => {
+    if (!bossKRAs[bossId] || !bossKRAs[bossId].functionalKRAs) return;
+
+    const kra = bossKRAs[bossId].functionalKRAs[kraIndex];
+    if (!kra) return;
+
+    // Convert reportsGenerated to array if it's a string (backward compatibility)
+    let currentProofs: Proof[] = [];
+    if (Array.isArray(kra.reportsGenerated)) {
+      currentProofs = kra.reportsGenerated;
+    } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+      currentProofs = [{
+        type: 'drive_link',
+        value: kra.reportsGenerated,
+        uploadedAt: new Date().toISOString(),
+      }];
+    }
+
+    const updatedProofs = [...currentProofs, proof];
+    
+    // Update the KRA with new proofs
+    try {
+      const userId = localStorage.getItem('userId');
+      // Find boss to get their team and member index
+      const boss = bosses.find(b => b._id === bossId);
+      if (!boss) return;
+
+      // Fetch team to find member index
+      const teamRes = await fetch(`/api/team/members?userId=${userId}`);
+      const teamData = await teamRes.json();
+      if (teamData.status === 'success' && teamData.data) {
+        const memberIndex = teamData.data.findIndex((m: any) => m.mobile === boss.mobile);
+        if (memberIndex !== -1) {
+          const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reportsGenerated: updatedProofs }),
+          });
+
+          const updateData = await updateRes.json();
+          if (updateRes.ok) {
+            // Refresh boss KRAs
+            fetchBossKRAs(bossId);
+            setShowProofDialog({ bossId: '', kraIndex: -1, isOpen: false });
+            setProofInput({ type: 'drive_link', value: '' });
+            alert('Proof added successfully!');
+          } else {
+            alert(updateData.message || 'Failed to add proof');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding proof:', error);
+      alert('Failed to add proof');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, bossId: string, kraIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.match(/^image\/(jpeg|jpg|png)$/i) && file.type !== 'application/pdf') {
+      alert('Only JPG, PNG, or PDF files are allowed');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        const newProof: Proof = {
+          type: 'file_upload',
+          value: base64String,
+          fileName: file.name,
+          uploadedAt: new Date().toISOString(),
+        };
+        handleAddProof(bossId, kraIndex, newProof);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file');
+    }
+  };
+
+  const handleAddDriveLink = (bossId: string, kraIndex: number) => {
+    if (!proofInput.value.trim()) {
+      alert('Please enter a drive link');
+      return;
+    }
+
+    if (!proofInput.value.includes('drive.google.com') && !proofInput.value.includes('docs.google.com')) {
+      alert('Please enter a valid Google Drive link');
+      return;
+    }
+
+    const newProof: Proof = {
+      type: 'drive_link',
+      value: proofInput.value.trim(),
+      uploadedAt: new Date().toISOString(),
+    };
+    handleAddProof(bossId, kraIndex, newProof);
   };
 
   if (isLoading) {
@@ -472,16 +713,308 @@ function ClientAdminDashboard() {
         <div className={baseStyles.content}>
           {activeTab === 'dashboard' && (
             <div className={styles.tabContent}>
-              <div className={styles.pageHeader}>
-                <h1>Client Admin Dashboard</h1>
-                <button
-                  className={styles.createButton}
-                  onClick={() => setShowCreateBossForm(!showCreateBossForm)}
-                >
-                  {showCreateBossForm ? 'Cancel' : '+ Create Boss'}
-                </button>
+              {/* Header with Sort and Actions */}
+              <div className={styles.dashboardHeader}>
+                <div className={styles.headerLeft}>
+                  <h1 className={styles.dashboardTitle}>
+                    {organization?.name || 'Organization'} Performance Dashboard
+                  </h1>
+                  <p className={styles.welcomeText}>Welcome back, {user?.name || 'Admin'}</p>
+                </div>
+                <div className={styles.headerRight}>
+                  <div className={styles.sortContainer}>
+                    <label>Sort:</label>
+                    <select 
+                      value={sortPeriod} 
+                      onChange={(e) => setSortPeriod(e.target.value)}
+                      className={styles.sortSelect}
+                    >
+                      <option>Last week</option>
+                      <option>Last month</option>
+                      <option>Last quarter</option>
+                      <option>Last year</option>
+                    </select>
+                  </div>
+                  <button className={styles.actionButton}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Tier
+                  </button>
+                  <button className={styles.actionButton} onClick={() => setShowCreateBossForm(!showCreateBossForm)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    Add People
+                  </button>
+                </div>
               </div>
 
+              {/* Top Section: 4D Index and Area Chart */}
+              <div className={styles.topSection}>
+                {/* 4D Index Card */}
+                {analytics && (
+                  <div className={styles.fourDIndexCard}>
+                    <div className={styles.cardHeader}>
+                      <h2>{organization?.name || 'Organization'} 4D Index</h2>
+                      <button className={styles.cardMenuButton}>⋯</button>
+                    </div>
+                    <div className={styles.fourDIndexContent}>
+                      <div className={styles.dimensionLegend}>
+                        <h3>4 Dimensions</h3>
+                        <div className={styles.legendItem}>
+                          <span className={styles.legendDot} style={{ backgroundColor: '#4CAF50' }}></span>
+                          <span>Functional</span>
+                        </div>
+                        <div className={styles.legendItem}>
+                          <span className={styles.legendDot} style={{ backgroundColor: '#2196F3' }}></span>
+                          <span>Organizational</span>
+                        </div>
+                        <div className={styles.legendItem}>
+                          <span className={styles.legendDot} style={{ backgroundColor: '#FF9800' }}></span>
+                          <span>Self Development</span>
+                        </div>
+                        <div className={styles.legendItem}>
+                          <span className={styles.legendDot} style={{ backgroundColor: '#F44336' }}></span>
+                          <span>Developing Others</span>
+                        </div>
+                      </div>
+                      <div className={styles.donutChartContainer}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={[
+                                { name: 'Functional', value: analytics.fourDIndex.dimensions.functional, color: '#4CAF50' },
+                                { name: 'Organizational', value: analytics.fourDIndex.dimensions.organizational, color: '#2196F3' },
+                                { name: 'Self Development', value: analytics.fourDIndex.dimensions.selfDevelopment, color: '#FF9800' },
+                                { name: 'Developing Others', value: analytics.fourDIndex.dimensions.developingOthers, color: '#F44336' },
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={70}
+                              dataKey="value"
+                              startAngle={90}
+                              endAngle={-270}
+                            >
+                              {[
+                                { name: 'Functional', value: analytics.fourDIndex.dimensions.functional, color: '#4CAF50' },
+                                { name: 'Organizational', value: analytics.fourDIndex.dimensions.organizational, color: '#2196F3' },
+                                { name: 'Self Development', value: analytics.fourDIndex.dimensions.selfDevelopment, color: '#FF9800' },
+                                { name: 'Developing Others', value: analytics.fourDIndex.dimensions.developingOthers, color: '#F44336' },
+                              ].map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className={styles.donutCenter}>
+                          <div className={styles.indexValue}>{analytics.fourDIndex.overall}%</div>
+                          <div className={styles.indexChange}>+{analytics.fourDIndex.change}%</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Area Chart Card */}
+                {analytics && (
+                  <div className={styles.areaChartCard}>
+                    <h2>Performance Trends</h2>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <AreaChart data={analytics.trends}>
+                        <defs>
+                          <linearGradient id="colorFunctional" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#4CAF50" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#4CAF50" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorOrganizational" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2196F3" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#2196F3" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorSelfDev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#FF9800" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#FF9800" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorDeveloping" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#F44336" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#F44336" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <Tooltip />
+                        <Area type="monotone" dataKey="functional" stackId="1" stroke="#4CAF50" fill="url(#colorFunctional)" />
+                        <Area type="monotone" dataKey="organizational" stackId="1" stroke="#2196F3" fill="url(#colorOrganizational)" />
+                        <Area type="monotone" dataKey="selfDevelopment" stackId="1" stroke="#FF9800" fill="url(#colorSelfDev)" />
+                        <Area type="monotone" dataKey="developingOthers" stackId="1" stroke="#F44336" fill="url(#colorDeveloping)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Summary Cards Row */}
+              {analytics && (
+                <div className={styles.summaryCardsRow}>
+                  <div className={styles.summaryCard}>
+                    <h3>Managers</h3>
+                    <div className={styles.summaryValue}>{analytics.summary.managers}</div>
+                    <div className={styles.summaryIcon}>+</div>
+                  </div>
+                  <div className={styles.summaryCard}>
+                    <h3>Employees</h3>
+                    <div className={styles.summaryValue}>{analytics.summary.employees}</div>
+                    <div className={styles.summaryIcon}>+</div>
+                  </div>
+                  <div className={styles.summaryCard}>
+                    <h3>Departments</h3>
+                    <div className={styles.summaryValue}>{analytics.summary.departments}</div>
+                    <div className={styles.summaryIcon}>+</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Top Performers Section */}
+              {analytics && analytics.topPerformers.length > 0 && (
+                <div className={styles.topPerformersCard}>
+                  <h2>Top Performers</h2>
+                  <div className={styles.performersGrid}>
+                    <div className={styles.performersColumn}>
+                      <h3>Top Performers</h3>
+                      {analytics.topPerformers.slice(0, 3).map((performer: any) => (
+                        <div key={performer.rank} className={styles.performerItem}>
+                          <div className={styles.performerAvatar}>
+                            {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                          <div className={styles.performerInfo}>
+                            <div className={styles.performerName}>{performer.name}</div>
+                            <div className={styles.performerRank}>Rank {performer.rank}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.performersColumn}>
+                      <h3>Top Performers</h3>
+                      {analytics.topPerformers.slice(3, 6).map((performer: any) => (
+                        <div key={performer.rank} className={styles.performerItem}>
+                          <div className={styles.performerAvatar}>
+                            {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                          <div className={styles.performerInfo}>
+                            <div className={styles.performerName}>{performer.name}</div>
+                            <div className={styles.performerRank}>Rank {performer.rank}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Dimension Cards */}
+              {analytics && (
+                <div className={styles.dimensionsGrid}>
+                  {/* Functional */}
+                  <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #4CAF50' }}>
+                    <div className={styles.dimensionHeader}>
+                      <h3>Functional</h3>
+                      <div className={styles.dimensionScore}>{analytics.dimensions.functional.score}%</div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={analytics.dimensions.functional.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                        <Bar dataKey="value" fill="#4CAF50" />
+                        <XAxis dataKey="name" />
+                        <YAxis domain={[0, 100]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className={styles.dimensionItems}>
+                      {analytics.dimensions.functional.items.map((item: any, idx: number) => (
+                        <div key={idx} className={styles.dimensionItem}>
+                          <span>{item.title}</span>
+                          <span>{item.score}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Organizational */}
+                  <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #2196F3' }}>
+                    <div className={styles.dimensionHeader}>
+                      <h3>Organizational</h3>
+                      <div className={styles.dimensionScore}>{analytics.dimensions.organizational.score}%</div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={analytics.dimensions.organizational.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                        <Bar dataKey="value" fill="#2196F3" />
+                        <XAxis dataKey="name" />
+                        <YAxis domain={[0, 100]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className={styles.dimensionItems}>
+                      {analytics.dimensions.organizational.items.map((item: any, idx: number) => (
+                        <div key={idx} className={styles.dimensionItem}>
+                          <span>{item.title}</span>
+                          <span>{item.score}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Self Development */}
+                  <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #FF9800' }}>
+                    <div className={styles.dimensionHeader}>
+                      <h3>Self Development</h3>
+                      <div className={styles.dimensionScore}>{analytics.dimensions.selfDevelopment.score}%</div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                        <Bar dataKey="value" fill="#FF9800" />
+                        <XAxis dataKey="name" />
+                        <YAxis domain={[0, 100]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className={styles.dimensionItems}>
+                      {analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => (
+                        <div key={idx} className={styles.dimensionItem}>
+                          <span>{item.title}</span>
+                          <span>{item.score}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Developing Others */}
+                  <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #F44336' }}>
+                    <div className={styles.dimensionHeader}>
+                      <h3>Developing Others</h3>
+                      <div className={styles.dimensionScore}>{analytics.dimensions.developingOthers.score}%</div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={analytics.dimensions.developingOthers.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                        <Bar dataKey="value" fill="#F44336" />
+                        <XAxis dataKey="name" />
+                        <YAxis domain={[0, 100]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className={styles.dimensionItems}>
+                      {analytics.dimensions.developingOthers.items.map((item: any, idx: number) => (
+                        <div key={idx} className={styles.dimensionItem}>
+                          <span>{item.title}</span>
+                          <span>{item.score}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Create Boss Form (shown when button clicked) */}
               {showCreateBossForm && (
                 <div className={styles.createForm}>
                   <h2>Create New Boss</h2>
@@ -519,30 +1052,6 @@ function ClientAdminDashboard() {
                   </form>
                 </div>
               )}
-
-              {organization && (
-                <div className={styles.orgCard}>
-                  <h2>Organization</h2>
-                  <p><strong>Name:</strong> {organization.name}</p>
-                  <p><strong>Industry:</strong> {organization.industry}</p>
-                  <p><strong>Size:</strong> {organization.size} employees</p>
-                </div>
-              )}
-
-              <div className={styles.statsGrid}>
-                <div className={styles.statCard}>
-                  <h3>Bosses</h3>
-                  <div className={styles.statValue}>{bosses.length}</div>
-                </div>
-                <div className={styles.statCard}>
-                  <h3>Managers</h3>
-                  <div className={styles.statValue}>{organizationUsers?.managers.length || 0}</div>
-                </div>
-                <div className={styles.statCard}>
-                  <h3>Employees</h3>
-                  <div className={styles.statValue}>{organizationUsers?.employees.length || 0}</div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -601,14 +1110,19 @@ function ClientAdminDashboard() {
               ) : (
                 <div className={styles.bossesGrid}>
                   {bosses.map((boss) => (
-                    <div key={boss._id} className={styles.bossCard}>
-                      <h3>{boss.name}</h3>
-                      <p><strong>Email:</strong> {boss.email}</p>
-                      <p><strong>Mobile:</strong> {boss.mobile}</p>
+                    <TeamMemberCard
+                      key={boss._id}
+                      name={boss.name}
+                      email={boss.email}
+                      mobile={boss.mobile}
+                      createdAt={boss.createdAt}
+                      buttonText=""
+                    >
                       <div className={styles.bossActions}>
                         <button
-                          className={styles.actionButton}
-                          onClick={() => {
+                          className={styles.bossActionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedBoss(boss);
                             setShowKRAModal(true);
                             setKraType('functional');
@@ -617,8 +1131,9 @@ function ClientAdminDashboard() {
                           Add Functional KRA
                         </button>
                         <button
-                          className={styles.actionButton}
-                          onClick={() => {
+                          className={styles.bossActionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedBoss(boss);
                             setShowKRAModal(true);
                             setKraType('organizational');
@@ -627,8 +1142,9 @@ function ClientAdminDashboard() {
                           Add Organizational KRA
                         </button>
                         <button
-                          className={styles.actionButton}
-                          onClick={() => {
+                          className={styles.bossActionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedBoss(boss);
                             setShowKRAModal(true);
                             setKraType('self-development');
@@ -637,8 +1153,9 @@ function ClientAdminDashboard() {
                           Add Self Development KRA
                         </button>
                         <button
-                          className={styles.actionButton}
-                          onClick={() => {
+                          className={styles.bossActionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (showKRAsView === boss._id) {
                               setShowKRAsView(null);
                             } else {
@@ -654,11 +1171,96 @@ function ClientAdminDashboard() {
                         <div className={styles.krasView}>
                           <h4>Functional KRAs</h4>
                           {bossKRAs[boss._id].functionalKRAs?.length > 0 ? (
-                            <ul>
-                              {bossKRAs[boss._id].functionalKRAs.map((kra: any, idx: number) => (
-                                <li key={idx}>{kra.kra}</li>
-                              ))}
-                            </ul>
+                            bossKRAs[boss._id].functionalKRAs.map((kra: any, idx: number) => (
+                              <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+                                <h5 style={{ marginTop: 0, marginBottom: '0.5rem' }}>{kra.kra}</h5>
+                                
+                                {/* KPIs Section */}
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem' }}>KPIs (Key Performance Indicators)</label>
+                                  {(() => {
+                                    let kpis: Array<{ kpi: string; target?: string }> = [];
+                                    if (Array.isArray(kra.kpis)) {
+                                      kpis = kra.kpis.map((kpi: any) => {
+                                        if (typeof kpi === 'string') {
+                                          return { kpi };
+                                        }
+                                        return { kpi: kpi.kpi || '', target: kpi.target };
+                                      });
+                                    } else if (kra.kpis) {
+                                      kpis = [{ kpi: String(kra.kpis) }];
+                                    }
+
+                                    return kpis.length > 0 ? (
+                                      <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                                        {kpis.map((kpi, kpiIndex: number) => (
+                                          <li key={kpiIndex} style={{ marginBottom: '0.25rem' }}>
+                                            <strong>{kpi.kpi}</strong>
+                                            {kpi.target && <span style={{ color: '#666' }}> - Target: {kpi.target}</span>}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p style={{ color: '#999', margin: 0 }}>No KPIs defined</p>
+                                    );
+                                  })()}
+                                </div>
+
+                                {/* Reports/Proof Section */}
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem' }}>
+                                    Reports/Proof of Work <span style={{ color: '#999', fontWeight: 'normal' }}>(Optional)</span>
+                                  </label>
+                                  {(() => {
+                                    let proofs: any[] = [];
+                                    if (Array.isArray(kra.reportsGenerated)) {
+                                      proofs = kra.reportsGenerated;
+                                    } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+                                      proofs = [{
+                                        type: 'drive_link',
+                                        value: kra.reportsGenerated,
+                                        uploadedAt: new Date().toISOString(),
+                                      }];
+                                    }
+
+                                    return proofs.length > 0 ? (
+                                      <div style={{ marginBottom: '0.5rem' }}>
+                                        {proofs.map((proof: any, proofIndex: number) => (
+                                          <div key={proofIndex} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                            {proof.type === 'drive_link' ? (
+                                              <a href={proof.value} target="_blank" rel="noopener noreferrer" style={{ color: '#2196F3', textDecoration: 'none' }}>
+                                                📎 Drive Link
+                                              </a>
+                                            ) : (
+                                              <span style={{ color: '#666' }}>📄 {proof.fileName || 'Uploaded File'}</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p style={{ color: '#999', margin: '0 0 0.5rem 0' }}>No proof submitted</p>
+                                    );
+                                  })()}
+                                  <button
+                                    onClick={() => {
+                                      setShowProofDialog({ bossId: boss._id, kraIndex: idx, isOpen: true });
+                                    }}
+                                    style={{
+                                      padding: '0.5rem 1rem',
+                                      backgroundColor: '#2196F3',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '14px',
+                                    }}
+                                    type="button"
+                                  >
+                                    + Add Proof
+                                  </button>
+                                </div>
+                              </div>
+                            ))
                           ) : (
                             <p>No Functional KRAs</p>
                           )}
@@ -684,7 +1286,7 @@ function ClientAdminDashboard() {
                           )}
                         </div>
                       )}
-                    </div>
+                    </TeamMemberCard>
                   ))}
                 </div>
               )}
@@ -799,6 +1401,151 @@ function ClientAdminDashboard() {
                   {isSavingProfile ? 'Saving...' : 'Save Changes'}
                 </button>
               </form>
+
+              {/* Dimension Weights Section */}
+              <div className={styles.dimensionWeightsSection}>
+                <h2 className={baseStyles.pageTitle} style={{ marginTop: '2rem', marginBottom: '1rem' }}>Performance Dimension Weights</h2>
+                <p className={styles.weightsDescription}>
+                  Configure the weight distribution for performance evaluation dimensions across your organization. 
+                  These weights will apply to all Bosses, Managers, and Employees. The first three dimensions are mandatory, 
+                  while "Developing Others" is optional. Total must equal 100%.
+                </p>
+
+                <form onSubmit={handleSaveWeights} className={styles.weightsForm}>
+                  <div className={styles.weightsGrid}>
+                    <div 
+                      className={styles.weightInputGroup}
+                      style={{ 
+                        borderLeft: `4px solid ${DIMENSION_COLORS.functional.primary}`,
+                        backgroundColor: DIMENSION_COLORS.functional.light,
+                      }}
+                    >
+                      <label htmlFor="functional" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.functional.primary }}>
+                        Functional Dimension <span className={styles.required}>*</span>
+                      </label>
+                      <div className={styles.weightInputWrapper}>
+                        <input
+                          id="functional"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={dimensionWeights.functional}
+                          onChange={(e) => handleWeightChange('functional', parseInt(e.target.value) || 0)}
+                          className={styles.weightInput}
+                          style={{ borderColor: DIMENSION_COLORS.functional.border }}
+                        />
+                        <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.functional.primary }}>%</span>
+                      </div>
+                    </div>
+
+                    <div 
+                      className={styles.weightInputGroup}
+                      style={{ 
+                        borderLeft: `4px solid ${DIMENSION_COLORS.organizational.primary}`,
+                        backgroundColor: DIMENSION_COLORS.organizational.light,
+                      }}
+                    >
+                      <label htmlFor="organizational" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.organizational.primary }}>
+                        Organizational Dimension <span className={styles.required}>*</span>
+                      </label>
+                      <div className={styles.weightInputWrapper}>
+                        <input
+                          id="organizational"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={dimensionWeights.organizational}
+                          onChange={(e) => handleWeightChange('organizational', parseInt(e.target.value) || 0)}
+                          className={styles.weightInput}
+                          style={{ borderColor: DIMENSION_COLORS.organizational.border }}
+                        />
+                        <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.organizational.primary }}>%</span>
+                      </div>
+                    </div>
+
+                    <div 
+                      className={styles.weightInputGroup}
+                      style={{ 
+                        borderLeft: `4px solid ${DIMENSION_COLORS.selfDevelopment.primary}`,
+                        backgroundColor: DIMENSION_COLORS.selfDevelopment.light,
+                      }}
+                    >
+                      <label htmlFor="selfDevelopment" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.selfDevelopment.primary }}>
+                        Self Development <span className={styles.required}>*</span>
+                      </label>
+                      <div className={styles.weightInputWrapper}>
+                        <input
+                          id="selfDevelopment"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={dimensionWeights.selfDevelopment}
+                          onChange={(e) => handleWeightChange('selfDevelopment', parseInt(e.target.value) || 0)}
+                          className={styles.weightInput}
+                          style={{ borderColor: DIMENSION_COLORS.selfDevelopment.border }}
+                        />
+                        <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.selfDevelopment.primary }}>%</span>
+                      </div>
+                    </div>
+
+                    <div 
+                      className={styles.weightInputGroup}
+                      style={{ 
+                        borderLeft: `4px solid ${DIMENSION_COLORS.developingOthers.primary}`,
+                        backgroundColor: DIMENSION_COLORS.developingOthers.light,
+                      }}
+                    >
+                      <label htmlFor="developingOthers" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.developingOthers.primary }}>
+                        Developing Others <span className={styles.optional}>(Optional)</span>
+                      </label>
+                      <div className={styles.weightInputWrapper}>
+                        <input
+                          id="developingOthers"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={dimensionWeights.developingOthers}
+                          onChange={(e) => handleWeightChange('developingOthers', parseInt(e.target.value) || 0)}
+                          className={styles.weightInput}
+                          style={{ borderColor: DIMENSION_COLORS.developingOthers.border }}
+                        />
+                        <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.developingOthers.primary }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.totalDisplay}>
+                    <strong>Total: {calculateTotal()}%</strong>
+                    {calculateTotal() !== 100 && (
+                      <span className={styles.totalError}> (Must be 100%)</span>
+                    )}
+                  </div>
+
+                  {weightsErrors && (
+                    <div className={baseStyles.errorText} role="alert" style={{ marginBottom: '1rem' }}>
+                      {weightsErrors}
+                    </div>
+                  )}
+
+                  {weightsSuccessMessage && (
+                    <div className={baseStyles.successMessage} role="alert" style={{ marginBottom: '1rem' }}>
+                      {weightsSuccessMessage}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className={baseStyles.submitButton}
+                    disabled={isSavingWeights || calculateTotal() !== 100}
+                  >
+                    {isSavingWeights ? 'Saving...' : 'Save Dimension Weights'}
+                  </button>
+                </form>
+              </div>
             </div>
           )}
         </div>
@@ -819,55 +1566,177 @@ function ClientAdminDashboard() {
               </button>
             </div>
             <div className={styles.modalBody}>
-              <form onSubmit={handleAddKRA}>
-                {kraType === 'functional' && (
-                  <>
-                    <div className={styles.formGroup}>
-                      <label>KRA *</label>
+              {kraType === 'functional' ? (
+                <KRAForm
+                  onSubmit={handleAddKRA}
+                  onCancel={() => setShowKRAModal(false)}
+                  mode="add"
+                />
+              ) : (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAddKRA();
+                }}>
+                  {kraType === 'organizational' && (
+                    <div className={baseStyles.formGroup}>
+                      <label>Core Values *</label>
                       <input
                         type="text"
-                        value={newKRA.kra || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, kra: e.target.value })}
+                        className={baseStyles.input}
+                        value={newKRA.coreValues || ''}
+                        onChange={(e) => setNewKRA({ ...newKRA, coreValues: e.target.value })}
                         required
                       />
                     </div>
-                    <div className={styles.formGroup}>
-                      <label>KPI Target</label>
+                  )}
+                  {kraType === 'self-development' && (
+                    <div className={baseStyles.formGroup}>
+                      <label>Area of Concern *</label>
                       <input
                         type="text"
-                        value={newKRA.kpiTarget || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, kpiTarget: e.target.value })}
+                        className={baseStyles.input}
+                        value={newKRA.areaOfConcern || ''}
+                        onChange={(e) => setNewKRA({ ...newKRA, areaOfConcern: e.target.value })}
+                        required
                       />
                     </div>
-                  </>
-                )}
-                {kraType === 'organizational' && (
-                  <div className={styles.formGroup}>
-                    <label>Core Values *</label>
-                    <input
-                      type="text"
-                      value={newKRA.coreValues || ''}
-                      onChange={(e) => setNewKRA({ ...newKRA, coreValues: e.target.value })}
-                      required
-                    />
+                  )}
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button type="submit" className={baseStyles.submitButton}>
+                      Add KRA
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowKRAModal(false)}
+                      className={baseStyles.cancelButton}
+                      style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd' }}
+                    >
+                      Cancel
+                    </button>
                   </div>
-                )}
-                {kraType === 'self-development' && (
-                  <div className={styles.formGroup}>
-                    <label>Area of Concern *</label>
-                    <input
-                      type="text"
-                      value={newKRA.areaOfConcern || ''}
-                      onChange={(e) => setNewKRA({ ...newKRA, areaOfConcern: e.target.value })}
-                      required
-                    />
-                  </div>
-                )}
-                <button type="submit" className={styles.submitButton}>
-                  Add KRA
-                </button>
-              </form>
+                </form>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proof Dialog */}
+      {showProofDialog.isOpen && showProofDialog.kraIndex !== -1 && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowProofDialog({ bossId: '', kraIndex: -1, isOpen: false })}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              maxWidth: '500px',
+              width: '90%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>Add Proof of Work</h3>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+              <button
+                type="button"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: proofInput.type === 'drive_link' ? '#2196F3' : '#e0e0e0',
+                  color: proofInput.type === 'drive_link' ? 'white' : '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setProofInput({ ...proofInput, type: 'drive_link' })}
+              >
+                Drive Link
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: proofInput.type === 'file_upload' ? '#2196F3' : '#e0e0e0',
+                  color: proofInput.type === 'file_upload' ? 'white' : '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setProofInput({ ...proofInput, type: 'file_upload' })}
+              >
+                File Upload
+              </button>
+            </div>
+            {proofInput.type === 'drive_link' ? (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Google Drive Link</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={proofInput.value}
+                  onChange={(e) => setProofInput({ ...proofInput, value: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    marginBottom: '0.5rem',
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginBottom: '1rem' }}>Enter a Google Drive or Google Docs link</p>
+                <button
+                  type="button"
+                  onClick={() => handleAddDriveLink(showProofDialog.bossId, showProofDialog.kraIndex)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Add Link
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Upload File (JPG, PNG, or PDF - Max 10MB)</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => handleFileUpload(e, showProofDialog.bossId, showProofDialog.kraIndex)}
+                  style={{ marginBottom: '1rem' }}
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowProofDialog({ bossId: '', kraIndex: -1, isOpen: false })}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#f0f0f0',
+                color: '#333',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginTop: '1rem',
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

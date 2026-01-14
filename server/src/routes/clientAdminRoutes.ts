@@ -8,6 +8,7 @@ import {
   addBossOrganizationalKRA,
   addBossSelfDevelopmentKRA,
   getBossKRAs,
+  getCSAAnalytics,
 } from '../controllers/clientAdminController';
 
 const router = Router();
@@ -21,6 +22,7 @@ router.post('/bosses/:bossId/kras/functional', addBossFunctionalKRA);
 router.post('/bosses/:bossId/kras/organizational', addBossOrganizationalKRA);
 router.post('/bosses/:bossId/kras/self-development', addBossSelfDevelopmentKRA);
 router.get('/bosses/:bossId/kras', getBossKRAs);
+router.get('/analytics', getCSAAnalytics);
 
 export default router;
 

@@ -364,44 +364,110 @@ export async function submitScores(
 
     const member = team.membersDetails[memberIndex];
 
-    // Update scores based on review period
-    const periodPrefix = `r${reviewPeriod}`;
+    // Validate total weights = 100%
+    if (scores.functionalKRAs && Array.isArray(scores.functionalKRAs)) {
+      const totalWeight = scores.functionalKRAs.reduce((sum: number, kra: any) => {
+        const weight = reviewPeriod === 'pilot' 
+          ? (kra.pilotWeight || 0)
+          : (kra[`r${reviewPeriod}Weight`] || kra.weight || 0);
+        return sum + weight;
+      }, 0);
 
-    // Update functional KRAs
+      if (Math.abs(totalWeight - 100) > 0.01) { // Allow small floating point differences
+        res.status(400).json({
+          status: 'error',
+          message: `Total KRA weights must equal 100%. Current total: ${totalWeight.toFixed(2)}%`,
+        });
+        return;
+      }
+    }
+
+    // Update functional KRAs (D1 - Only Dimension with KRAs)
     if (scores.functionalKRAs && Array.isArray(scores.functionalKRAs)) {
       scores.functionalKRAs.forEach((kraScore: any, index: number) => {
         if (!member.functionalKRAs[index]) {
-          // Only create new KRA if kra field is provided and not empty
+          // Create new KRA if doesn't exist
           if (!kraScore.kra || !kraScore.kra.trim()) {
-            // Skip creating KRA without required field
-            return;
+            return; // Skip creating KRA without required field
           }
           member.functionalKRAs.push({
             kra: kraScore.kra.trim(),
-            kpiTarget: kraScore.kpiTarget || '',
-            reportsGenerated: kraScore.reportsGenerated || '',
+            kpis: (kraScore.kpis && Array.isArray(kraScore.kpis)) 
+              ? kraScore.kpis.map((kpi: any) => ({
+                  kpi: kpi.kpi || kpi,
+                  target: kpi.target || '',
+                }))
+              : [],
+            reportsGenerated: [],
+            pilotWeight: 0,
+            pilotScore: 0,
           });
         }
         const kra = member.functionalKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
-        
-        if (periodPrefix === 'r1') {
-          kra.r1Weight = kraScore.weight || 0;
-          kra.r1Score = kraScore.score || 0;
-          kra.r1ActualPerf = kraScore.actualPerf || '';
-        } else if (periodPrefix === 'r2') {
-          kra.r2Weight = kraScore.weight || 0;
-          kra.r2Score = kraScore.score || 0;
-          kra.r2ActualPerf = kraScore.actualPerf || '';
-        } else if (periodPrefix === 'r3') {
-          kra.r3Weight = kraScore.weight || 0;
-          kra.r3Score = kraScore.score || 0;
-          kra.r3ActualPerf = kraScore.actualPerf || '';
-        } else if (periodPrefix === 'r4') {
-          kra.r4Weight = kraScore.weight || 0;
-          kra.r4Score = kraScore.score || 0;
-          kra.r4ActualPerf = kraScore.actualPerf || '';
+
+        // Update KPIs if provided
+        if (kraScore.kpis && Array.isArray(kraScore.kpis)) {
+          kra.kpis = kraScore.kpis.map((kpi: any) => ({
+            kpi: kpi.kpi || kpi,
+            target: kpi.target || '',
+          }));
         }
+
+        // Update reports/proofs if provided
+        if (kraScore.reportsGenerated && Array.isArray(kraScore.reportsGenerated)) {
+          kra.reportsGenerated = kraScore.reportsGenerated.map((proof: any) => ({
+            type: proof.type || 'drive_link',
+            value: proof.value || proof,
+            fileName: proof.fileName,
+            uploadedAt: proof.uploadedAt ? new Date(proof.uploadedAt) : new Date(),
+          }));
+        }
+
+        // Update Pilot Period
+        if (kraScore.pilotWeight !== undefined) {
+          kra.pilotWeight = Math.max(0, Math.min(100, kraScore.pilotWeight || 0));
+        }
+        if (kraScore.pilotScore !== undefined) {
+          kra.pilotScore = Math.max(0, Math.min(5, kraScore.pilotScore || 0));
+        }
+
+        // Update Review Period data
+        const periodKey = `r${reviewPeriod}` as 'r1' | 'r2' | 'r3' | 'r4';
+        const weightKey = `${periodKey}Weight` as 'r1Weight' | 'r2Weight' | 'r3Weight' | 'r4Weight';
+        const scoreKey = `${periodKey}Score` as 'r1Score' | 'r2Score' | 'r3Score' | 'r4Score';
+        const perfKey = `${periodKey}ActualPerf` as 'r1ActualPerf' | 'r2ActualPerf' | 'r3ActualPerf' | 'r4ActualPerf';
+        const reviewerKey = `${periodKey}ReviewedBy` as 'r1ReviewedBy' | 'r2ReviewedBy' | 'r3ReviewedBy' | 'r4ReviewedBy';
+
+        if (kraScore.weight !== undefined || kraScore[weightKey] !== undefined) {
+          const weight = kraScore.weight !== undefined ? kraScore.weight : kraScore[weightKey];
+          (kra as any)[weightKey] = Math.max(0, Math.min(100, weight || 0));
+        }
+        
+        if (kraScore.score !== undefined || kraScore[scoreKey] !== undefined) {
+          const score = kraScore.score !== undefined ? kraScore.score : kraScore[scoreKey];
+          (kra as any)[scoreKey] = Math.max(0, Math.min(5, score || 0));
+        }
+        
+        if (kraScore.actualPerf !== undefined || kraScore[perfKey] !== undefined) {
+          (kra as any)[perfKey] = kraScore.actualPerf || kraScore[perfKey] || '';
+        }
+
+        // Track reviewer for this period
+        (kra as any)[reviewerKey] = reviewer._id;
+
+        // Calculate average score
+        const scores = [
+          kra.pilotScore,
+          kra.r1Score,
+          kra.r2Score,
+          kra.r3Score,
+          kra.r4Score,
+        ].filter((s): s is number => s !== undefined && s !== null && s > 0);
+        
+        kra.averageScore = scores.length > 0
+          ? scores.reduce((sum, s) => sum + s, 0) / scores.length
+          : 0;
       });
     }
 

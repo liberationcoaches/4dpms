@@ -48,7 +48,6 @@ function App() {
       </Route>
       {/* Team routes are now part of Manager dashboard */}
       <Route path="/dashboard/manager/team/:memberId" element={<TeamMemberKRAs />} />
-      <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="/admin/organizations/:id" element={<OrganizationDetail />} />
       <Route path="/client-admin/dashboard" element={<ClientAdminDashboard />} />

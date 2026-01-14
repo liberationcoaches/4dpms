@@ -1,31 +1,55 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-// Functional Dimension KRA
+// KPI Interface - Multiple KPIs per KRA
+export interface IKPI {
+  kpi: string; // KPI description/process
+  target?: string; // Target for this KPI
+}
+
+// Proof/Report Interface - For verification
+export interface IProof {
+  type: 'drive_link' | 'file_upload'; // Type of proof
+  value: string; // Drive link URL or file path/URL
+  fileName?: string; // Original file name if uploaded
+  uploadedAt?: Date; // When proof was uploaded
+}
+
+// Functional Dimension KRA (D1) - Only Dimension
 export interface IFunctionalKRA {
-  kra: string;
-  kpiTarget?: string;
-  reportsGenerated?: string;
-  // Pilot Period
-  pilotWeight?: number;
-  pilotActualPerf?: string;
+  kra: string; // KRA description (Task/Goal for quarter)
+  kpis: IKPI[]; // Multiple KPIs - how the KRA will be achieved
+  reportsGenerated?: IProof[]; // Proof system - files or drive links
+  
+  // Pilot Period (Starting score)
+  pilotWeight?: number; // Weight in pilot period
+  pilotScore?: number; // Score 0-5 (can be decimal)
+  
   // Review Period 1
-  r1Weight?: number;
-  r1Score?: number;
-  r1ActualPerf?: string;
+  r1Weight?: number; // Can be different from pilot
+  r1Score?: number; // Score 0-5 (can be decimal)
+  r1ActualPerf?: string; // Actual performance notes
+  r1ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R1
+  
   // Review Period 2
   r2Weight?: number;
   r2Score?: number;
   r2ActualPerf?: string;
+  r2ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R2
+  
   // Review Period 3
   r3Weight?: number;
   r3Score?: number;
   r3ActualPerf?: string;
+  r3ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R3
+  
   // Review Period 4
   r4Weight?: number;
   r4Score?: number;
   r4ActualPerf?: string;
+  r4ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R4
+  
   // Calculated
-  averageScore?: number;
+  averageScore?: number; // Average across all review periods
 }
 
 // Organizational Dimension KRA
@@ -99,13 +123,12 @@ export interface ITeamMemberDetail {
   name: string;
   role: string;
   mobile: string;
-  // Functional Dimension KRAs
+  // Functional Dimension KRAs (D1) - Only Dimension with KRAs
   functionalKRAs?: IFunctionalKRA[];
-  // Organizational Dimension KRAs
+  // Note: Other dimensions (Organizational, Self Development, Developing Others) 
+  // are kept for backward compatibility but KRAs are only in Functional Dimension
   organizationalKRAs?: IOrganizationalKRA[];
-  // Self Development KRAs
   selfDevelopmentKRAs?: ISelfDevelopmentKRA[];
-  // Developing Others KRAs
   developingOthersKRAs?: IDevelopingOthersKRA[];
 }
 
@@ -156,26 +179,54 @@ const TeamSchema = new Schema<ITeam>(
         name: { type: String, required: true, trim: true },
         role: { type: String, required: true, trim: true },
         mobile: { type: String, required: true, trim: true },
-        // Functional Dimension KRAs
+        // Functional Dimension KRAs (D1) - Only Dimension with KRAs
         functionalKRAs: [
           {
             kra: { type: String, required: true, trim: true },
-            kpiTarget: { type: String, trim: true },
-            reportsGenerated: { type: String, trim: true },
-            pilotWeight: { type: Number, default: 0 },
-            pilotActualPerf: { type: String, trim: true },
-            r1Weight: { type: Number, default: 0 },
-            r1Score: { type: Number, default: 0 },
+            // Multiple KPIs per KRA
+            kpis: [
+              {
+                kpi: { type: String, required: true, trim: true },
+                target: { type: String, trim: true },
+              },
+            ],
+            // Proof/Reports system - multiple files or drive links
+            reportsGenerated: [
+              {
+                type: { 
+                  type: String, 
+                  enum: ['drive_link', 'file_upload'],
+                  default: 'drive_link'
+                },
+                value: { type: String, required: true, trim: true },
+                fileName: { type: String, trim: true },
+                uploadedAt: { type: Date, default: Date.now },
+              },
+            ],
+            // Pilot Period
+            pilotWeight: { type: Number, min: 0, max: 100, default: 0 },
+            pilotScore: { type: Number, min: 0, max: 5, default: 0 },
+            // Review Period 1
+            r1Weight: { type: Number, min: 0, max: 100, default: 0 },
+            r1Score: { type: Number, min: 0, max: 5, default: 0 },
             r1ActualPerf: { type: String, trim: true },
-            r2Weight: { type: Number, default: 0 },
-            r2Score: { type: Number, default: 0 },
+            r1ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            // Review Period 2
+            r2Weight: { type: Number, min: 0, max: 100, default: 0 },
+            r2Score: { type: Number, min: 0, max: 5, default: 0 },
             r2ActualPerf: { type: String, trim: true },
-            r3Weight: { type: Number, default: 0 },
-            r3Score: { type: Number, default: 0 },
+            r2ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            // Review Period 3
+            r3Weight: { type: Number, min: 0, max: 100, default: 0 },
+            r3Score: { type: Number, min: 0, max: 5, default: 0 },
             r3ActualPerf: { type: String, trim: true },
-            r4Weight: { type: Number, default: 0 },
-            r4Score: { type: Number, default: 0 },
+            r3ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            // Review Period 4
+            r4Weight: { type: Number, min: 0, max: 100, default: 0 },
+            r4Score: { type: Number, min: 0, max: 5, default: 0 },
             r4ActualPerf: { type: String, trim: true },
+            r4ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            // Calculated
             averageScore: { type: Number, default: 0 },
           },
         ],

@@ -1,5 +1,13 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+// Dimension Weights Configuration (same as Team model)
+export interface IDimensionWeights {
+  functional: number; // Functional Dimension weight (0-100)
+  organizational: number; // Organizational Dimension weight (0-100)
+  selfDevelopment: number; // Self Development weight (0-100)
+  developingOthers: number; // Developing Others weight (0-100, optional)
+}
+
 export interface IOrganization extends Document {
   name: string;
   code: string; // Organization code (given to managers)
@@ -9,6 +17,8 @@ export interface IOrganization extends Document {
   reviewerId?: mongoose.Types.ObjectId; // Reviewer assigned to this organization
   managers: mongoose.Types.ObjectId[]; // Managers in this organization
   subscriptionStatus?: string; // Subscription status: 'active', 'trial', 'expired'
+  clientAdminId?: mongoose.Types.ObjectId; // Client Side Admin for this organization
+  dimensionWeights?: IDimensionWeights; // Organization-wide dimension weights
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +72,18 @@ const OrganizationSchema = new Schema<IOrganization>(
       type: String,
       enum: ['active', 'trial', 'expired'],
       default: 'trial',
+    },
+    clientAdminId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
+    dimensionWeights: {
+      functional: { type: Number, min: 0, max: 100, default: 0 },
+      organizational: { type: Number, min: 0, max: 100, default: 0 },
+      selfDevelopment: { type: Number, min: 0, max: 100, default: 0 },
+      developingOthers: { type: Number, min: 0, max: 100, default: 0 },
     },
   },
   {

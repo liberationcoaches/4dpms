@@ -4,6 +4,14 @@ import { User } from '../models/User';
 import { sendInvitationNotification } from './notificationController';
 import { generateOrgCode } from '../utils/codeGenerator';
 import mongoose from 'mongoose';
+import { z } from 'zod';
+
+const dimensionWeightsSchema = z.object({
+  functional: z.number().min(0).max(100),
+  organizational: z.number().min(0).max(100),
+  selfDevelopment: z.number().min(0).max(100),
+  developingOthers: z.number().min(0).max(100),
+});
 
 /**
  * Create a new organization (Platform Admin only)
@@ -525,3 +533,198 @@ export async function getAdminAnalytics(
   }
 }
 
+/**
+ * Get organization dimension weights (Client Admin only)
+ * GET /api/organizations/dimension-weights
+ */
+export async function getOrganizationDimensionWeights(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+
+    if (!userId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User not found',
+      });
+      return;
+    }
+
+    // Check if user is client admin
+    if (user.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only Client Side Admins can access organization dimension weights',
+      });
+      return;
+    }
+
+    if (!user.organizationId) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User is not associated with an organization',
+      });
+      return;
+    }
+
+    const organization = await Organization.findById(user.organizationId);
+    if (!organization) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Organization not found',
+      });
+      return;
+    }
+
+    // Return dimension weights or default values
+    const weights = organization.dimensionWeights || {
+      functional: 0,
+      organizational: 0,
+      selfDevelopment: 0,
+      developingOthers: 0,
+    };
+
+    res.status(200).json({
+      status: 'success',
+      data: weights,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update organization dimension weights (Client Admin only)
+ * PUT /api/organizations/dimension-weights
+ */
+export async function updateOrganizationDimensionWeights(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+
+    if (!userId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    const validated = dimensionWeightsSchema.parse(req.body);
+
+    // Validate that weights sum to 100%
+    const total = validated.functional + validated.organizational + validated.selfDevelopment + validated.developingOthers;
+    if (total !== 100) {
+      res.status(400).json({
+        status: 'error',
+        message: `Dimension weights must sum to 100%. Current sum: ${total}%`,
+      });
+      return;
+    }
+
+    // Validate that first 3 dimensions are mandatory (must be > 0)
+    if (validated.functional <= 0 || validated.organizational <= 0 || validated.selfDevelopment <= 0) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Functional, Organizational, and Self Development dimensions must have weights greater than 0%',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User not found',
+      });
+      return;
+    }
+
+    // Check if user is client admin
+    if (user.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only Client Side Admins can update organization dimension weights',
+      });
+      return;
+    }
+
+    if (!user.organizationId) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User is not associated with an organization',
+      });
+      return;
+    }
+
+    const organization = await Organization.findById(user.organizationId);
+    if (!organization) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Organization not found',
+      });
+      return;
+    }
+
+    // Update dimension weights
+    organization.dimensionWeights = {
+      functional: validated.functional,
+      organizational: validated.organizational,
+      selfDevelopment: validated.selfDevelopment,
+      developingOthers: validated.developingOthers,
+    };
+
+    await organization.save();
+
+    // Update all teams in this organization to use the same weights
+    const { Team } = await import('../models/Team');
+    const orgUsers = await User.find({ organizationId: organization._id }).distinct('_id');
+    const teams = await Team.find({ 
+      $or: [
+        { members: { $in: orgUsers } },
+        { createdBy: { $in: orgUsers } }
+      ]
+    });
+
+    for (const team of teams) {
+      team.dimensionWeights = {
+        functional: validated.functional,
+        organizational: validated.organizational,
+        selfDevelopment: validated.selfDevelopment,
+        developingOthers: validated.developingOthers,
+      };
+      await team.save();
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Organization dimension weights updated successfully. All teams have been updated.',
+      data: organization.dimensionWeights,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid dimension weights',
+        errors: error.errors,
+      });
+      return;
+    }
+    next(error);
+  }
+}

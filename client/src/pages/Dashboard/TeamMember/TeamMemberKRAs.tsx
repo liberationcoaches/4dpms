@@ -2,15 +2,30 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './TeamMemberKRAs.module.css';
 import { DIMENSION_COLORS } from '@/utils/dimensionColors';
+import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
 
 type TabType = 'functional' | 'organizational' | 'selfDevelopment' | 'developingOthers';
+
+interface Proof {
+  type: 'drive_link' | 'file_upload';
+  value: string;
+  fileName?: string;
+  uploadedAt?: string;
+}
+
+interface KPI {
+  kpi: string;
+  target?: string;
+}
 
 interface KRA {
   _id?: string;
   kra: string;
+  kpis?: KPI[];
   kpiTarget?: string;
-  reportsGenerated?: string;
+  reportsGenerated?: Proof[] | string;
   pilotWeight?: number;
+  pilotScore?: number;
   pilotActualPerf?: string;
   r1Weight?: number;
   r1Score?: number;
@@ -95,11 +110,6 @@ function TeamMemberKRAs() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('functional');
   const [showAddKRA, setShowAddKRA] = useState(false);
-  const [newKRA, setNewKRA] = useState<Partial<KRA>>({
-    kra: '',
-    kpiTarget: '',
-    reportsGenerated: '',
-  });
   const [showAddOrganizational, setShowAddOrganizational] = useState(false);
   const [newOrganizational, setNewOrganizational] = useState<Partial<OrganizationalDimension>>({
     coreValue: '',
@@ -120,11 +130,83 @@ function TeamMemberKRAs() {
     developingOthers: number;
   } | null>(null);
   const [isLoadingWeights, setIsLoadingWeights] = useState(true);
+  const [showProofDialog, setShowProofDialog] = useState<{ kraIndex: number; isOpen: boolean }>({
+    kraIndex: -1,
+    isOpen: false,
+  });
+  const [proofInput, setProofInput] = useState<{ type: 'drive_link' | 'file_upload'; value: string }>({
+    type: 'drive_link',
+    value: '',
+  });
 
   // Show notification popup
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  const fetchMemberData = async () => {
+    if (!memberId) return;
+
+    const parts = memberId.split('-');
+    let index: number;
+    const lastPart = parts[parts.length - 1];
+    index = parseInt(lastPart);
+    
+    if (isNaN(index) && parts.length > 1) {
+      index = parseInt(parts[parts.length - 2]);
+    }
+    
+    if (isNaN(index)) {
+      console.error('Invalid memberId format:', memberId);
+      return;
+    }
+
+    const userId = localStorage.getItem('userId') || '';
+    
+    try {
+      const response = await fetch(`/api/team/members?userId=${userId}`);
+      const data = await response.json();
+      if (data.status === 'success' && data.data && Array.isArray(data.data)) {
+        const memberData = data.data[index];
+        if (memberData) {
+          // Ensure functionalKRAs are properly mapped and have IDs
+          const functionalKRAs = (memberData.functionalKRAs || memberData.kras || []).map((kra: any, idx: number) => ({
+            ...kra,
+            _id: kra._id || `${memberId}-kra-${idx}`,
+            // Ensure kpis is always an array
+            kpis: Array.isArray(kra.kpis) ? kra.kpis : (kra.kpis ? [kra.kpis] : []),
+            // Ensure reportsGenerated is always an array
+            reportsGenerated: Array.isArray(kra.reportsGenerated) 
+              ? kra.reportsGenerated 
+              : (kra.reportsGenerated ? [kra.reportsGenerated] : []),
+          }));
+          
+          console.log('Fetched member data:', {
+            functionalKRAs,
+            memberData: memberData.functionalKRAs,
+          });
+          
+          setMember({
+            ...memberData,
+            kras: functionalKRAs,
+            organizationalDimensions: memberData.organizationalDimensions || memberData.organizationalKRAs || [],
+            selfDevelopments: memberData.selfDevelopments || memberData.selfDevelopmentKRAs || [],
+            developingOthers: memberData.developingOthers || memberData.developingOthersKRAs || [],
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch member data:', error);
+    }
+  };
+
+  // Check if weights are configured (sum to 100%)
+  const areWeightsConfigured = () => {
+    if (!dimensionWeights) return false;
+    const total = dimensionWeights.functional + dimensionWeights.organizational + 
+                  dimensionWeights.selfDevelopment + dimensionWeights.developingOthers;
+    return total === 100;
   };
 
   useEffect(() => {
@@ -169,42 +251,12 @@ function TeamMemberKRAs() {
         setIsLoadingWeights(false);
       });
 
-    fetch(`/api/team/members?userId=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 'success' && data.data && Array.isArray(data.data)) {
-          const memberData = data.data[index];
-          if (memberData) {
-            setMember({
-              ...memberData,
-              kras: memberData.kras || memberData.functionalKRAs || [],
-              organizationalDimensions: memberData.organizationalDimensions || memberData.organizationalKRAs || [],
-              selfDevelopments: memberData.selfDevelopments || memberData.selfDevelopmentKRAs || [],
-              developingOthers: memberData.developingOthers || memberData.developingOthersKRAs || [],
-            });
-          } else {
-            console.error('Member not found at index:', index);
-          }
-        }
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        console.error('Failed to fetch member:', error);
-        setIsLoading(false);
-      });
+    fetchMemberData();
+    setIsLoading(false);
   }, [memberId]);
 
-  // Check if weights are configured (sum to 100%)
-  const areWeightsConfigured = () => {
-    if (!dimensionWeights) return false;
-    const total = dimensionWeights.functional + dimensionWeights.organizational + 
-                  dimensionWeights.selfDevelopment + dimensionWeights.developingOthers;
-    return total === 100;
-  };
-
-  const handleAddKRA = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newKRA.kra?.trim() || !memberId) return;
+  const handleAddKRA = async (formData: FunctionalKRAFormData) => {
+    if (!memberId) return;
 
     // Parse memberId to get index
     const parts = memberId.split('-');
@@ -217,19 +269,27 @@ function TeamMemberKRAs() {
     const userId = localStorage.getItem('userId') || '';
 
     try {
+      // Convert form data to API format
+      const apiData = {
+        kra: formData.kra,
+        kpis: formData.kpis,
+        reportsGenerated: formData.reportsGenerated || [],
+        pilotWeight: formData.pilotWeight || 10,
+        pilotScore: formData.pilotScore || 0,
+      };
+
       const response = await fetch(`/api/team/members/${memberIndex}/kras?userId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newKRA),
+        body: JSON.stringify(apiData),
       });
 
       const data = await response.json();
-      if (response.ok && member) {
-        const updatedKRAs = [...(member.kras || []), { ...data.data, _id: Date.now().toString() }];
-        setMember({ ...member, kras: updatedKRAs });
-        setNewKRA({ kra: '', kpiTarget: '', reportsGenerated: '' });
+      if (response.ok) {
         setShowAddKRA(false);
         showNotification('KRA added successfully!');
+        // Refresh member data from server to get the complete structure
+        await fetchMemberData();
       } else {
         console.error('Failed to add KRA:', data.message);
         showNotification(data.message || 'Failed to add KRA', 'error');
@@ -240,10 +300,110 @@ function TeamMemberKRAs() {
     }
   };
 
+  const handleAddProof = async (kraIndex: number, proof: Proof) => {
+    if (!member || !member.kras || !memberId) return;
+
+    const kra = member.kras[kraIndex];
+    if (!kra) return;
+
+    // Convert reportsGenerated to array if it's a string (backward compatibility)
+    let currentProofs: Proof[] = [];
+    if (Array.isArray(kra.reportsGenerated)) {
+      currentProofs = kra.reportsGenerated;
+    } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+      currentProofs = [{
+        type: 'drive_link',
+        value: kra.reportsGenerated,
+        uploadedAt: new Date().toISOString(),
+      }];
+    }
+
+    const updatedProofs = [...currentProofs, proof];
+    
+    // Update the KRA with new proofs
+    await handleUpdateKRA(kra._id!, 'reportsGenerated', updatedProofs);
+    
+    setShowProofDialog({ kraIndex: -1, isOpen: false });
+    setProofInput({ type: 'drive_link', value: '' });
+  };
+
+  const handleRemoveProof = async (kraIndex: number, proofIndex: number) => {
+    if (!member || !member.kras || !memberId) return;
+
+    const kra = member.kras[kraIndex];
+    if (!kra || !Array.isArray(kra.reportsGenerated)) return;
+
+    const updatedProofs = kra.reportsGenerated.filter((_, i) => i !== proofIndex);
+    await handleUpdateKRA(kra._id!, 'reportsGenerated', updatedProofs);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, kraIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.match(/^image\/(jpeg|jpg|png)$/i) && file.type !== 'application/pdf') {
+      alert('Only JPG, PNG, or PDF files are allowed');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        const newProof: Proof = {
+          type: 'file_upload',
+          value: base64String,
+          fileName: file.name,
+          uploadedAt: new Date().toISOString(),
+        };
+        handleAddProof(kraIndex, newProof);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file');
+    }
+  };
+
+  const handleAddDriveLink = (kraIndex: number) => {
+    if (!proofInput.value.trim()) {
+      alert('Please enter a drive link');
+      return;
+    }
+
+    if (!proofInput.value.includes('drive.google.com') && !proofInput.value.includes('docs.google.com')) {
+      alert('Please enter a valid Google Drive link');
+      return;
+    }
+
+    const newProof: Proof = {
+      type: 'drive_link',
+      value: proofInput.value.trim(),
+      uploadedAt: new Date().toISOString(),
+    };
+    handleAddProof(kraIndex, newProof);
+  };
+
   const handleUpdateKRA = async (kraId: string, field: keyof KRA, value: any) => {
     if (!member || !member.kras || !memberId) return;
 
-    const kraIndex = member.kras.findIndex((k) => k._id === kraId);
+    // Find KRA by ID or by index if ID doesn't match
+    let kraIndex = member.kras.findIndex((k) => k._id === kraId);
+    if (kraIndex === -1) {
+      // Try to find by index if _id is in format memberId-kra-index
+      const parts = kraId.split('-kra-');
+      if (parts.length > 1) {
+        const idx = parseInt(parts[1]);
+        if (!isNaN(idx) && idx < member.kras.length) {
+          kraIndex = idx;
+        }
+      }
+    }
     if (kraIndex === -1) return;
 
     // Parse memberId to get index
@@ -295,8 +455,10 @@ function TeamMemberKRAs() {
       const data = await response.json();
       if (response.ok && data.data) {
         // Update with server response (includes recalculated average)
-        updatedKRAs[kraIndex] = { ...data.data, _id: kraId };
+        updatedKRAs[kraIndex] = { ...data.data, _id: kraId || updatedKRAs[kraIndex]._id };
         setMember({ ...member, kras: updatedKRAs });
+        // Refresh member data to ensure we have the latest structure
+        await fetchMemberData();
       } else {
         // Revert on error
         setMember({ ...member, kras: member.kras });
@@ -781,42 +943,13 @@ function TeamMemberKRAs() {
             </div>
 
             {showAddKRA && (
-              <form onSubmit={handleAddKRA} className={styles.addKRAForm}>
-                <input
-                  type="text"
-                  placeholder="KRA Name *"
-                  value={newKRA.kra || ''}
-                  onChange={(e) => setNewKRA({ ...newKRA, kra: e.target.value })}
-                  required
-                  className={styles.input}
+              <div className={styles.kraFormContainer}>
+                <KRAForm
+                  onSubmit={handleAddKRA}
+                  onCancel={() => setShowAddKRA(false)}
+                  mode="add"
                 />
-                <input
-                  type="text"
-                  placeholder="KPI (Target)"
-                  value={newKRA.kpiTarget || ''}
-                  onChange={(e) => setNewKRA({ ...newKRA, kpiTarget: e.target.value })}
-                  className={styles.input}
-                />
-                <input
-                  type="text"
-                  placeholder="Reports Generated"
-                  value={newKRA.reportsGenerated || ''}
-                  onChange={(e) => setNewKRA({ ...newKRA, reportsGenerated: e.target.value })}
-                  className={styles.input}
-                />
-                <div className={styles.buttonGroup}>
-                  <button type="submit" className={styles.saveButton}>
-                    Add KRA
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.cancelButton}
-                    onClick={() => setShowAddKRA(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+              </div>
             )}
 
         <div className={styles.kraList}>
@@ -831,24 +964,108 @@ function TeamMemberKRAs() {
                 </div>
 
                 <div className={styles.kraFields}>
+                  {/* KPIs Section */}
                   <div className={styles.fieldRow}>
-                    <label>KPI (Target)</label>
-                    <input
-                      type="text"
-                      value={kra.kpiTarget || ''}
-                      onChange={(e) => handleUpdateKRA(kra._id!, 'kpiTarget', e.target.value)}
-                      className={styles.input}
-                    />
+                    <label>KPIs (Key Performance Indicators)</label>
+                    {(() => {
+                      // Normalize KPIs to always be an array of objects
+                      let kpis: Array<{ kpi: string; target?: string }> = [];
+                      if (Array.isArray(kra.kpis)) {
+                        kpis = kra.kpis.map((kpi: any) => {
+                          if (typeof kpi === 'string') {
+                            return { kpi };
+                          }
+                          return { kpi: kpi.kpi || '', target: kpi.target };
+                        });
+                      } else if (kra.kpis) {
+                        kpis = [{ kpi: String(kra.kpis) }];
+                      }
+
+                      return kpis.length > 0 ? (
+                        <ul className={styles.kpiList}>
+                          {kpis.map((kpi, kpiIndex: number) => (
+                            <li key={kpiIndex}>
+                              <strong>{kpi.kpi}</strong>
+                              {kpi.target && <span className={styles.kpiTarget}> - Target: {kpi.target}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className={styles.noData}>No KPIs defined</p>
+                      );
+                    })()}
                   </div>
 
+                  {/* Reports/Proof Section */}
                   <div className={styles.fieldRow}>
-                    <label>Reports Generated</label>
-                    <input
-                      type="text"
-                      value={kra.reportsGenerated || ''}
-                      onChange={(e) => handleUpdateKRA(kra._id!, 'reportsGenerated', e.target.value)}
-                      className={styles.input}
-                    />
+                    <label>Reports/Proof of Work <span className={styles.optionalLabel}>(Optional)</span></label>
+                    {(() => {
+                      // Handle backward compatibility - convert string to array if needed
+                      let proofs: Proof[] = [];
+                      if (Array.isArray(kra.reportsGenerated)) {
+                        proofs = kra.reportsGenerated;
+                      } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+                        proofs = [{
+                          type: 'drive_link',
+                          value: kra.reportsGenerated,
+                          uploadedAt: new Date().toISOString(),
+                        }];
+                      }
+
+                      return proofs.length > 0 ? (
+                        <div className={styles.proofList}>
+                          {proofs.map((proof: Proof, proofIndex: number) => (
+                            <div key={proofIndex} className={styles.proofItem}>
+                              {proof.type === 'drive_link' ? (
+                                <a href={proof.value} target="_blank" rel="noopener noreferrer" className={styles.driveLink}>
+                                  📎 Drive Link
+                                </a>
+                              ) : (
+                                <span className={styles.fileItem}>
+                                  📄 {proof.fileName || 'Uploaded File'}
+                                </span>
+                              )}
+                    <button
+                      onClick={() => {
+                        // Find KRA index - use array index as fallback
+                        let kraIndex = member.kras?.findIndex((k) => k._id === kra._id) ?? -1;
+                        if (kraIndex === -1) {
+                          // Fallback to array index
+                          kraIndex = member.kras?.findIndex((k) => k === kra) ?? -1;
+                        }
+                        if (kraIndex !== -1) {
+                          handleRemoveProof(kraIndex, proofIndex);
+                        }
+                      }}
+                      className={styles.removeProof}
+                      title="Remove proof"
+                    >
+                      ×
+                    </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={styles.noData}>No proof submitted</p>
+                      );
+                    })()}
+                    <button
+                      onClick={() => {
+                        // Find KRA index - use array index as fallback
+                        let kraIndex = member.kras?.findIndex((k) => k._id === kra._id) ?? -1;
+                        if (kraIndex === -1) {
+                          // Fallback to array index
+                          kraIndex = member.kras?.findIndex((k) => k === kra) ?? -1;
+                        }
+                        if (kraIndex !== -1) {
+                          setShowProofDialog({ kraIndex, isOpen: true });
+                        }
+                      }}
+                      className={styles.addProofBtn}
+                      type="button"
+                    >
+                      + Add Proof
+                    </button>
                   </div>
 
                   {/* Pilot Period */}
@@ -1473,6 +1690,66 @@ function TeamMemberKRAs() {
           </div>
         )}
       </div>
+
+      {/* Proof Dialog */}
+      {showProofDialog.isOpen && showProofDialog.kraIndex !== -1 && (
+        <div className={styles.proofDialogOverlay} onClick={() => setShowProofDialog({ kraIndex: -1, isOpen: false })}>
+          <div className={styles.proofDialog} onClick={(e) => e.stopPropagation()}>
+            <h3>Add Proof of Work</h3>
+            <div className={styles.proofTypeSelector}>
+              <button
+                type="button"
+                className={proofInput.type === 'drive_link' ? styles.active : ''}
+                onClick={() => setProofInput({ ...proofInput, type: 'drive_link' })}
+              >
+                Drive Link
+              </button>
+              <button
+                type="button"
+                className={proofInput.type === 'file_upload' ? styles.active : ''}
+                onClick={() => setProofInput({ ...proofInput, type: 'file_upload' })}
+              >
+                File Upload
+              </button>
+            </div>
+            {proofInput.type === 'drive_link' ? (
+              <div className={styles.proofInput}>
+                <label>Google Drive Link</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={proofInput.value}
+                  onChange={(e) => setProofInput({ ...proofInput, value: e.target.value })}
+                />
+                <p className={styles.fileHint}>Enter a Google Drive or Google Docs link</p>
+                <button
+                  type="button"
+                  onClick={() => handleAddDriveLink(showProofDialog.kraIndex)}
+                  className={styles.addBtn}
+                >
+                  Add Link
+                </button>
+              </div>
+            ) : (
+              <div className={styles.proofInput}>
+                <label>Upload File (JPG, PNG, or PDF - Max 10MB)</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => handleFileUpload(e, showProofDialog.kraIndex)}
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowProofDialog({ kraIndex: -1, isOpen: false })}
+              className={styles.cancelBtn}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
