@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ManagerDashboard.module.css';
 import logo from '@/assets/logo.png';
-import { DIMENSION_COLORS } from '@/utils/dimensionColors';
 import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
 import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
 
@@ -39,13 +38,6 @@ interface UserProfile {
   mobile: string;
 }
 
-interface DimensionWeights {
-  functional: number;
-  organizational: number;
-  selfDevelopment: number;
-  developingOthers: number;
-}
-
 interface Proof {
   type: 'drive_link' | 'file_upload';
   value: string;
@@ -53,7 +45,7 @@ interface Proof {
   uploadedAt: string;
 }
 
-type ActiveTab = 'dashboard' | 'team' | 'performance' | 'dimensions' | 'settings';
+type ActiveTab = 'dashboard' | 'team' | 'performance' | 'settings';
 
 function ManagerDashboard() {
   const navigate = useNavigate();
@@ -76,15 +68,6 @@ function ManagerDashboard() {
     email: '',
     mobile: '',
   });
-  const [dimensionWeights, setDimensionWeights] = useState<DimensionWeights>({
-    functional: 0,
-    organizational: 0,
-    selfDevelopment: 0,
-    developingOthers: 0,
-  });
-  const [weightsErrors, setWeightsErrors] = useState('');
-  const [isSavingWeights, setIsSavingWeights] = useState(false);
-  const [weightsSuccessMessage, setWeightsSuccessMessage] = useState('');
   const [profileErrors, setProfileErrors] = useState<Partial<UserProfile>>({});
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSuccessMessage, setProfileSuccessMessage] = useState('');
@@ -128,7 +111,6 @@ function ManagerDashboard() {
     fetchEmployees();
     fetchTeamPerformance();
     fetchNotificationCount();
-    fetchDimensionWeights();
     fetchMyKRAs();
   }, [navigate]);
 
@@ -161,19 +143,6 @@ function ManagerDashboard() {
       }
     } catch (error) {
       console.error('Failed to fetch notification count:', error);
-    }
-  };
-
-  const fetchDimensionWeights = async () => {
-    try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/team/dimension-weights?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
-        setDimensionWeights(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch dimension weights:', error);
     }
   };
 
@@ -314,62 +283,6 @@ function ManagerDashboard() {
       console.error('Failed to create employee:', error);
       alert('Network error. Please check if the server is running.');
     }
-  };
-
-  const handleWeightChange = (dimension: keyof DimensionWeights, value: number) => {
-    const numValue = Math.round(Math.max(0, Math.min(100, value)));
-    setDimensionWeights((prev) => ({ ...prev, [dimension]: numValue }));
-    setWeightsErrors('');
-    setWeightsSuccessMessage('');
-  };
-
-  const handleSaveWeights = async (e: FormEvent) => {
-    e.preventDefault();
-    setWeightsErrors('');
-    setWeightsSuccessMessage('');
-
-    const total = dimensionWeights.functional + dimensionWeights.organizational + 
-                  dimensionWeights.selfDevelopment + dimensionWeights.developingOthers;
-
-    if (total !== 100) {
-      setWeightsErrors(`Weights must sum to 100%. Current sum: ${total}%`);
-      return;
-    }
-
-    if (dimensionWeights.functional <= 0 || dimensionWeights.organizational <= 0 || 
-        dimensionWeights.selfDevelopment <= 0) {
-      setWeightsErrors('Functional, Organizational, and Self Development dimensions must have weights greater than 0%');
-      return;
-    }
-
-    setIsSavingWeights(true);
-    const userId = localStorage.getItem('userId') || '';
-
-    try {
-      const response = await fetch(`/api/team/dimension-weights?userId=${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dimensionWeights),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setWeightsSuccessMessage('Dimension weights saved successfully!');
-        setTimeout(() => setWeightsSuccessMessage(''), 3000);
-      } else {
-        setWeightsErrors(data.message || 'Failed to save dimension weights');
-      }
-    } catch (error) {
-      setWeightsErrors('Network error. Please try again.');
-    } finally {
-      setIsSavingWeights(false);
-    }
-  };
-
-  const calculateTotal = () => {
-    return dimensionWeights.functional + dimensionWeights.organizational + 
-           dimensionWeights.selfDevelopment + dimensionWeights.developingOthers;
   };
 
   const handleProfileChange = (field: keyof UserProfile, value: string) => {
@@ -763,23 +676,6 @@ function ManagerDashboard() {
                 <span>Performance</span>
               </button>
 
-              <button
-                className={`${baseStyles.menuItem} ${activeTab === 'dimensions' ? baseStyles.menuItemActive : ''}`}
-                onClick={() => { setActiveTab('dimensions'); setShowMenu(false); }}
-              >
-                <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="2" x2="12" y2="6"></line>
-                  <line x1="12" y1="18" x2="12" y2="22"></line>
-                  <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                  <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                  <line x1="2" y1="12" x2="6" y2="12"></line>
-                  <line x1="18" y1="12" x2="22" y2="12"></line>
-                  <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                  <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                </svg>
-                <span>Dimension Weights</span>
-              </button>
 
               <button
                 className={`${baseStyles.menuItem} ${activeTab === 'settings' ? baseStyles.menuItemActive : ''}`}
@@ -1461,151 +1357,6 @@ function ManagerDashboard() {
             </div>
           )}
 
-          {activeTab === 'dimensions' && (
-            <div className={baseStyles.tabContent}>
-              <h1 className={baseStyles.pageTitle}>Performance Dimension Weights</h1>
-              <p className={baseStyles.pageSubtitle}>
-                Configure the weight distribution for performance evaluation dimensions. 
-                The first three dimensions are mandatory, while "Developing Others" is optional.
-                Total must equal 100%.
-              </p>
-
-              <form onSubmit={handleSaveWeights} className={styles.weightsForm}>
-                <div className={styles.weightsGrid}>
-                  <div 
-                    className={styles.weightInputGroup}
-                    style={{ 
-                      borderLeft: `4px solid ${DIMENSION_COLORS.functional.primary}`,
-                      backgroundColor: DIMENSION_COLORS.functional.light,
-                    }}
-                  >
-                    <label htmlFor="functional" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.functional.primary }}>
-                      Functional Dimension <span className={styles.required}>*</span>
-                    </label>
-                    <div className={styles.weightInputWrapper}>
-                      <input
-                        id="functional"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={dimensionWeights.functional}
-                        onChange={(e) => handleWeightChange('functional', parseInt(e.target.value) || 0)}
-                        className={styles.weightInput}
-                        style={{ borderColor: DIMENSION_COLORS.functional.border }}
-                      />
-                      <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.functional.primary }}>%</span>
-                    </div>
-                  </div>
-
-                  <div 
-                    className={styles.weightInputGroup}
-                    style={{ 
-                      borderLeft: `4px solid ${DIMENSION_COLORS.organizational.primary}`,
-                      backgroundColor: DIMENSION_COLORS.organizational.light,
-                    }}
-                  >
-                    <label htmlFor="organizational" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.organizational.primary }}>
-                      Organizational Dimension <span className={styles.required}>*</span>
-                    </label>
-                    <div className={styles.weightInputWrapper}>
-                      <input
-                        id="organizational"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={dimensionWeights.organizational}
-                        onChange={(e) => handleWeightChange('organizational', parseInt(e.target.value) || 0)}
-                        className={styles.weightInput}
-                        style={{ borderColor: DIMENSION_COLORS.organizational.border }}
-                      />
-                      <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.organizational.primary }}>%</span>
-                    </div>
-                  </div>
-
-                  <div 
-                    className={styles.weightInputGroup}
-                    style={{ 
-                      borderLeft: `4px solid ${DIMENSION_COLORS.selfDevelopment.primary}`,
-                      backgroundColor: DIMENSION_COLORS.selfDevelopment.light,
-                    }}
-                  >
-                    <label htmlFor="selfDevelopment" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.selfDevelopment.primary }}>
-                      Self Development <span className={styles.required}>*</span>
-                    </label>
-                    <div className={styles.weightInputWrapper}>
-                      <input
-                        id="selfDevelopment"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={dimensionWeights.selfDevelopment}
-                        onChange={(e) => handleWeightChange('selfDevelopment', parseInt(e.target.value) || 0)}
-                        className={styles.weightInput}
-                        style={{ borderColor: DIMENSION_COLORS.selfDevelopment.border }}
-                      />
-                      <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.selfDevelopment.primary }}>%</span>
-                    </div>
-                  </div>
-
-                  <div 
-                    className={styles.weightInputGroup}
-                    style={{ 
-                      borderLeft: `4px solid ${DIMENSION_COLORS.developingOthers.primary}`,
-                      backgroundColor: DIMENSION_COLORS.developingOthers.light,
-                    }}
-                  >
-                    <label htmlFor="developingOthers" className={styles.weightLabel} style={{ color: DIMENSION_COLORS.developingOthers.primary }}>
-                      Developing Others <span className={styles.optional}>(Optional)</span>
-                    </label>
-                    <div className={styles.weightInputWrapper}>
-                      <input
-                        id="developingOthers"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={dimensionWeights.developingOthers}
-                        onChange={(e) => handleWeightChange('developingOthers', parseInt(e.target.value) || 0)}
-                        className={styles.weightInput}
-                        style={{ borderColor: DIMENSION_COLORS.developingOthers.border }}
-                      />
-                      <span className={styles.percentSymbol} style={{ color: DIMENSION_COLORS.developingOthers.primary }}>%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.totalDisplay}>
-                  <strong>Total: {calculateTotal()}%</strong>
-                  {calculateTotal() !== 100 && (
-                    <span className={styles.totalError}> (Must be 100%)</span>
-                  )}
-                </div>
-
-                {weightsErrors && (
-                  <div className={baseStyles.errorText} role="alert" style={{ marginBottom: 'var(--spacing-md)' }}>
-                    {weightsErrors}
-                  </div>
-                )}
-
-                {weightsSuccessMessage && (
-                  <div className={baseStyles.successMessage} role="alert">
-                    {weightsSuccessMessage}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className={baseStyles.submitButton}
-                  disabled={isSavingWeights || calculateTotal() !== 100}
-                >
-                  {isSavingWeights ? 'Saving...' : 'Save Dimension Weights'}
-                </button>
-              </form>
-            </div>
-          )}
 
           {activeTab === 'settings' && (
             <div className={baseStyles.tabContent}>

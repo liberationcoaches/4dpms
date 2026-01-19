@@ -20,6 +20,14 @@ export interface IFunctionalKRA {
   kpis: IKPI[]; // Multiple KPIs - how the KRA will be achieved
   reportsGenerated?: IProof[]; // Proof system - files or drive links
   
+  // Edit tracking - KRA can only be edited ONCE after creation
+  editCount?: number; // Number of times KRA has been edited (max 1 allowed)
+  
+  // Score lock - once locked, scores cannot be changed
+  isScoreLocked?: boolean; // If true, scores are finalized
+  scoreLockedAt?: Date; // When scores were locked
+  scoreLockedBy?: mongoose.Types.ObjectId; // Who locked the scores
+  
   // Pilot Period (Starting score)
   pilotWeight?: number; // Weight in pilot period
   pilotScore?: number; // Score 0-5 (can be decimal)
@@ -55,6 +63,13 @@ export interface IFunctionalKRA {
 // Organizational Dimension KRA
 export interface IOrganizationalKRA {
   coreValues: string; // Changed from coreValue to match Excel "Core Values"
+  
+  // Edit tracking - KRA can only be edited ONCE after creation
+  editCount?: number;
+  isScoreLocked?: boolean;
+  scoreLockedAt?: Date;
+  scoreLockedBy?: mongoose.Types.ObjectId;
+  
   // Pilot Period (no score, just critical incident based on Excel structure)
   pilotCriticalIncident?: string;
   // Review Period 1
@@ -77,6 +92,13 @@ export interface IOrganizationalKRA {
 export interface ISelfDevelopmentKRA {
   areaOfConcern: string;
   actionPlanInitiative?: string;
+  
+  // Edit tracking - KRA can only be edited ONCE after creation
+  editCount?: number;
+  isScoreLocked?: boolean;
+  scoreLockedAt?: Date;
+  scoreLockedBy?: mongoose.Types.ObjectId;
+  
   // Pilot Period
   pilotScore?: number;
   pilotReason?: string;
@@ -100,6 +122,13 @@ export interface ISelfDevelopmentKRA {
 export interface IDevelopingOthersKRA {
   person: string;
   areaOfDevelopment?: string;
+  
+  // Edit tracking - KRA can only be edited ONCE after creation
+  editCount?: number;
+  isScoreLocked?: boolean;
+  scoreLockedAt?: Date;
+  scoreLockedBy?: mongoose.Types.ObjectId;
+  
   // Pilot Period
   pilotScore?: number;
   pilotReason?: string;
@@ -203,6 +232,11 @@ const TeamSchema = new Schema<ITeam>(
                 uploadedAt: { type: Date, default: Date.now },
               },
             ],
+            // Edit tracking - KRA can only be edited ONCE after creation
+            editCount: { type: Number, default: 0 },
+            isScoreLocked: { type: Boolean, default: false },
+            scoreLockedAt: { type: Date },
+            scoreLockedBy: { type: Schema.Types.ObjectId, ref: 'User' },
             // Pilot Period
             pilotWeight: { type: Number, min: 0, max: 100, default: 0 },
             pilotScore: { type: Number, min: 0, max: 5, default: 0 },
@@ -234,6 +268,11 @@ const TeamSchema = new Schema<ITeam>(
         organizationalKRAs: [
           {
             coreValues: { type: String, required: true, trim: true },
+            // Edit tracking
+            editCount: { type: Number, default: 0 },
+            isScoreLocked: { type: Boolean, default: false },
+            scoreLockedAt: { type: Date },
+            scoreLockedBy: { type: Schema.Types.ObjectId, ref: 'User' },
             pilotScore: { type: Number, default: 0 },
             pilotCriticalIncident: { type: String, trim: true },
             r1Score: { type: Number, default: 0 },
@@ -252,6 +291,11 @@ const TeamSchema = new Schema<ITeam>(
           {
             areaOfConcern: { type: String, required: true, trim: true },
             actionPlanInitiative: { type: String, trim: true },
+            // Edit tracking
+            editCount: { type: Number, default: 0 },
+            isScoreLocked: { type: Boolean, default: false },
+            scoreLockedAt: { type: Date },
+            scoreLockedBy: { type: Schema.Types.ObjectId, ref: 'User' },
             pilotScore: { type: Number, default: 0 },
             pilotReason: { type: String, trim: true },
             r1Score: { type: Number, default: 0 },
@@ -270,6 +314,11 @@ const TeamSchema = new Schema<ITeam>(
           {
             person: { type: String, required: true, trim: true },
             areaOfDevelopment: { type: String, trim: true },
+            // Edit tracking
+            editCount: { type: Number, default: 0 },
+            isScoreLocked: { type: Boolean, default: false },
+            scoreLockedAt: { type: Date },
+            scoreLockedBy: { type: Schema.Types.ObjectId, ref: 'User' },
             pilotScore: { type: Number, default: 0 },
             pilotReason: { type: String, trim: true },
             r1Score: { type: Number, default: 0 },

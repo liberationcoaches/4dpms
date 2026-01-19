@@ -25,11 +25,18 @@ const proofSchema = z.object({
   }, z.date().optional()),
 });
 
+const kpiSchema = z.object({
+  kpi: z.string().min(1),
+  target: z.string().optional(),
+});
+
 const functionalKRASchema = z.object({
   kra: z.string().min(1),
-  kpiTarget: z.string().optional(),
+  kpis: z.array(kpiSchema).optional(), // New format
+  kpiTarget: z.string().optional(), // Legacy format
   reportsGenerated: z.array(proofSchema).optional(),
   pilotWeight: z.number().optional(),
+  pilotScore: z.number().optional(),
   pilotActualPerf: z.string().optional(),
   r1Weight: z.number().optional(),
   r1Score: z.number().optional(),
@@ -375,7 +382,7 @@ export async function addBossFunctionalKRA(
       return;
     }
 
-    const validatedKRA = functionalKRASchema.parse(req.body);
+    const validatedKRA = functionalKRASchema.parse(req.body) as any;
     const validation = validateFunctionalKRA(validatedKRA as Partial<IFunctionalKRA>);
 
     if (!validation.valid) {
@@ -385,6 +392,13 @@ export async function addBossFunctionalKRA(
         errors: validation.errors,
       });
       return;
+    }
+
+    // Convert old kpiTarget format to new kpis array format
+    if (!validatedKRA.kpis || !Array.isArray(validatedKRA.kpis) || validatedKRA.kpis.length === 0) {
+      validatedKRA.kpis = validatedKRA.kpiTarget
+        ? [{ kpi: validatedKRA.kpiTarget, target: '' }]
+        : [{ kpi: 'Default KPI', target: '' }];
     }
 
     // Find or create team for boss
@@ -708,6 +722,415 @@ export async function getBossKRAs(
 }
 
 /**
+ * Update Functional KRA for a boss (Client Admin only)
+ * PUT /api/client-admin/bosses/:bossId/kras/functional/:kraIndex
+ */
+export async function updateBossFunctionalKRA(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    const bossId = req.params.bossId;
+    const kraIndex = parseInt(req.params.kraIndex);
+
+    if (!clientAdminId || !bossId || isNaN(kraIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, Boss ID, and KRA index are required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can update boss KRAs',
+      });
+      return;
+    }
+
+    // Validate boss
+    const boss = await User.findById(bossId);
+    if (!boss || boss.role !== 'boss' || boss.organizationId?.toString() !== clientAdmin.organizationId?.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Boss not found or does not belong to your organization',
+      });
+      return;
+    }
+
+    // Find boss's team
+    let team = await Team.findOne({ createdBy: boss._id });
+    if (!team) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss team not found',
+      });
+      return;
+    }
+
+    // Find boss in membersDetails
+    let memberIndex = team.membersDetails.findIndex(
+      (m: any) => m.mobile === boss.mobile
+    );
+
+    if (memberIndex === -1) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss not found in team members',
+      });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.functionalKRAs || kraIndex >= member.functionalKRAs.length) {
+      res.status(404).json({
+        status: 'error',
+        message: 'KRA not found',
+      });
+      return;
+    }
+
+    const existingKRA = member.functionalKRAs[kraIndex] as any;
+
+    // Check if scores are locked
+    if (existingKRA.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'This KRA has been finalized and cannot be modified',
+      });
+      return;
+    }
+
+    // Validate and parse KRA data
+    const validatedKRA = functionalKRASchema.partial().parse(req.body);
+    const validation = validateFunctionalKRA(validatedKRA as Partial<IFunctionalKRA>);
+
+    if (!validation.valid) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid KRA data',
+        errors: validation.errors,
+      });
+      return;
+    }
+
+    // Convert old format to new if needed
+    if (!validatedKRA.kpis && validatedKRA.kpiTarget) {
+      validatedKRA.kpis = [{ kpi: validatedKRA.kpiTarget, target: '' }];
+    }
+
+    // Check if trying to edit KRA details (kra, kpis) - only allowed once
+    const isEditingKRADetails = validatedKRA.kra || validatedKRA.kpis;
+    if (isEditingKRADetails && (existingKRA.editCount || 0) >= 1) {
+      res.status(403).json({
+        status: 'error',
+        message: 'KRA details can only be edited once. This KRA has already been edited.',
+      });
+      return;
+    }
+
+    // Update KRA
+    const updatedKRA = {
+      ...existingKRA,
+      ...validatedKRA,
+      kra: validatedKRA.kra || existingKRA.kra,
+      editCount: isEditingKRADetails ? (existingKRA.editCount || 0) + 1 : (existingKRA.editCount || 0),
+    };
+
+    const kraWithAverage = updateFunctionalKRAAverageScore(updatedKRA as IFunctionalKRA);
+    member.functionalKRAs[kraIndex] = kraWithAverage;
+
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'KRA updated successfully',
+      data: kraWithAverage,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete Functional KRA for a boss (Client Admin only)
+ * DELETE /api/client-admin/bosses/:bossId/kras/functional/:kraIndex
+ */
+export async function deleteBossFunctionalKRA(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    const bossId = req.params.bossId;
+    const kraIndex = parseInt(req.params.kraIndex);
+
+    if (!clientAdminId || !bossId || isNaN(kraIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, Boss ID, and KRA index are required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can delete boss KRAs',
+      });
+      return;
+    }
+
+    // Validate boss
+    const boss = await User.findById(bossId);
+    if (!boss || boss.role !== 'boss' || boss.organizationId?.toString() !== clientAdmin.organizationId?.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Boss not found or does not belong to your organization',
+      });
+      return;
+    }
+
+    // Find boss's team
+    const team = await Team.findOne({ createdBy: boss._id });
+    if (!team) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss team not found',
+      });
+      return;
+    }
+
+    // Find boss in membersDetails
+    const memberIndex = team.membersDetails.findIndex(
+      (m: any) => m.mobile === boss.mobile
+    );
+
+    if (memberIndex === -1) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss not found in team members',
+      });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.functionalKRAs || kraIndex >= member.functionalKRAs.length) {
+      res.status(404).json({
+        status: 'error',
+        message: 'KRA not found',
+      });
+      return;
+    }
+
+    const existingKRA = member.functionalKRAs[kraIndex] as any;
+
+    // Check if KRA is locked
+    if (existingKRA.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Cannot delete a finalized KRA',
+      });
+      return;
+    }
+
+    member.functionalKRAs.splice(kraIndex, 1);
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'KRA deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Lock/Finalize Functional KRA scores for a boss (Client Admin only)
+ * POST /api/client-admin/bosses/:bossId/kras/functional/:kraIndex/lock
+ */
+export async function lockBossFunctionalKRAScores(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    const bossId = req.params.bossId;
+    const kraIndex = parseInt(req.params.kraIndex);
+
+    if (!clientAdminId || !bossId || isNaN(kraIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, Boss ID, and KRA index are required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can lock boss KRA scores',
+      });
+      return;
+    }
+
+    // Validate boss
+    const boss = await User.findById(bossId);
+    if (!boss || boss.role !== 'boss' || boss.organizationId?.toString() !== clientAdmin.organizationId?.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Boss not found or does not belong to your organization',
+      });
+      return;
+    }
+
+    // Find boss's team
+    const team = await Team.findOne({ createdBy: boss._id });
+    if (!team) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss team not found',
+      });
+      return;
+    }
+
+    // Find boss in membersDetails
+    const memberIndex = team.membersDetails.findIndex(
+      (m: any) => m.mobile === boss.mobile
+    );
+
+    if (memberIndex === -1) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss not found in team members',
+      });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.functionalKRAs || kraIndex >= member.functionalKRAs.length) {
+      res.status(404).json({
+        status: 'error',
+        message: 'KRA not found',
+      });
+      return;
+    }
+
+    const existingKRA = member.functionalKRAs[kraIndex] as any;
+
+    if (existingKRA.isScoreLocked) {
+      res.status(400).json({
+        status: 'error',
+        message: 'This KRA is already finalized',
+      });
+      return;
+    }
+
+    existingKRA.isScoreLocked = true;
+    existingKRA.scoreLockedAt = new Date();
+    existingKRA.scoreLockedBy = clientAdminId;
+
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'KRA scores have been finalized and locked',
+      data: existingKRA,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get member index for a boss in their team
+ * GET /api/client-admin/bosses/:bossId/team-member-index
+ */
+export async function getBossMemberIndex(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    const bossId = req.params.bossId;
+
+    if (!clientAdminId || !bossId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID and Boss ID are required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can access this',
+      });
+      return;
+    }
+
+    // Validate boss
+    const boss = await User.findById(bossId);
+    if (!boss || boss.role !== 'boss' || boss.organizationId?.toString() !== clientAdmin.organizationId?.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Boss not found or does not belong to your organization',
+      });
+      return;
+    }
+
+    // Find boss's team
+    const team = await Team.findOne({ createdBy: boss._id });
+    if (!team) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss team not found',
+      });
+      return;
+    }
+
+    // Find member index
+    const memberIndex = team.membersDetails.findIndex(
+      (m: any) => m.mobile === boss.mobile
+    );
+
+    if (memberIndex === -1) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Boss not found in team members',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        memberIndex,
+        teamId: team._id.toString(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Get CSA analytics (organization-wide performance metrics)
  */
 export async function getCSAAnalytics(
@@ -935,31 +1358,31 @@ export async function getCSAAnalytics(
         dimensions: {
           functional: {
             score: orgFunctional,
-            items: allFunctionalKRAs.length > 0 ? allFunctionalKRAs.slice(0, 5).map((kra: any) => ({
+            items: allFunctionalKRAs.length > 0 ? allFunctionalKRAs.slice(0, 2).map((kra: any) => ({
               title: kra.kra || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           organizational: {
             score: orgOrganizational,
-            items: allOrganizationalKRAs.length > 0 ? allOrganizationalKRAs.slice(0, 5).map((kra: any) => ({
+            items: allOrganizationalKRAs.length > 0 ? allOrganizationalKRAs.slice(0, 2).map((kra: any) => ({
               title: kra.coreValues || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           selfDevelopment: {
             score: orgSelfDevelopment,
-            items: allSelfDevelopmentKRAs.length > 0 ? allSelfDevelopmentKRAs.slice(0, 5).map((kra: any) => ({
+            items: allSelfDevelopmentKRAs.length > 0 ? allSelfDevelopmentKRAs.slice(0, 2).map((kra: any) => ({
               title: kra.areaOfConcern || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           developingOthers: {
             score: orgDevelopingOthers,
-            items: allDevelopingOthersKRAs.length > 0 ? allDevelopingOthersKRAs.slice(0, 5).map((kra: any) => ({
+            items: allDevelopingOthersKRAs.length > 0 ? allDevelopingOthersKRAs.slice(0, 2).map((kra: any) => ({
               title: kra.title || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 5 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
         },
         trends: trendData,

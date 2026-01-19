@@ -157,7 +157,32 @@ export async function updateOrganizational(req: Request, res: Response, next: Ne
       return;
     }
 
-    const updated = { ...member.organizationalKRAs[dimensionIndex], ...validated };
+    const existing = member.organizationalKRAs[dimensionIndex] as any;
+
+    // Check if scores are locked
+    if (existing.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'This dimension has been finalized and cannot be modified',
+      });
+      return;
+    }
+
+    // Check if trying to edit core values - only allowed once
+    const isEditingCoreFields = validated.coreValue !== undefined;
+    if (isEditingCoreFields && (existing.editCount || 0) >= 1) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Core values can only be edited once. This dimension has already been edited.',
+      });
+      return;
+    }
+
+    const updated = { 
+      ...existing, 
+      ...validated,
+      editCount: isEditingCoreFields ? (existing.editCount || 0) + 1 : (existing.editCount || 0),
+    };
     const average = calculateOrganizationalAverage(updated);
     member.organizationalKRAs[dimensionIndex] = { ...updated, averageScore: average ?? undefined } as any;
 
@@ -275,7 +300,32 @@ export async function updateSelfDevelopment(req: Request, res: Response, next: N
       return;
     }
 
-    const updated = { ...member.selfDevelopmentKRAs[developmentIndex], ...validated };
+    const existing = member.selfDevelopmentKRAs[developmentIndex] as any;
+
+    // Check if scores are locked
+    if (existing.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'This dimension has been finalized and cannot be modified',
+      });
+      return;
+    }
+
+    // Check if trying to edit core fields - only allowed once
+    const isEditingCoreFields = validated.areaOfConcern !== undefined || validated.actionPlanInitiative !== undefined;
+    if (isEditingCoreFields && (existing.editCount || 0) >= 1) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Self development details can only be edited once.',
+      });
+      return;
+    }
+
+    const updated = { 
+      ...existing, 
+      ...validated,
+      editCount: isEditingCoreFields ? (existing.editCount || 0) + 1 : (existing.editCount || 0),
+    };
     const average = calculateSelfDevelopmentAverage(updated);
     member.selfDevelopmentKRAs[developmentIndex] = { ...updated, averageScore: average ?? undefined } as any;
 
@@ -393,7 +443,32 @@ export async function updateDevelopingOthers(req: Request, res: Response, next: 
       return;
     }
 
-    const updated = { ...member.developingOthersKRAs[developingIndex], ...validated };
+    const existing = member.developingOthersKRAs[developingIndex] as any;
+
+    // Check if scores are locked
+    if (existing.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'This dimension has been finalized and cannot be modified',
+      });
+      return;
+    }
+
+    // Check if trying to edit core fields - only allowed once
+    const isEditingCoreFields = validated.person !== undefined || validated.areaOfDevelopment !== undefined;
+    if (isEditingCoreFields && (existing.editCount || 0) >= 1) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Developing others details can only be edited once.',
+      });
+      return;
+    }
+
+    const updated = { 
+      ...existing, 
+      ...validated,
+      editCount: isEditingCoreFields ? (existing.editCount || 0) + 1 : (existing.editCount || 0),
+    };
     const average = calculateDevelopingOthersAverage(updated);
     member.developingOthersKRAs[developingIndex] = { ...updated, averageScore: average ?? undefined } as any;
 
@@ -409,4 +484,177 @@ export async function updateDevelopingOthers(req: Request, res: Response, next: 
   }
 }
 
+/**
+ * Lock/Finalize Organizational Dimension scores
+ * POST /api/team/members/:memberIndex/organizational/:dimensionIndex/lock
+ */
+export async function lockOrganizationalScores(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const memberIndex = parseInt(req.params.memberIndex);
+    const dimensionIndex = parseInt(req.params.dimensionIndex);
+
+    if (!userId || isNaN(memberIndex) || isNaN(dimensionIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, member index, and dimension index are required',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user || !user.teamId) {
+      res.status(404).json({ status: 'error', message: 'User or team not found' });
+      return;
+    }
+
+    const team = await Team.findById(user.teamId);
+    if (!team || !team.membersDetails || memberIndex >= team.membersDetails.length) {
+      res.status(404).json({ status: 'error', message: 'Team or member not found' });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.organizationalKRAs || dimensionIndex >= member.organizationalKRAs.length) {
+      res.status(404).json({ status: 'error', message: 'Organizational dimension not found' });
+      return;
+    }
+
+    const existing = member.organizationalKRAs[dimensionIndex] as any;
+    if (existing.isScoreLocked) {
+      res.status(400).json({ status: 'error', message: 'This dimension is already finalized' });
+      return;
+    }
+
+    existing.isScoreLocked = true;
+    existing.scoreLockedAt = new Date();
+    existing.scoreLockedBy = userId;
+
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Organizational dimension scores have been finalized and locked',
+      data: existing,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Lock/Finalize Self Development scores
+ * POST /api/team/members/:memberIndex/self-development/:developmentIndex/lock
+ */
+export async function lockSelfDevelopmentScores(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const memberIndex = parseInt(req.params.memberIndex);
+    const developmentIndex = parseInt(req.params.developmentIndex);
+
+    if (!userId || isNaN(memberIndex) || isNaN(developmentIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, member index, and development index are required',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user || !user.teamId) {
+      res.status(404).json({ status: 'error', message: 'User or team not found' });
+      return;
+    }
+
+    const team = await Team.findById(user.teamId);
+    if (!team || !team.membersDetails || memberIndex >= team.membersDetails.length) {
+      res.status(404).json({ status: 'error', message: 'Team or member not found' });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.selfDevelopmentKRAs || developmentIndex >= member.selfDevelopmentKRAs.length) {
+      res.status(404).json({ status: 'error', message: 'Self development not found' });
+      return;
+    }
+
+    const existing = member.selfDevelopmentKRAs[developmentIndex] as any;
+    if (existing.isScoreLocked) {
+      res.status(400).json({ status: 'error', message: 'This dimension is already finalized' });
+      return;
+    }
+
+    existing.isScoreLocked = true;
+    existing.scoreLockedAt = new Date();
+    existing.scoreLockedBy = userId;
+
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Self development scores have been finalized and locked',
+      data: existing,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Lock/Finalize Developing Others scores
+ * POST /api/team/members/:memberIndex/developing-others/:developingIndex/lock
+ */
+export async function lockDevelopingOthersScores(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const memberIndex = parseInt(req.params.memberIndex);
+    const developingIndex = parseInt(req.params.developingIndex);
+
+    if (!userId || isNaN(memberIndex) || isNaN(developingIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, member index, and developing index are required',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user || !user.teamId) {
+      res.status(404).json({ status: 'error', message: 'User or team not found' });
+      return;
+    }
+
+    const team = await Team.findById(user.teamId);
+    if (!team || !team.membersDetails || memberIndex >= team.membersDetails.length) {
+      res.status(404).json({ status: 'error', message: 'Team or member not found' });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.developingOthersKRAs || developingIndex >= member.developingOthersKRAs.length) {
+      res.status(404).json({ status: 'error', message: 'Developing others not found' });
+      return;
+    }
+
+    const existing = member.developingOthersKRAs[developingIndex] as any;
+    if (existing.isScoreLocked) {
+      res.status(400).json({ status: 'error', message: 'This dimension is already finalized' });
+      return;
+    }
+
+    existing.isScoreLocked = true;
+    existing.scoreLockedAt = new Date();
+    existing.scoreLockedBy = userId;
+
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Developing others scores have been finalized and locked',
+      data: existing,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 

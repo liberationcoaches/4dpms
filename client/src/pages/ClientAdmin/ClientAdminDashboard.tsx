@@ -248,39 +248,73 @@ function ClientAdminDashboard() {
     }
   };
 
+  const [editingKRAIndex, setEditingKRAIndex] = useState<number | null>(null);
+
   const handleAddKRA = async (formData?: FunctionalKRAFormData) => {
     if (!selectedBoss) return;
 
     try {
       const userId = localStorage.getItem('userId');
-      const endpoint = `/api/client-admin/bosses/${selectedBoss._id}/kras/${kraType}`;
       
-      // For functional KRAs, use the unified form data
-      // For other types, use the old structure (will be updated later)
-      const requestData = kraType === 'functional' && formData
-        ? {
-            kra: formData.kra,
-            kpis: formData.kpis,
-            reportsGenerated: formData.reportsGenerated || [],
-            pilotWeight: formData.pilotWeight || 10,
-            pilotScore: formData.pilotScore || 0,
-          }
-        : newKRA;
+      // Check if we're editing an existing KRA
+      if (editingKRAIndex !== null && kraType === 'functional') {
+        // Update existing KRA using client-admin endpoint
+        const requestData = formData
+          ? {
+              kra: formData.kra,
+              kpis: formData.kpis,
+              reportsGenerated: formData.reportsGenerated || [],
+              pilotWeight: formData.pilotWeight || 10,
+              pilotScore: formData.pilotScore || 0,
+            }
+          : newKRA;
 
-      const res = await fetch(`${endpoint}?userId=${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData),
-      });
+        const res = await fetch(`/api/client-admin/bosses/${selectedBoss._id}/kras/functional/${editingKRAIndex}?userId=${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestData),
+        });
 
-      const data = await res.json();
-      if (res.ok) {
-        setShowKRAModal(false);
-        setNewKRA({});
-        fetchBossKRAs(selectedBoss._id); // Refresh KRAs
-        alert('KRA added successfully!');
+        const data = await res.json();
+        if (res.ok) {
+          setShowKRAModal(false);
+          setNewKRA({});
+          setEditingKRAIndex(null);
+          fetchBossKRAs(selectedBoss._id);
+          alert('KRA updated successfully!');
+        } else {
+          alert(data.message || 'Failed to update KRA');
+        }
       } else {
-        alert(data.message || 'Failed to add KRA');
+        // Add new KRA
+        const endpoint = `/api/client-admin/bosses/${selectedBoss._id}/kras/${kraType}`;
+        
+        const requestData = kraType === 'functional' && formData
+          ? {
+              kra: formData.kra,
+              kpis: formData.kpis,
+              reportsGenerated: formData.reportsGenerated || [],
+              pilotWeight: formData.pilotWeight || 10,
+              pilotScore: formData.pilotScore || 0,
+            }
+          : newKRA;
+
+        const res = await fetch(`${endpoint}?userId=${userId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestData),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          setShowKRAModal(false);
+          setNewKRA({});
+          setEditingKRAIndex(null);
+          fetchBossKRAs(selectedBoss._id);
+          alert('KRA added successfully!');
+        } else {
+          alert(data.message || 'Failed to add KRA');
+        }
       }
     } catch (error) {
       alert('Network error');
@@ -546,6 +580,119 @@ function ClientAdminDashboard() {
       uploadedAt: new Date().toISOString(),
     };
     handleAddProof(bossId, kraIndex, newProof);
+  };
+
+  // Helper to get member index for a boss in their team
+  const getMemberIndex = async (boss: Boss): Promise<number | null> => {
+    try {
+      const userId = localStorage.getItem('userId');
+      const teamRes = await fetch(`/api/client-admin/bosses/${boss._id}/team-member-index?userId=${userId}`);
+      const teamData = await teamRes.json();
+      if (teamData.status === 'success' && teamData.data !== undefined && teamData.data !== null) {
+        return teamData.data.memberIndex;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting member index:', error);
+      return null;
+    }
+  };
+
+  // Handle editing a KRA
+  const handleEditKRA = async (boss: Boss, kraIndex: number) => {
+    const kra = bossKRAs[boss._id]?.functionalKRAs?.[kraIndex];
+    if (!kra) return;
+
+    // Check if already edited once or locked
+    if ((kra.editCount || 0) >= 1) {
+      alert('This KRA can only be edited once. It has already been edited.');
+      return;
+    }
+    if (kra.isScoreLocked) {
+      alert('This KRA has been finalized and cannot be edited.');
+      return;
+    }
+
+    // Set up edit mode
+    setSelectedBoss(boss);
+    setEditingKRAIndex(kraIndex);
+    setShowKRAModal(true);
+    setKraType('functional');
+    // Set existing KRA data for editing - convert to form data format
+    const kpis = Array.isArray(kra.kpis) ? kra.kpis : (kra.kpis ? [{ kpi: String(kra.kpis), target: '' }] : []);
+    setNewKRA({
+      kra: kra.kra,
+      kpis: kpis,
+      reportsGenerated: kra.reportsGenerated || [],
+      pilotWeight: kra.pilotWeight || 10,
+      pilotScore: kra.pilotScore || 0,
+    });
+  };
+
+  // Handle deleting a KRA
+  const handleDeleteKRA = async (boss: Boss, kraIndex: number) => {
+    const kra = bossKRAs[boss._id]?.functionalKRAs?.[kraIndex];
+    if (!kra) return;
+
+    if (kra.isScoreLocked) {
+      alert('Cannot delete a finalized KRA.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this KRA? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/client-admin/bosses/${boss._id}/kras/functional/${kraIndex}?userId=${userId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        fetchBossKRAs(boss._id);
+        alert('KRA deleted successfully!');
+      } else {
+        alert(data.message || 'Failed to delete KRA');
+      }
+    } catch (error) {
+      console.error('Error deleting KRA:', error);
+      alert('Failed to delete KRA');
+    }
+  };
+
+  // Handle locking/finalizing KRA scores
+  const handleLockKRAScores = async (boss: Boss, kraIndex: number) => {
+    const kra = bossKRAs[boss._id]?.functionalKRAs?.[kraIndex];
+    if (!kra) return;
+
+    if (kra.isScoreLocked) {
+      alert('This KRA is already finalized.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to finalize these scores? Once locked, scores cannot be modified.')) {
+      return;
+    }
+
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/client-admin/bosses/${boss._id}/kras/functional/${kraIndex}/lock?userId=${userId}`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        fetchBossKRAs(boss._id);
+        alert('KRA scores have been finalized and locked!');
+      } else {
+        alert(data.message || 'Failed to lock KRA scores');
+      }
+    } catch (error) {
+      console.error('Error locking KRA scores:', error);
+      alert('Failed to lock KRA scores');
+    }
   };
 
   if (isLoading) {
@@ -884,35 +1031,18 @@ function ClientAdminDashboard() {
               {analytics && analytics.topPerformers.length > 0 && (
                 <div className={styles.topPerformersCard}>
                   <h2>Top Performers</h2>
-                  <div className={styles.performersGrid}>
-                    <div className={styles.performersColumn}>
-                      <h3>Top Performers</h3>
-                      {analytics.topPerformers.slice(0, 3).map((performer: any) => (
-                        <div key={performer.rank} className={styles.performerItem}>
-                          <div className={styles.performerAvatar}>
-                            {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </div>
-                          <div className={styles.performerInfo}>
-                            <div className={styles.performerName}>{performer.name}</div>
-                            <div className={styles.performerRank}>Rank {performer.rank}</div>
-                          </div>
+                  <div className={styles.performersScrollable}>
+                    {analytics.topPerformers.slice(0, 3).map((performer: any) => (
+                      <div key={performer.rank} className={styles.performerItem}>
+                        <div className={styles.performerAvatar}>
+                          {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
-                      ))}
-                    </div>
-                    <div className={styles.performersColumn}>
-                      <h3>Top Performers</h3>
-                      {analytics.topPerformers.slice(3, 6).map((performer: any) => (
-                        <div key={performer.rank} className={styles.performerItem}>
-                          <div className={styles.performerAvatar}>
-                            {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </div>
-                          <div className={styles.performerInfo}>
-                            <div className={styles.performerName}>{performer.name}</div>
-                            <div className={styles.performerRank}>Rank {performer.rank}</div>
-                          </div>
+                        <div className={styles.performerInfo}>
+                          <div className={styles.performerName}>{performer.name}</div>
+                          <div className={styles.performerRank}>Rank {performer.rank}</div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -1172,8 +1302,80 @@ function ClientAdminDashboard() {
                           <h4>Functional KRAs</h4>
                           {bossKRAs[boss._id].functionalKRAs?.length > 0 ? (
                             bossKRAs[boss._id].functionalKRAs.map((kra: any, idx: number) => (
-                              <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-                                <h5 style={{ marginTop: 0, marginBottom: '0.5rem' }}>{kra.kra}</h5>
+                              <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e0e0e0', borderRadius: '8px', position: 'relative' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                  <h5 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>{kra.kra}</h5>
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
+                                    {/* Lock Status Badge */}
+                                    {kra.isScoreLocked && (
+                                      <span style={{ 
+                                        padding: '0.25rem 0.5rem', 
+                                        backgroundColor: '#4CAF50', 
+                                        color: 'white', 
+                                        borderRadius: '4px', 
+                                        fontSize: '12px',
+                                        fontWeight: 'bold'
+                                      }}>
+                                        🔒 Finalized
+                                      </span>
+                                    )}
+                                    {/* Edit Button */}
+                                    {!kra.isScoreLocked && (kra.editCount || 0) < 1 && (
+                                      <button
+                                        onClick={() => handleEditKRA(boss, idx)}
+                                        style={{
+                                          padding: '0.25rem 0.75rem',
+                                          backgroundColor: '#2196F3',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontSize: '12px',
+                                        }}
+                                        type="button"
+                                      >
+                                        ✏️ Edit
+                                      </button>
+                                    )}
+                                    {/* Delete Button */}
+                                    {!kra.isScoreLocked && (
+                                      <button
+                                        onClick={() => handleDeleteKRA(boss, idx)}
+                                        style={{
+                                          padding: '0.25rem 0.75rem',
+                                          backgroundColor: '#f44336',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontSize: '12px',
+                                        }}
+                                        type="button"
+                                      >
+                                        🗑️ Delete
+                                      </button>
+                                    )}
+                                    {/* Lock/Finalize Button */}
+                                    {!kra.isScoreLocked && (
+                                      <button
+                                        onClick={() => handleLockKRAScores(boss, idx)}
+                                        style={{
+                                          padding: '0.25rem 0.75rem',
+                                          backgroundColor: '#FF9800',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontSize: '12px',
+                                          fontWeight: 'bold'
+                                        }}
+                                        type="button"
+                                      >
+                                        🔒 Finalize
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
                                 
                                 {/* KPIs Section */}
                                 <div style={{ marginBottom: '1rem' }}>
@@ -1553,13 +1755,13 @@ function ClientAdminDashboard() {
 
       {/* KRA Modal */}
       {showKRAModal && selectedBoss && (
-        <div className={styles.modalOverlay} onClick={() => setShowKRAModal(false)}>
+        <div className={styles.modalOverlay} onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>Add {kraType === 'functional' ? 'Functional' : kraType === 'organizational' ? 'Organizational' : 'Self Development'} KRA for {selectedBoss.name}</h2>
+              <h2>{editingKRAIndex !== null ? 'Edit' : 'Add'} {kraType === 'functional' ? 'Functional' : kraType === 'organizational' ? 'Organizational' : 'Self Development'} KRA for {selectedBoss.name}</h2>
               <button
                 className={styles.closeButton}
-                onClick={() => setShowKRAModal(false)}
+                onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
                 aria-label="Close"
               >
                 ×
@@ -1568,9 +1770,11 @@ function ClientAdminDashboard() {
             <div className={styles.modalBody}>
               {kraType === 'functional' ? (
                 <KRAForm
+                  key={editingKRAIndex !== null ? `edit-${selectedBoss._id}-${editingKRAIndex}` : `add-${selectedBoss._id}`}
                   onSubmit={handleAddKRA}
-                  onCancel={() => setShowKRAModal(false)}
-                  mode="add"
+                  onCancel={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
+                  mode={editingKRAIndex !== null ? "edit" : "add"}
+                  initialData={editingKRAIndex !== null ? newKRA : undefined}
                 />
               ) : (
                 <form onSubmit={(e) => {
@@ -1607,7 +1811,7 @@ function ClientAdminDashboard() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowKRAModal(false)}
+                      onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
                       className={baseStyles.cancelButton}
                       style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd' }}
                     >

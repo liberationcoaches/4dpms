@@ -199,18 +199,23 @@ export function updateDevelopingOthersKRAAverageScore(kra: IDevelopingOthersKRA)
 
 /**
  * Validate Functional KRA data
+ * Supports both old format (kpiTarget) and new format (kpis array)
  */
-export function validateFunctionalKRA(kra: Partial<IFunctionalKRA>): { valid: boolean; errors: string[] } {
+export function validateFunctionalKRA(kra: Partial<IFunctionalKRA> & { kpiTarget?: string }): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   if (!kra.kra || !kra.kra.trim()) {
     errors.push('KRA name is required');
   }
   
-  // Validate KPIs
-  if (!kra.kpis || !Array.isArray(kra.kpis) || kra.kpis.length === 0) {
-    errors.push('At least one KPI is required');
-  } else {
-    kra.kpis.forEach((kpi, index) => {
+  // Validate KPIs - support both old format (kpiTarget) and new format (kpis array)
+  const hasNewFormat = kra.kpis && Array.isArray(kra.kpis) && kra.kpis.length > 0;
+  const hasOldFormat = kra.kpiTarget && kra.kpiTarget.trim();
+  
+  if (!hasNewFormat && !hasOldFormat) {
+    // KPIs are optional - don't require them
+    // errors.push('At least one KPI is required');
+  } else if (hasNewFormat) {
+    kra.kpis!.forEach((kpi, index) => {
       if (!kpi.kpi || !kpi.kpi.trim()) {
         errors.push(`KPI ${index + 1} is required`);
       }
@@ -235,13 +240,13 @@ export function validateFunctionalKRA(kra: Partial<IFunctionalKRA>): { valid: bo
     }
   });
   
-  // Validate weights (10-100, multiples of 10)
+  // Validate weights (0-100) - relaxed validation
   const weightFields = ['pilotWeight', 'r1Weight', 'r2Weight', 'r3Weight', 'r4Weight'] as const;
   weightFields.forEach((field) => {
     const weight = kra[field];
     if (weight !== undefined && weight !== null) {
-      if (isNaN(weight) || weight < 10 || weight > 100 || weight % 10 !== 0) {
-        errors.push(`${field} must be between 10 and 100 and a multiple of 10`);
+      if (isNaN(weight) || weight < 0 || weight > 100) {
+        errors.push(`${field} must be between 0 and 100`);
       }
     }
   });

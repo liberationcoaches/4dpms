@@ -18,37 +18,27 @@ const proofSchema = z.object({
   uploadedAt: z.string().optional(),
 });
 
-// Updated KRA Schema with new structure
+// Updated KRA Schema with new structure (kpis optional for backward compatibility)
 const kraSchema = z.object({
   kra: z.string().min(1),
-  kpis: z.array(kpiSchema).min(1, 'At least one KPI is required'),
+  kpis: z.array(kpiSchema).optional(), // Made optional - will be populated from kpiTarget if not provided
   reportsGenerated: z.array(proofSchema).optional(),
-  pilotWeight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
-    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
-  }).optional(),
+  pilotWeight: z.number().min(0).max(100).optional(), // Relaxed validation
   pilotScore: z.number().min(0).max(5).optional(),
   pilotActualPerf: z.string().optional(),
-  r1Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
-    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
-  }).optional(),
+  r1Weight: z.number().min(0).max(100).optional(),
   r1Score: z.number().min(0).max(5).optional(),
   r1ActualPerf: z.string().optional(),
   r1ReviewedBy: z.string().optional(),
-  r2Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
-    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
-  }).optional(),
+  r2Weight: z.number().min(0).max(100).optional(),
   r2Score: z.number().min(0).max(5).optional(),
   r2ActualPerf: z.string().optional(),
   r2ReviewedBy: z.string().optional(),
-  r3Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
-    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
-  }).optional(),
+  r3Weight: z.number().min(0).max(100).optional(),
   r3Score: z.number().min(0).max(5).optional(),
   r3ActualPerf: z.string().optional(),
   r3ReviewedBy: z.string().optional(),
-  r4Weight: z.number().int().min(10).max(100).refine((val) => val % 10 === 0, {
-    message: 'Weight must be a multiple of 10 (10, 20, 30, ..., 100)',
-  }).optional(),
+  r4Weight: z.number().min(0).max(100).optional(),
   r4Score: z.number().min(0).max(5).optional(),
   r4ActualPerf: z.string().optional(),
   r4ReviewedBy: z.string().optional(),
@@ -163,6 +153,11 @@ export async function addKRA(req: Request, res: Response, next: NextFunction): P
 /**
  * Update KRA for team member
  * PUT /api/team/members/:memberIndex/kras/:kraIndex
+ * 
+ * Rules:
+ * - KRA details (kra, kpis) can only be edited ONCE after creation
+ * - Scores can be saved multiple times until locked
+ * - Once isScoreLocked is true, nothing can be changed
  */
 export async function updateKRA(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -207,11 +202,30 @@ export async function updateKRA(req: Request, res: Response, next: NextFunction)
     }
 
     // Ensure existing KRA has required fields
-    const existingKRA = member.functionalKRAs[kraIndex];
+    const existingKRA = member.functionalKRAs[kraIndex] as any;
     if (!existingKRA.kra) {
       res.status(400).json({
         status: 'error',
         message: 'Existing KRA is missing required field: kra',
+      });
+      return;
+    }
+
+    // Check if scores are locked - if locked, no changes allowed
+    if (existingKRA.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'This KRA has been finalized and cannot be modified',
+      });
+      return;
+    }
+
+    // Check if trying to edit KRA details (kra, kpis) - only allowed once
+    const isEditingKRADetails = validatedKRA.kra || validatedKRA.kpis;
+    if (isEditingKRADetails && (existingKRA.editCount || 0) >= 1) {
+      res.status(403).json({
+        status: 'error',
+        message: 'KRA details can only be edited once. This KRA has already been edited.',
       });
       return;
     }
@@ -222,6 +236,8 @@ export async function updateKRA(req: Request, res: Response, next: NextFunction)
       ...validatedKRA,
       // Ensure kra field is always present (use existing if not provided in update)
       kra: validatedKRA.kra || existingKRA.kra,
+      // Increment edit count if KRA details were modified
+      editCount: isEditingKRADetails ? (existingKRA.editCount || 0) + 1 : (existingKRA.editCount || 0),
     };
 
     // Recalculate average score
@@ -241,8 +257,83 @@ export async function updateKRA(req: Request, res: Response, next: NextFunction)
 }
 
 /**
+ * Lock/Finalize KRA scores - once locked, scores cannot be changed
+ * POST /api/team/members/:memberIndex/kras/:kraIndex/lock
+ */
+export async function lockKRAScores(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const memberIndex = parseInt(req.params.memberIndex);
+    const kraIndex = parseInt(req.params.kraIndex);
+
+    if (!userId || isNaN(memberIndex) || isNaN(kraIndex)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID, member index, and KRA index are required',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user || !user.teamId) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User or team not found',
+      });
+      return;
+    }
+
+    const team = await Team.findById(user.teamId);
+    if (!team || !team.membersDetails || memberIndex >= team.membersDetails.length) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Team or member not found',
+      });
+      return;
+    }
+
+    const member = team.membersDetails[memberIndex];
+    if (!member.functionalKRAs || kraIndex >= member.functionalKRAs.length) {
+      res.status(404).json({
+        status: 'error',
+        message: 'KRA not found',
+      });
+      return;
+    }
+
+    const existingKRA = member.functionalKRAs[kraIndex] as any;
+    
+    // Check if already locked
+    if (existingKRA.isScoreLocked) {
+      res.status(400).json({
+        status: 'error',
+        message: 'This KRA is already finalized',
+      });
+      return;
+    }
+
+    // Lock the scores
+    existingKRA.isScoreLocked = true;
+    existingKRA.scoreLockedAt = new Date();
+    existingKRA.scoreLockedBy = userId;
+
+    await team.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'KRA scores have been finalized and locked',
+      data: existingKRA,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Delete KRA from team member
  * DELETE /api/team/members/:memberIndex/kras/:kraIndex
+ * 
+ * Note: Cannot delete locked KRAs
  */
 export async function deleteKRA(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -281,6 +372,16 @@ export async function deleteKRA(req: Request, res: Response, next: NextFunction)
       res.status(404).json({
         status: 'error',
         message: 'KRA not found',
+      });
+      return;
+    }
+
+    // Check if KRA is locked - cannot delete locked KRAs
+    const existingKRA = member.functionalKRAs[kraIndex] as any;
+    if (existingKRA.isScoreLocked) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Cannot delete a finalized KRA',
       });
       return;
     }
