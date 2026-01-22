@@ -92,6 +92,7 @@ function ClientAdminDashboard() {
   const [weightsErrors, setWeightsErrors] = useState<string>('');
   const [isSavingWeights, setIsSavingWeights] = useState(false);
   const [weightsSuccessMessage, setWeightsSuccessMessage] = useState('');
+  const [expandedCard, setExpandedCard] = useState<'managers' | 'employees' | 'departments' | null>(null);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -583,20 +584,6 @@ function ClientAdminDashboard() {
   };
 
   // Helper to get member index for a boss in their team
-  const getMemberIndex = async (boss: Boss): Promise<number | null> => {
-    try {
-      const userId = localStorage.getItem('userId');
-      const teamRes = await fetch(`/api/client-admin/bosses/${boss._id}/team-member-index?userId=${userId}`);
-      const teamData = await teamRes.json();
-      if (teamData.status === 'success' && teamData.data !== undefined && teamData.data !== null) {
-        return teamData.data.memberIndex;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting member index:', error);
-      return null;
-    }
-  };
 
   // Handle editing a KRA
   const handleEditKRA = async (boss: Boss, kraIndex: number) => {
@@ -912,34 +899,57 @@ function ClientAdminDashboard() {
                     </div>
                     <div className={styles.fourDIndexContent}>
                       <div className={styles.dimensionLegend}>
-                        <h3>4 Dimensions</h3>
-                        <div className={styles.legendItem}>
-                          <span className={styles.legendDot} style={{ backgroundColor: '#4CAF50' }}></span>
-                          <span>Functional</span>
-                        </div>
-                        <div className={styles.legendItem}>
-                          <span className={styles.legendDot} style={{ backgroundColor: '#2196F3' }}></span>
-                          <span>Organizational</span>
-                        </div>
-                        <div className={styles.legendItem}>
-                          <span className={styles.legendDot} style={{ backgroundColor: '#FF9800' }}></span>
-                          <span>Self Development</span>
-                        </div>
-                        <div className={styles.legendItem}>
-                          <span className={styles.legendDot} style={{ backgroundColor: '#F44336' }}></span>
-                          <span>Developing Others</span>
-                        </div>
+                        <h3>{analytics.departmentComparisons && analytics.departmentComparisons.length > 0 ? 'Departments' : '4 Dimensions'}</h3>
+                        {analytics.departmentComparisons && analytics.departmentComparisons.length > 0 ? (
+                          analytics.departmentComparisons.map((dept: any, index: number) => {
+                            const colors = ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
+                            return (
+                              <div key={dept.bossId} className={styles.legendItem}>
+                                <span className={styles.legendDot} style={{ backgroundColor: colors[index % colors.length] }}></span>
+                                <span>{dept.departmentName} ({dept.fourDIndex}%)</span>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <>
+                            <div className={styles.legendItem}>
+                              <span className={styles.legendDot} style={{ backgroundColor: '#4CAF50' }}></span>
+                              <span>Functional</span>
+                            </div>
+                            <div className={styles.legendItem}>
+                              <span className={styles.legendDot} style={{ backgroundColor: '#2196F3' }}></span>
+                              <span>Organizational</span>
+                            </div>
+                            <div className={styles.legendItem}>
+                              <span className={styles.legendDot} style={{ backgroundColor: '#FF9800' }}></span>
+                              <span>Self Development</span>
+                            </div>
+                            <div className={styles.legendItem}>
+                              <span className={styles.legendDot} style={{ backgroundColor: '#F44336' }}></span>
+                              <span>Developing Others</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className={styles.donutChartContainer}>
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={[
-                                { name: 'Functional', value: analytics.fourDIndex.dimensions.functional, color: '#4CAF50' },
-                                { name: 'Organizational', value: analytics.fourDIndex.dimensions.organizational, color: '#2196F3' },
-                                { name: 'Self Development', value: analytics.fourDIndex.dimensions.selfDevelopment, color: '#FF9800' },
-                                { name: 'Developing Others', value: analytics.fourDIndex.dimensions.developingOthers, color: '#F44336' },
-                              ]}
+                              data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                                ? analytics.departmentComparisons.map((dept: any, index: number) => {
+                                    const colors = ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
+                                    return {
+                                      name: dept.departmentName,
+                                      value: dept.fourDIndex,
+                                      color: colors[index % colors.length],
+                                    };
+                                  })
+                                : [
+                                    { name: 'Functional', value: analytics.fourDIndex.dimensions.functional, color: '#4CAF50' },
+                                    { name: 'Organizational', value: analytics.fourDIndex.dimensions.organizational, color: '#2196F3' },
+                                    { name: 'Self Development', value: analytics.fourDIndex.dimensions.selfDevelopment, color: '#FF9800' },
+                                    { name: 'Developing Others', value: analytics.fourDIndex.dimensions.developingOthers, color: '#F44336' },
+                                  ]}
                               cx="50%"
                               cy="50%"
                               innerRadius={50}
@@ -947,13 +957,20 @@ function ClientAdminDashboard() {
                               dataKey="value"
                               startAngle={90}
                               endAngle={-270}
+                              label={(entry: any) => entry.name}
                             >
-                              {[
-                                { name: 'Functional', value: analytics.fourDIndex.dimensions.functional, color: '#4CAF50' },
-                                { name: 'Organizational', value: analytics.fourDIndex.dimensions.organizational, color: '#2196F3' },
-                                { name: 'Self Development', value: analytics.fourDIndex.dimensions.selfDevelopment, color: '#FF9800' },
-                                { name: 'Developing Others', value: analytics.fourDIndex.dimensions.developingOthers, color: '#F44336' },
-                              ].map((entry, index) => (
+                              {(analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                                ? analytics.departmentComparisons.map((_dept: any, index: number) => {
+                                    const colors = ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
+                                    return { color: colors[index % colors.length] };
+                                  })
+                                : [
+                                    { color: '#4CAF50' },
+                                    { color: '#2196F3' },
+                                    { color: '#FF9800' },
+                                    { color: '#F44336' },
+                                  ]
+                              ).map((entry: any, index: number) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
                             </Pie>
@@ -971,9 +988,21 @@ function ClientAdminDashboard() {
                 {/* Area Chart Card */}
                 {analytics && (
                   <div className={styles.areaChartCard}>
-                    <h2>Performance Trends</h2>
+                    <h2>Department Performance Comparison</h2>
                     <ResponsiveContainer width="100%" height={180}>
-                      <AreaChart data={analytics.trends}>
+                      <AreaChart 
+                        data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                          ? analytics.departmentComparisons.map((dept: any) => ({
+                              department: dept.departmentName,
+                              functional: dept.dimensions.functional,
+                              organizational: dept.dimensions.organizational,
+                              selfDevelopment: dept.dimensions.selfDevelopment,
+                              developingOthers: dept.dimensions.developingOthers,
+                              fourDIndex: dept.fourDIndex,
+                            }))
+                          : analytics.trends
+                        }
+                      >
                         <defs>
                           <linearGradient id="colorFunctional" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#4CAF50" stopOpacity={0.8}/>
@@ -993,13 +1022,24 @@ function ClientAdminDashboard() {
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="period" />
+                        <XAxis dataKey={analytics.departmentComparisons && analytics.departmentComparisons.length > 0 ? "department" : "period"} />
                         <YAxis />
                         <Tooltip />
-                        <Area type="monotone" dataKey="functional" stackId="1" stroke="#4CAF50" fill="url(#colorFunctional)" />
-                        <Area type="monotone" dataKey="organizational" stackId="1" stroke="#2196F3" fill="url(#colorOrganizational)" />
-                        <Area type="monotone" dataKey="selfDevelopment" stackId="1" stroke="#FF9800" fill="url(#colorSelfDev)" />
-                        <Area type="monotone" dataKey="developingOthers" stackId="1" stroke="#F44336" fill="url(#colorDeveloping)" />
+                        {analytics.departmentComparisons && analytics.departmentComparisons.length > 0 ? (
+                          <>
+                            <Area type="monotone" dataKey="functional" stackId="1" stroke="#4CAF50" fill="url(#colorFunctional)" />
+                            <Area type="monotone" dataKey="organizational" stackId="1" stroke="#2196F3" fill="url(#colorOrganizational)" />
+                            <Area type="monotone" dataKey="selfDevelopment" stackId="1" stroke="#FF9800" fill="url(#colorSelfDev)" />
+                            <Area type="monotone" dataKey="developingOthers" stackId="1" stroke="#F44336" fill="url(#colorDeveloping)" />
+                          </>
+                        ) : (
+                          <>
+                            <Area type="monotone" dataKey="functional" stackId="1" stroke="#4CAF50" fill="url(#colorFunctional)" />
+                            <Area type="monotone" dataKey="organizational" stackId="1" stroke="#2196F3" fill="url(#colorOrganizational)" />
+                            <Area type="monotone" dataKey="selfDevelopment" stackId="1" stroke="#FF9800" fill="url(#colorSelfDev)" />
+                            <Area type="monotone" dataKey="developingOthers" stackId="1" stroke="#F44336" fill="url(#colorDeveloping)" />
+                          </>
+                        )}
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -1009,137 +1049,284 @@ function ClientAdminDashboard() {
               {/* Summary Cards Row */}
               {analytics && (
                 <div className={styles.summaryCardsRow}>
-                  <div className={styles.summaryCard}>
-                    <h3>Managers</h3>
-                    <div className={styles.summaryValue}>{analytics.summary.managers}</div>
-                    <div className={styles.summaryIcon}>+</div>
-                  </div>
-                  <div className={styles.summaryCard}>
-                    <h3>Employees</h3>
-                    <div className={styles.summaryValue}>{analytics.summary.employees}</div>
-                    <div className={styles.summaryIcon}>+</div>
-                  </div>
-                  <div className={styles.summaryCard}>
-                    <h3>Departments</h3>
-                    <div className={styles.summaryValue}>{analytics.summary.departments}</div>
-                    <div className={styles.summaryIcon}>+</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Top Performers Section */}
-              {analytics && analytics.topPerformers.length > 0 && (
-                <div className={styles.topPerformersCard}>
-                  <h2>Top Performers</h2>
-                  <div className={styles.performersScrollable}>
-                    {analytics.topPerformers.slice(0, 3).map((performer: any) => (
-                      <div key={performer.rank} className={styles.performerItem}>
-                        <div className={styles.performerAvatar}>
-                          {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                        </div>
-                        <div className={styles.performerInfo}>
-                          <div className={styles.performerName}>{performer.name}</div>
-                          <div className={styles.performerRank}>Rank {performer.rank}</div>
-                        </div>
+                  {/* Managers Card */}
+                  <div className={`${styles.summaryCard} ${expandedCard === 'managers' ? styles.summaryCardExpanded : ''}`}>
+                    <div 
+                      className={styles.summaryCardHeader}
+                      onClick={() => setExpandedCard(expandedCard === 'managers' ? null : 'managers')}
+                    >
+                      <div>
+                        <h3>Managers</h3>
+                        <div className={styles.summaryValue}>{analytics.summary.managers}</div>
                       </div>
-                    ))}
+                      <div className={styles.summaryIcon}>
+                        {expandedCard === 'managers' ? '−' : '+'}
+                      </div>
+                    </div>
+                    {expandedCard === 'managers' && (
+                      <div className={styles.summaryCardContent}>
+                        {organizationUsers && organizationUsers.managers.length > 0 ? (
+                          <div className={styles.summaryCardList}>
+                            {organizationUsers.managers.map((manager) => (
+                              <div key={manager._id} className={styles.summaryCardItem}>
+                                <div className={styles.summaryCardItemName}>{manager.name}</div>
+                                <div className={styles.summaryCardItemEmail}>{manager.email}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={styles.summaryCardEmpty}>No managers found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Employees Card */}
+                  <div className={`${styles.summaryCard} ${expandedCard === 'employees' ? styles.summaryCardExpanded : ''}`}>
+                    <div 
+                      className={styles.summaryCardHeader}
+                      onClick={() => setExpandedCard(expandedCard === 'employees' ? null : 'employees')}
+                    >
+                      <div>
+                        <h3>Employees</h3>
+                        <div className={styles.summaryValue}>{analytics.summary.employees}</div>
+                      </div>
+                      <div className={styles.summaryIcon}>
+                        {expandedCard === 'employees' ? '−' : '+'}
+                      </div>
+                    </div>
+                    {expandedCard === 'employees' && (
+                      <div className={styles.summaryCardContent}>
+                        {organizationUsers && organizationUsers.employees.length > 0 ? (
+                          <div className={styles.summaryCardList}>
+                            {organizationUsers.employees.map((employee) => (
+                              <div key={employee._id} className={styles.summaryCardItem}>
+                                <div className={styles.summaryCardItemName}>{employee.name}</div>
+                                <div className={styles.summaryCardItemEmail}>{employee.email}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={styles.summaryCardEmpty}>No employees found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Departments Card */}
+                  <div className={`${styles.summaryCard} ${expandedCard === 'departments' ? styles.summaryCardExpanded : ''}`}>
+                    <div 
+                      className={styles.summaryCardHeader}
+                      onClick={() => setExpandedCard(expandedCard === 'departments' ? null : 'departments')}
+                    >
+                      <div>
+                        <h3>Departments</h3>
+                        <div className={styles.summaryValue}>{analytics.summary.departments}</div>
+                      </div>
+                      <div className={styles.summaryIcon}>
+                        {expandedCard === 'departments' ? '−' : '+'}
+                      </div>
+                    </div>
+                    {expandedCard === 'departments' && (
+                      <div className={styles.summaryCardContent}>
+                        {organizationUsers && organizationUsers.bosses.length > 0 ? (
+                          <div className={styles.summaryCardList}>
+                            {organizationUsers.bosses.map((boss) => (
+                              <div key={boss._id} className={styles.summaryCardItem}>
+                                <div className={styles.summaryCardItemName}>{boss.name}</div>
+                                <div className={styles.summaryCardItemEmail}>{boss.email}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={styles.summaryCardEmpty}>No departments found</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Dimension Cards */}
+              {/* Top Performers and Dimensions Section */}
               {analytics && (
-                <div className={styles.dimensionsGrid}>
+                <div className={styles.topPerformersAndDimensions}>
+                  {/* Top Performers Section */}
+                  {analytics.topPerformers.length > 0 && (
+                    <div className={styles.topPerformersCard}>
+                      <h2>Top Performers</h2>
+                      <div className={styles.performersScrollable}>
+                        {analytics.topPerformers.map((performer: any) => (
+                          <div key={performer.rank} className={styles.performerItem}>
+                            <div className={styles.performerAvatar}>
+                              {performer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </div>
+                            <div className={styles.performerInfo}>
+                              <div className={styles.performerName}>{performer.name}</div>
+                              <div className={styles.performerRank}>Rank {performer.rank}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dimension Cards */}
+                  <div className={styles.dimensionsGrid}>
                   {/* Functional */}
                   <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #4CAF50' }}>
                     <div className={styles.dimensionHeader}>
-                      <h3>Functional</h3>
+                      <h3>Functional - Department Comparison</h3>
                       <div className={styles.dimensionScore}>{analytics.dimensions.functional.score}%</div>
                     </div>
                     <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={analytics.dimensions.functional.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                      <BarChart 
+                        data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                          ? analytics.departmentComparisons.map((dept: any) => ({
+                              name: dept.departmentName.substring(0, 8),
+                              value: dept.dimensions.functional,
+                            }))
+                          : analytics.dimensions.functional.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
+                        }
+                      >
                         <Bar dataKey="value" fill="#4CAF50" />
                         <XAxis dataKey="name" />
                         <YAxis domain={[0, 100]} />
                       </BarChart>
                     </ResponsiveContainer>
                     <div className={styles.dimensionItems}>
-                      {analytics.dimensions.functional.items.map((item: any, idx: number) => (
-                        <div key={idx} className={styles.dimensionItem}>
-                          <span>{item.title}</span>
-                          <span>{item.score}%</span>
-                        </div>
-                      ))}
+                      {analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                        ? analytics.departmentComparisons.map((dept: any) => (
+                            <div key={dept.bossId} className={styles.dimensionItem}>
+                              <span>{dept.departmentName}</span>
+                              <span>{dept.dimensions.functional}%</span>
+                            </div>
+                          ))
+                        : analytics.dimensions.functional.items.map((item: any, idx: number) => (
+                            <div key={idx} className={styles.dimensionItem}>
+                              <span>{item.title}</span>
+                              <span>{item.score}%</span>
+                            </div>
+                          ))
+                      }
                     </div>
                   </div>
 
                   {/* Organizational */}
                   <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #2196F3' }}>
                     <div className={styles.dimensionHeader}>
-                      <h3>Organizational</h3>
+                      <h3>Organizational - Department Comparison</h3>
                       <div className={styles.dimensionScore}>{analytics.dimensions.organizational.score}%</div>
                     </div>
                     <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={analytics.dimensions.organizational.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                      <BarChart 
+                        data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                          ? analytics.departmentComparisons.map((dept: any) => ({
+                              name: dept.departmentName.substring(0, 8),
+                              value: dept.dimensions.organizational,
+                            }))
+                          : analytics.dimensions.organizational.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
+                        }
+                      >
                         <Bar dataKey="value" fill="#2196F3" />
                         <XAxis dataKey="name" />
                         <YAxis domain={[0, 100]} />
                       </BarChart>
                     </ResponsiveContainer>
                     <div className={styles.dimensionItems}>
-                      {analytics.dimensions.organizational.items.map((item: any, idx: number) => (
-                        <div key={idx} className={styles.dimensionItem}>
-                          <span>{item.title}</span>
-                          <span>{item.score}%</span>
-                        </div>
-                      ))}
+                      {analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                        ? analytics.departmentComparisons.map((dept: any) => (
+                            <div key={dept.bossId} className={styles.dimensionItem}>
+                              <span>{dept.departmentName}</span>
+                              <span>{dept.dimensions.organizational}%</span>
+                            </div>
+                          ))
+                        : analytics.dimensions.organizational.items.map((item: any, idx: number) => (
+                            <div key={idx} className={styles.dimensionItem}>
+                              <span>{item.title}</span>
+                              <span>{item.score}%</span>
+                            </div>
+                          ))
+                      }
                     </div>
                   </div>
 
                   {/* Self Development */}
                   <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #FF9800' }}>
                     <div className={styles.dimensionHeader}>
-                      <h3>Self Development</h3>
+                      <h3>Self Development - Department Comparison</h3>
                       <div className={styles.dimensionScore}>{analytics.dimensions.selfDevelopment.score}%</div>
                     </div>
                     <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                      <BarChart 
+                        data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                          ? analytics.departmentComparisons.map((dept: any) => ({
+                              name: dept.departmentName.substring(0, 8),
+                              value: dept.dimensions.selfDevelopment,
+                            }))
+                          : analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
+                        }
+                      >
                         <Bar dataKey="value" fill="#FF9800" />
                         <XAxis dataKey="name" />
                         <YAxis domain={[0, 100]} />
                       </BarChart>
                     </ResponsiveContainer>
                     <div className={styles.dimensionItems}>
-                      {analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => (
-                        <div key={idx} className={styles.dimensionItem}>
-                          <span>{item.title}</span>
-                          <span>{item.score}%</span>
-                        </div>
-                      ))}
+                      {analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                        ? analytics.departmentComparisons.map((dept: any) => (
+                            <div key={dept.bossId} className={styles.dimensionItem}>
+                              <span>{dept.departmentName}</span>
+                              <span>{dept.dimensions.selfDevelopment}%</span>
+                            </div>
+                          ))
+                        : analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => (
+                            <div key={idx} className={styles.dimensionItem}>
+                              <span>{item.title}</span>
+                              <span>{item.score}%</span>
+                            </div>
+                          ))
+                      }
                     </div>
                   </div>
 
                   {/* Developing Others */}
                   <div className={styles.dimensionCard} style={{ borderLeft: '4px solid #F44336' }}>
                     <div className={styles.dimensionHeader}>
-                      <h3>Developing Others</h3>
+                      <h3>Developing Others - Department Comparison</h3>
                       <div className={styles.dimensionScore}>{analytics.dimensions.developingOthers.score}%</div>
                     </div>
                     <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={analytics.dimensions.developingOthers.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))}>
+                      <BarChart 
+                        data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                          ? analytics.departmentComparisons.map((dept: any) => ({
+                              name: dept.departmentName.substring(0, 8),
+                              value: dept.dimensions.developingOthers,
+                            }))
+                          : analytics.dimensions.developingOthers.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
+                        }
+                      >
                         <Bar dataKey="value" fill="#F44336" />
                         <XAxis dataKey="name" />
                         <YAxis domain={[0, 100]} />
                       </BarChart>
                     </ResponsiveContainer>
                     <div className={styles.dimensionItems}>
-                      {analytics.dimensions.developingOthers.items.map((item: any, idx: number) => (
-                        <div key={idx} className={styles.dimensionItem}>
-                          <span>{item.title}</span>
-                          <span>{item.score}%</span>
-                        </div>
-                      ))}
+                      {analytics.departmentComparisons && analytics.departmentComparisons.length > 0
+                        ? analytics.departmentComparisons.map((dept: any) => (
+                            <div key={dept.bossId} className={styles.dimensionItem}>
+                              <span>{dept.departmentName}</span>
+                              <span>{dept.dimensions.developingOthers}%</span>
+                            </div>
+                          ))
+                        : analytics.dimensions.developingOthers.items.map((item: any, idx: number) => (
+                            <div key={idx} className={styles.dimensionItem}>
+                              <span>{item.title}</span>
+                              <span>{item.score}%</span>
+                            </div>
+                          ))
+                      }
                     </div>
+                  </div>
                   </div>
                 </div>
               )}

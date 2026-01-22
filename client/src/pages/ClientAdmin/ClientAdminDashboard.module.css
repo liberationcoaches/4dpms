@@ -5,6 +5,10 @@
 
 .tabContent {
   padding: var(--spacing-xl);
+  overflow-x: hidden;
+  overflow-y: visible;
+  height: fit-content;
+  min-height: 100%;
 }
 
 .pageHeader {
@@ -423,6 +427,8 @@
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
+  overflow: visible;
+  max-width: 100%;
 }
 
 /* 4D Index Card */
@@ -548,6 +554,38 @@
   box-shadow: var(--shadow-md);
   text-align: center;
   position: relative;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 120px;
+  max-height: 120px;
+}
+
+.summaryCardExpanded {
+  text-align: left;
+  height: 400px;
+  max-height: 400px;
+  min-height: 400px;
+}
+
+.summaryCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: var(--spacing-xs) 0;
+  flex-shrink: 0;
+}
+
+.summaryCardHeader > div:first-child {
+  flex: 1;
+  text-align: center;
+}
+
+.summaryCardExpanded .summaryCardHeader > div:first-child {
+  text-align: left;
 }
 
 .summaryCard h3 {
@@ -566,12 +604,132 @@
 }
 
 .summaryIcon {
-  position: absolute;
-  top: var(--spacing-md);
-  right: var(--spacing-md);
   color: var(--color-primary-main-blue);
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: 300;
+  line-height: 1;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summaryCardContent {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-main-grey-20);
+  animation: slideDown 0.3s ease;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 300px;
+  padding-right: var(--spacing-sm);
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+.summaryCardContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.summaryCardContent::-webkit-scrollbar-track {
+  background: var(--color-main-grey-20);
+  border-radius: 3px;
+}
+
+.summaryCardContent::-webkit-scrollbar-thumb {
+  background: var(--color-main-grey-60);
+  border-radius: 3px;
+}
+
+.summaryCardContent::-webkit-scrollbar-thumb:hover {
+  background: var(--color-main-grey-80);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 280px;
+  }
+}
+
+.summaryCardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding-right: var(--spacing-xs);
+}
+
+.summaryCardScrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.summaryCardScrollable::-webkit-scrollbar-track {
+  background: var(--color-main-grey-20);
+  border-radius: 3px;
+}
+
+.summaryCardScrollable::-webkit-scrollbar-thumb {
+  background: var(--color-main-grey-60);
+  border-radius: 3px;
+}
+
+.summaryCardScrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--color-main-grey-80);
+}
+
+.summaryCardItem {
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background: var(--color-main-grey-20);
+  transition: background 0.2s;
+  border: 1px solid transparent;
+}
+
+.summaryCardItem:hover {
+  background: var(--color-main-grey-30);
+  border-color: var(--color-primary-main-blue);
+}
+
+.summaryCardItemName {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-100);
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+
+.summaryCardItemEmail {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.summaryCardEmpty {
+  padding: var(--spacing-md);
+  text-align: center;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-grey-60);
+  font-style: italic;
+}
+
+/* Top Performers and Dimensions Container */
+.topPerformersAndDimensions {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  align-items: flex-start;
 }
 
 /* Top Performers */
@@ -580,9 +738,13 @@
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  margin-bottom: var(--spacing-xl);
   width: 400px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   height: 400px;
+  max-height: 400px;
 }
 
 .topPerformersCard h2 {
@@ -591,6 +753,7 @@
   font-size: var(--font-size-16);
   font-weight: var(--font-weight-semibold);
   color: var(--color-main-black-100);
+  flex-shrink: 0;
 }
 
 .performersGrid {
@@ -604,12 +767,15 @@
 }
 
 .performersScrollable {
-  max-height: 300px;
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 0;
   padding-right: var(--spacing-sm);
+  min-height: 0;
+  max-height: 100%;
 }
 
 .performersScrollable::-webkit-scrollbar {
@@ -679,7 +845,8 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  flex: 1;
+  min-width: 0;
 }
 
 .dimensionCard {
@@ -691,6 +858,7 @@
   box-shadow: var(--shadow-md);
   gap: var(--spacing-md);
   height: 400px;
+  min-width: 0;
 }
 
 .dimensionHeader {
@@ -897,6 +1065,20 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .topPerformersAndDimensions {
+    flex-direction: column;
+  }
+
+  .topPerformersCard {
+    width: 100%;
+  }
+
+  .dimensionsGrid {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .tabContent {
     padding: var(--spacing-md);
@@ -950,22 +1132,23 @@
     min-height: 200px;
   }
 
+  .topPerformersAndDimensions {
+    flex-direction: column;
+  }
+
   .topPerformersCard {
+    width: 100%;
     max-width: 100%;
   }
 
-  .performersGrid {
-    flex-direction: column;
-    gap: var(--spacing-md);
-  }
-
   .performersScrollable {
-    max-height: 250px;
+    max-height: 300px;
   }
 
   .dimensionsGrid {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
+    width: 100%;
   }
 
   .dimensionCard {
@@ -978,6 +1161,10 @@
 
   .summaryValue {
     font-size: 1.75rem;
+  }
+
+  .summaryCardScrollable {
+    max-height: 150px;
   }
 
   .dashboardTitle {

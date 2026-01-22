@@ -1326,7 +1326,70 @@ export async function getCSAAnalytics(
       developingOthers: Math.max(0, orgDevelopingOthers + (Math.random() * 10 - 5)),
     }));
 
-    // Get unique departments (using boss names as departments for now)
+    // Group users by department (bossId)
+    const departmentMap = new Map<string, {
+      bossId: string;
+      bossName: string;
+      users: typeof userPerformances;
+    }>();
+
+    // Initialize departments from bosses
+    for (const boss of bosses) {
+      departmentMap.set(boss._id.toString(), {
+        bossId: boss._id.toString(),
+        bossName: boss.name,
+        users: [],
+      });
+    }
+
+    // Group user performances by department
+    for (const user of [...bosses, ...managers, ...employees]) {
+      const deptId = user.bossId?.toString() || user._id.toString();
+      if (departmentMap.has(deptId)) {
+        const deptPerf = userPerformances.find(p => p.userId === user._id.toString());
+        if (deptPerf) {
+          departmentMap.get(deptId)!.users.push(deptPerf);
+        }
+      }
+    }
+
+    // Calculate department-level metrics
+    const departmentComparisons = Array.from(departmentMap.values()).map(dept => {
+      const deptUsers = dept.users;
+      const deptFunctional = deptUsers.length > 0
+        ? Math.round(deptUsers.reduce((sum, u) => sum + u.functionalScore, 0) / deptUsers.length)
+        : 0;
+      const deptOrganizational = deptUsers.length > 0
+        ? Math.round(deptUsers.reduce((sum, u) => sum + u.organizationalScore, 0) / deptUsers.length)
+        : 0;
+      const deptSelfDevelopment = deptUsers.length > 0
+        ? Math.round(deptUsers.reduce((sum, u) => sum + u.selfDevelopmentScore, 0) / deptUsers.length)
+        : 0;
+      const deptDevelopingOthers = deptUsers.length > 0
+        ? Math.round(deptUsers.reduce((sum, u) => sum + u.developingOthersScore, 0) / deptUsers.length)
+        : 0;
+      const deptFourDIndex = deptUsers.length > 0
+        ? Math.round(deptUsers.reduce((sum, u) => sum + u.fourDIndex, 0) / deptUsers.length)
+        : 0;
+
+      return {
+        departmentName: dept.bossName,
+        bossId: dept.bossId,
+        userCount: deptUsers.length,
+        fourDIndex: deptFourDIndex,
+        dimensions: {
+          functional: deptFunctional,
+          organizational: deptOrganizational,
+          selfDevelopment: deptSelfDevelopment,
+          developingOthers: deptDevelopingOthers,
+        },
+      };
+    });
+
+    // Sort departments by 4D Index for comparison
+    departmentComparisons.sort((a, b) => b.fourDIndex - a.fourDIndex);
+
+    // Get unique departments (using boss names as departments)
     const departments = new Set(bosses.map(b => b.name));
     const departmentCount = departments.size || 1;
 
@@ -1358,34 +1421,35 @@ export async function getCSAAnalytics(
         dimensions: {
           functional: {
             score: orgFunctional,
-            items: allFunctionalKRAs.length > 0 ? allFunctionalKRAs.slice(0, 2).map((kra: any) => ({
+            items: allFunctionalKRAs.length > 0 ? allFunctionalKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.kra || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 3 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           organizational: {
             score: orgOrganizational,
-            items: allOrganizationalKRAs.length > 0 ? allOrganizationalKRAs.slice(0, 2).map((kra: any) => ({
+            items: allOrganizationalKRAs.length > 0 ? allOrganizationalKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.coreValues || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 3 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           selfDevelopment: {
             score: orgSelfDevelopment,
-            items: allSelfDevelopmentKRAs.length > 0 ? allSelfDevelopmentKRAs.slice(0, 2).map((kra: any) => ({
+            items: allSelfDevelopmentKRAs.length > 0 ? allSelfDevelopmentKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.areaOfConcern || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 3 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           developingOthers: {
             score: orgDevelopingOthers,
-            items: allDevelopingOthersKRAs.length > 0 ? allDevelopingOthersKRAs.slice(0, 2).map((kra: any) => ({
+            items: allDevelopingOthersKRAs.length > 0 ? allDevelopingOthersKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.title || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 2 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 3}, () => ({ title: 'Key title goes here', score: 0 })),
           },
         },
         trends: trendData,
+        departmentComparisons: departmentComparisons,
       },
     });
   } catch (error) {
