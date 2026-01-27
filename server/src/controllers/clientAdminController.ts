@@ -6,6 +6,7 @@ import { sendInvitationNotification, sendKRANotification } from './notificationC
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 import { z } from 'zod';
+import { getOrganizationExportData, generateExcelFile, generatePDFFile } from '../services/exportService';
 
 const createBossSchema = z.object({
   name: z.string().min(1).max(100),
@@ -1389,6 +1390,27 @@ export async function getCSAAnalytics(
     // Sort departments by 4D Index for comparison
     departmentComparisons.sort((a, b) => b.fourDIndex - a.fourDIndex);
 
+    // Calculate average of department fourDIndex values (excluding departments with 0)
+    const departmentsWithData = departmentComparisons.filter(dept => dept.fourDIndex > 0);
+    const departmentAverage = departmentsWithData.length > 0
+      ? Math.round(departmentsWithData.reduce((sum, dept) => sum + dept.fourDIndex, 0) / departmentsWithData.length)
+      : orgFourDIndex;
+
+    // Calculate change from previous period (simplified - you may want to store historical data)
+    // For now, calculate based on trend data if available
+    const previousPeriod = trendData && trendData.length > 1 ? trendData[trendData.length - 2] : null;
+    const currentPeriod = trendData && trendData.length > 0 ? trendData[trendData.length - 1] : null;
+    let change = 0;
+    if (previousPeriod && currentPeriod) {
+      // Calculate average of all dimensions for comparison
+      const prevAvg = (previousPeriod.functional + previousPeriod.organizational + previousPeriod.selfDevelopment + previousPeriod.developingOthers) / 4;
+      const currAvg = (currentPeriod.functional + currentPeriod.organizational + currentPeriod.selfDevelopment + currentPeriod.developingOthers) / 4;
+      change = Math.round(currAvg - prevAvg);
+    } else {
+      // Fallback: use simulated change if no trend data
+      change = 3;
+    }
+
     // Get unique departments (using boss names as departments)
     const departments = new Set(bosses.map(b => b.name));
     const departmentCount = departments.size || 1;
@@ -1397,8 +1419,8 @@ export async function getCSAAnalytics(
       status: 'success',
       data: {
         fourDIndex: {
-          overall: orgFourDIndex,
-          change: 3, // Simulated change percentage
+          overall: departmentAverage, // Use department average instead of org average
+          change: change,
           dimensions: {
             functional: orgFunctional,
             organizational: orgOrganizational,
@@ -1424,34 +1446,108 @@ export async function getCSAAnalytics(
             items: allFunctionalKRAs.length > 0 ? allFunctionalKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.kra || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 3 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 4 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           organizational: {
             score: orgOrganizational,
             items: allOrganizationalKRAs.length > 0 ? allOrganizationalKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.coreValues || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 3 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 4 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           selfDevelopment: {
             score: orgSelfDevelopment,
             items: allSelfDevelopmentKRAs.length > 0 ? allSelfDevelopmentKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.areaOfConcern || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 3 }, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 4 }, () => ({ title: 'Key title goes here', score: 0 })),
           },
           developingOthers: {
             score: orgDevelopingOthers,
             items: allDevelopingOthersKRAs.length > 0 ? allDevelopingOthersKRAs.slice(0, 4).map((kra: any) => ({
               title: kra.title || 'Key title goes here',
               score: Math.round((kra.averageScore || 0) * 20),
-            })) : Array.from({ length: 3}, () => ({ title: 'Key title goes here', score: 0 })),
+            })) : Array.from({ length: 4}, () => ({ title: 'Key title goes here', score: 0 })),
           },
         },
         trends: trendData,
         departmentComparisons: departmentComparisons,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Export performance data to Excel or PDF (Client Admin only)
+ * GET /api/client-admin/export?format=excel|pdf
+ */
+export async function exportPerformanceData(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    const format = (req.query.format as string) || 'excel';
+
+    if (!clientAdminId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can export data',
+      });
+      return;
+    }
+
+    if (!clientAdmin.organizationId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Client admin must be associated with an organization',
+      });
+      return;
+    }
+
+    // Get export data
+    const exportData = await getOrganizationExportData(
+      clientAdmin.organizationId.toString()
+    );
+
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    if (format === 'pdf') {
+      // Generate PDF file
+      const buffer = await generatePDFFile(exportData);
+
+      // Set response headers
+      const fileName = `Performance_Appraisal_${dateStr}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      // Send file
+      res.send(buffer);
+    } else {
+      // Generate Excel file
+      const buffer = generateExcelFile(exportData);
+
+      // Set response headers
+      const fileName = `Performance_Appraisal_${dateStr}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      // Send file
+      res.send(buffer);
+    }
   } catch (error) {
     next(error);
   }

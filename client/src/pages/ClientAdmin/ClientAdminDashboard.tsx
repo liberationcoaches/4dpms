@@ -93,6 +93,7 @@ function ClientAdminDashboard() {
   const [isSavingWeights, setIsSavingWeights] = useState(false);
   const [weightsSuccessMessage, setWeightsSuccessMessage] = useState('');
   const [expandedCard, setExpandedCard] = useState<'managers' | 'employees' | 'departments' | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -233,6 +234,50 @@ function ClientAdminDashboard() {
       }
     } catch (error) {
       alert('Network error');
+    }
+  };
+
+  const handleExportData = async (format: 'excel' | 'pdf' = 'excel') => {
+    try {
+      setIsExporting(true);
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/client-admin/export?userId=${userId}&format=${format}`, {
+        method: 'GET',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.message || 'Failed to export data');
+        setIsExporting(false);
+        return;
+      }
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = res.headers.get('Content-Disposition');
+      let filename = format === 'pdf' ? 'Performance_Appraisal.pdf' : 'Performance_Appraisal.xlsx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setIsExporting(false);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export data. Please try again.');
+      setIsExporting(false);
     }
   };
 
@@ -877,14 +922,46 @@ function ClientAdminDashboard() {
                     Add Tier
                   </button>
                   <button className={styles.actionButton} onClick={() => setShowCreateBossForm(!showCreateBossForm)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                       <circle cx="9" cy="7" r="4"></circle>
                       <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                      <circle cx="16" cy="7" r="4"></circle>
                     </svg>
                     Add People
                   </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button 
+                      className={styles.actionButton} 
+                      onClick={() => handleExportData('excel')}
+                      disabled={isExporting}
+                      style={{ opacity: isExporting ? 0.6 : 1, cursor: isExporting ? 'not-allowed' : 'pointer' }}
+                      title="Export to Excel"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                      {isExporting ? 'Exporting...' : 'Export Excel'}
+                    </button>
+                    <button 
+                      className={styles.actionButton} 
+                      onClick={() => handleExportData('pdf')}
+                      disabled={isExporting}
+                      style={{ opacity: isExporting ? 0.6 : 1, cursor: isExporting ? 'not-allowed' : 'pointer' }}
+                      title="Export to PDF"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                      {isExporting ? 'Exporting...' : 'Export PDF'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -939,7 +1016,8 @@ function ClientAdminDashboard() {
                                 ? analytics.departmentComparisons.map((dept: any, index: number) => {
                                     const colors = ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
                                     return {
-                                      name: dept.departmentName,
+                                      name: dept.departmentName.length > 6 ? dept.departmentName.substring(0, 6) : dept.departmentName,
+                                      fullName: dept.departmentName,
                                       value: dept.fourDIndex,
                                       color: colors[index % colors.length],
                                     };
@@ -957,7 +1035,7 @@ function ClientAdminDashboard() {
                               dataKey="value"
                               startAngle={90}
                               endAngle={-270}
-                              label={(entry: any) => entry.name}
+                              label={false}
                             >
                               {(analytics.departmentComparisons && analytics.departmentComparisons.length > 0
                                 ? analytics.departmentComparisons.map((_dept: any, index: number) => {
@@ -978,7 +1056,9 @@ function ClientAdminDashboard() {
                         </ResponsiveContainer>
                         <div className={styles.donutCenter}>
                           <div className={styles.indexValue}>{analytics.fourDIndex.overall}%</div>
-                          <div className={styles.indexChange}>+{analytics.fourDIndex.change}%</div>
+                          <div className={styles.indexChange}>
+                            {analytics.fourDIndex.change > 0 ? '+' : ''}{analytics.fourDIndex.change}%
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1182,8 +1262,8 @@ function ClientAdminDashboard() {
                       <BarChart 
                         data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
                           ? analytics.departmentComparisons.map((dept: any) => ({
-                              name: dept.departmentName.substring(0, 8),
-                              value: dept.dimensions.functional,
+                              name: dept.departmentName.length > 10 ? dept.departmentName.substring(0, 10) : dept.departmentName,
+                              value: dept.dimensions.functional || 0,
                             }))
                           : analytics.dimensions.functional.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
                         }
@@ -1198,7 +1278,7 @@ function ClientAdminDashboard() {
                         ? analytics.departmentComparisons.map((dept: any) => (
                             <div key={dept.bossId} className={styles.dimensionItem}>
                               <span>{dept.departmentName}</span>
-                              <span>{dept.dimensions.functional}%</span>
+                              <span>{dept.dimensions.functional || 0}%</span>
                             </div>
                           ))
                         : analytics.dimensions.functional.items.map((item: any, idx: number) => (
@@ -1221,8 +1301,8 @@ function ClientAdminDashboard() {
                       <BarChart 
                         data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
                           ? analytics.departmentComparisons.map((dept: any) => ({
-                              name: dept.departmentName.substring(0, 8),
-                              value: dept.dimensions.organizational,
+                              name: dept.departmentName.length > 10 ? dept.departmentName.substring(0, 10) : dept.departmentName,
+                              value: dept.dimensions.organizational || 0,
                             }))
                           : analytics.dimensions.organizational.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
                         }
@@ -1237,7 +1317,7 @@ function ClientAdminDashboard() {
                         ? analytics.departmentComparisons.map((dept: any) => (
                             <div key={dept.bossId} className={styles.dimensionItem}>
                               <span>{dept.departmentName}</span>
-                              <span>{dept.dimensions.organizational}%</span>
+                              <span>{dept.dimensions.organizational || 0}%</span>
                             </div>
                           ))
                         : analytics.dimensions.organizational.items.map((item: any, idx: number) => (
@@ -1260,8 +1340,8 @@ function ClientAdminDashboard() {
                       <BarChart 
                         data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
                           ? analytics.departmentComparisons.map((dept: any) => ({
-                              name: dept.departmentName.substring(0, 8),
-                              value: dept.dimensions.selfDevelopment,
+                              name: dept.departmentName.length > 10 ? dept.departmentName.substring(0, 10) : dept.departmentName,
+                              value: dept.dimensions.selfDevelopment || 0,
                             }))
                           : analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
                         }
@@ -1276,7 +1356,7 @@ function ClientAdminDashboard() {
                         ? analytics.departmentComparisons.map((dept: any) => (
                             <div key={dept.bossId} className={styles.dimensionItem}>
                               <span>{dept.departmentName}</span>
-                              <span>{dept.dimensions.selfDevelopment}%</span>
+                              <span>{dept.dimensions.selfDevelopment || 0}%</span>
                             </div>
                           ))
                         : analytics.dimensions.selfDevelopment.items.map((item: any, idx: number) => (
@@ -1299,8 +1379,8 @@ function ClientAdminDashboard() {
                       <BarChart 
                         data={analytics.departmentComparisons && analytics.departmentComparisons.length > 0
                           ? analytics.departmentComparisons.map((dept: any) => ({
-                              name: dept.departmentName.substring(0, 8),
-                              value: dept.dimensions.developingOthers,
+                              name: dept.departmentName.length > 10 ? dept.departmentName.substring(0, 10) : dept.departmentName,
+                              value: dept.dimensions.developingOthers || 0,
                             }))
                           : analytics.dimensions.developingOthers.items.map((item: any, idx: number) => ({ name: `0${idx}`, value: item.score }))
                         }
@@ -1315,7 +1395,7 @@ function ClientAdminDashboard() {
                         ? analytics.departmentComparisons.map((dept: any) => (
                             <div key={dept.bossId} className={styles.dimensionItem}>
                               <span>{dept.departmentName}</span>
-                              <span>{dept.dimensions.developingOthers}%</span>
+                              <span>{dept.dimensions.developingOthers || 0}%</span>
                             </div>
                           ))
                         : analytics.dimensions.developingOthers.items.map((item: any, idx: number) => (

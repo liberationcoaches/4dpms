@@ -210,6 +210,10 @@
 }
 
 .actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
   background: var(--color-main-grey-20);
   color: var(--color-primary-main-blue);
   border: 1px solid var(--color-primary-main-blue);
@@ -220,6 +224,13 @@
   font-size: var(--font-size-14);
   font-weight: var(--font-weight-medium);
   transition: all 0.2s;
+  height: 36px;
+  white-space: nowrap;
+}
+
+.actionButton svg {
+  flex-shrink: 0;
+  display: block;
 }
 
 .actionButton:hover {
@@ -389,6 +400,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+  flex-wrap: wrap;
 }
 
 .sortContainer {
@@ -411,6 +423,8 @@
   font-family: var(--font-inter);
   font-size: var(--font-size-14);
   cursor: pointer;
+  height: 36px;
+  box-sizing: border-box;
 }
 
 /* Top Section */
@@ -506,6 +520,7 @@
   height: 180px;
   min-width: 150px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .donutCenter {
@@ -885,6 +900,9 @@
 
 .dimensionItems {
   margin-top: var(--spacing-md);
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .dimensionItem {

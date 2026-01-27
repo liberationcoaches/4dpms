@@ -13,6 +13,7 @@ import {
   getBossKRAs,
   getBossMemberIndex,
   getCSAAnalytics,
+  exportPerformanceData,
 } from '../controllers/clientAdminController';
 
 const router = Router();
@@ -31,6 +32,7 @@ router.post('/bosses/:bossId/kras/self-development', addBossSelfDevelopmentKRA);
 router.get('/bosses/:bossId/kras', getBossKRAs);
 router.get('/bosses/:bossId/team-member-index', getBossMemberIndex);
 router.get('/analytics', getCSAAnalytics);
+router.get('/export', exportPerformanceData);
 
 export default router;
 
