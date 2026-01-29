@@ -190,7 +190,7 @@ export async function addTeamMember(
     if (user.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can add team members',
+        message: 'Only Supervisors can add team members',
       });
       return;
     }
@@ -454,7 +454,7 @@ export async function updateTeamMember(
     if (user.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can update team members',
+        message: 'Only Supervisors can update team members',
       });
       return;
     }
@@ -524,7 +524,7 @@ export async function deleteTeamMember(
     if (user.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can delete team members',
+        message: 'Only Supervisors can delete team members',
       });
       return;
     }

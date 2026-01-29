@@ -44,7 +44,8 @@ interface KRA {
 
 interface OrganizationalDimension {
   _id?: string;
-  coreValue: string;
+  coreValue?: string;
+  coreValues?: string;
   pilotScore?: number;
   pilotCriticalIncident?: string;
   r1Score?: number;
@@ -138,6 +139,17 @@ function TeamMemberKRAs() {
     type: 'drive_link',
     value: '',
   });
+  const [reviewCycle, setReviewCycle] = useState<{
+    currentReviewPeriod: number;
+    r1Date?: string;
+    r2Date?: string;
+    r3Date?: string;
+    r4Date?: string;
+    r1Facilitator?: string;
+    r2Facilitator?: string;
+    r3Facilitator?: string;
+    r4Facilitator?: string;
+  } | null>(null);
 
   // Show notification popup
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
@@ -209,11 +221,36 @@ function TeamMemberKRAs() {
     return total === 100;
   };
 
+  const fetchReviewCycle = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+    try {
+      const res = await fetch(`/api/review-cycles/organization/me?userId=${userId}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.data) {
+        setReviewCycle({
+          currentReviewPeriod: data.data.currentReviewPeriod ?? 1,
+          r1Date: data.data.r1Date,
+          r2Date: data.data.r2Date,
+          r3Date: data.data.r3Date,
+          r4Date: data.data.r4Date,
+          r1Facilitator: data.data.r1Facilitator,
+          r2Facilitator: data.data.r2Facilitator,
+          r3Facilitator: data.data.r3Facilitator,
+          r4Facilitator: data.data.r4Facilitator,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch review cycle', e);
+    }
+  };
+
   useEffect(() => {
     if (!memberId) {
       setIsLoading(false);
       return;
     }
+    fetchReviewCycle();
 
     // Parse memberId (format: teamId-index, e.g., "507f1f77bcf86cd799439011-0")
     // Get the last part after splitting by '-'
@@ -823,6 +860,22 @@ function TeamMemberKRAs() {
         </div>
       )}
 
+      {/* Review cycle: current period & quarterly dates / facilitators */}
+      {reviewCycle && (
+        <div className={styles.reviewCycleBanner}>
+          <strong>Current period: R{reviewCycle.currentReviewPeriod}</strong>
+          <span className={styles.reviewCycleHint}>Only R{reviewCycle.currentReviewPeriod} scores are editable.</span>
+          <div className={styles.quarterDatesRow}>
+            {([1, 2, 3, 4] as const).map((n) => (
+              <span key={n} className={n === reviewCycle.currentReviewPeriod ? styles.quarterDateCurrent : styles.quarterDate}>
+                R{n}: {reviewCycle[`r${n}Date`] ? new Date(reviewCycle[`r${n}Date`]).toLocaleDateString() : '—'}
+                {reviewCycle[`r${n}Facilitator`] && ` · ${reviewCycle[`r${n}Facilitator`]}`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className={styles.kraSection}>
         {/* Tabs */}
         <div className={styles.tabs}>
@@ -1068,46 +1121,57 @@ function TeamMemberKRAs() {
                     </button>
                   </div>
 
-                  {/* Pilot Period */}
-                  <div className={styles.reviewPeriods}>
-                    <h5>Pilot Period</h5>
-                    <div className={styles.reviewPeriod}>
-                      <div className={styles.reviewFields}>
-                        <div>
-                          <label>Weight</label>
-                          <input
-                            type="number"
-                            value={kra.pilotWeight || ''}
-                            onChange={(e) =>
-                              handleUpdateKRA(kra._id!, 'pilotWeight', parseFloat(e.target.value) || 0)
-                            }
-                            className={styles.inputSmall}
-                          />
-                        </div>
-                        <div className={styles.commentField}>
-                          <label>Actual Perf/Comment</label>
-                          <textarea
-                            value={kra.pilotActualPerf || ''}
-                            onChange={(e) => handleUpdateKRA(kra._id!, 'pilotActualPerf', e.target.value)}
-                            className={styles.textarea}
-                            rows={2}
-                          />
+                  {/* Pilot Period - editable only when current period is 1 */}
+                  {(() => {
+                    const pilotEditable = reviewCycle ? reviewCycle.currentReviewPeriod === 1 : true;
+                    return (
+                      <div className={styles.reviewPeriods}>
+                        <h5>Pilot Period {!pilotEditable && <span className={styles.readOnlyBadge}>(read-only)</span>}</h5>
+                        <div className={styles.reviewPeriod}>
+                          <div className={styles.reviewFields}>
+                            <div>
+                              <label>Weight</label>
+                              <input
+                                type="number"
+                                value={kra.pilotWeight || ''}
+                                onChange={(e) =>
+                                  handleUpdateKRA(kra._id!, 'pilotWeight', parseFloat(e.target.value) || 0)
+                                }
+                                className={styles.inputSmall}
+                                disabled={!pilotEditable}
+                                readOnly={!pilotEditable}
+                              />
+                            </div>
+                            <div className={styles.commentField}>
+                              <label>Actual Perf/Comment</label>
+                              <textarea
+                                value={kra.pilotActualPerf || ''}
+                                onChange={(e) => handleUpdateKRA(kra._id!, 'pilotActualPerf', e.target.value)}
+                                className={styles.textarea}
+                                rows={2}
+                                disabled={!pilotEditable}
+                                readOnly={!pilotEditable}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
-                  {/* Review Periods */}
+                  {/* Review Periods - only current period editable */}
                   <div className={styles.reviewPeriods}>
                     <h5>Review Periods</h5>
                     {['R1', 'R2', 'R3', 'R4'].map((period) => {
+                      const periodNum = parseInt(period.slice(1), 10);
+                      const isCurrentPeriod = reviewCycle ? reviewCycle.currentReviewPeriod === periodNum : true;
                       const weightKey = `${period.toLowerCase()}Weight` as keyof KRA;
                       const scoreKey = `${period.toLowerCase()}Score` as keyof KRA;
                       const perfKey = `${period.toLowerCase()}ActualPerf` as keyof KRA;
 
                       return (
                         <div key={period} className={styles.reviewPeriod}>
-                          <h6>{period}</h6>
+                          <h6>{period} {!isCurrentPeriod && <span className={styles.readOnlyBadge}>(read-only)</span>}</h6>
                           <div className={styles.reviewFields}>
                             <div>
                               <label>Weight</label>
@@ -1118,6 +1182,8 @@ function TeamMemberKRAs() {
                                   handleUpdateKRA(kra._id!, weightKey, parseFloat(e.target.value) || 0)
                                 }
                                 className={styles.inputSmall}
+                                disabled={!isCurrentPeriod}
+                                readOnly={!isCurrentPeriod}
                               />
                             </div>
                             <div>
@@ -1132,6 +1198,8 @@ function TeamMemberKRAs() {
                                   handleUpdateKRA(kra._id!, scoreKey, parseFloat(e.target.value) || 0)
                                 }
                                 className={styles.inputSmall}
+                                disabled={!isCurrentPeriod}
+                                readOnly={!isCurrentPeriod}
                               />
                             </div>
                             <div className={styles.commentField}>
@@ -1141,6 +1209,8 @@ function TeamMemberKRAs() {
                                 onChange={(e) => handleUpdateKRA(kra._id!, perfKey, e.target.value)}
                                 className={styles.textarea}
                                 rows={2}
+                                disabled={!isCurrentPeriod}
+                                readOnly={!isCurrentPeriod}
                               />
                             </div>
                           </div>
@@ -1216,99 +1286,115 @@ function TeamMemberKRAs() {
                 member.organizationalDimensions.map((dimension) => (
                   <div key={dimension._id} className={styles.kraCard}>
                     <div className={styles.kraHeader}>
-                      <h4>{dimension.coreValue}</h4>
+                      <h4>{dimension.coreValues ?? dimension.coreValue}</h4>
                       <div className={styles.averageScore}>
                         Avg: {dimension.averageScore?.toFixed(2) || 'N/A'}
                       </div>
                     </div>
 
                     <div className={styles.kraFields}>
-                      {/* Pilot Period */}
-                      <div className={styles.reviewPeriods}>
-                        <h5>Pilot Period</h5>
-                        <div className={styles.reviewPeriod}>
-                          <div className={styles.reviewFields}>
-                            <div>
-                              <label>Score</label>
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={dimension.pilotScore || ''}
-                                onChange={(e) =>
-                                  handleUpdateOrganizational(
-                                    dimension._id!,
-                                    'pilotScore',
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                className={styles.inputSmall}
-                              />
-                            </div>
-                            <div className={styles.commentField}>
-                              <label>Critical Incident</label>
-                              <textarea
-                                value={dimension.pilotCriticalIncident || ''}
-                                onChange={(e) =>
-                                  handleUpdateOrganizational(
-                                    dimension._id!,
-                                    'pilotCriticalIncident',
-                                    e.target.value
-                                  )
-                                }
-                                className={styles.textarea}
-                                rows={2}
-                              />
+                      {/* Pilot Period - editable only when current period is 1 */}
+                      {(() => {
+                        const pilotEditable = reviewCycle ? reviewCycle.currentReviewPeriod === 1 : true;
+                        return (
+                          <div className={styles.reviewPeriods}>
+                            <h5>Pilot Period {!pilotEditable && <span className={styles.readOnlyBadge}>(read-only)</span>}</h5>
+                            <div className={styles.reviewPeriod}>
+                              <div className={styles.reviewFields}>
+                                <div>
+                                  <label>Score</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={dimension.pilotScore || ''}
+                                    onChange={(e) =>
+                                      handleUpdateOrganizational(
+                                        dimension._id!,
+                                        'pilotScore',
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className={styles.inputSmall}
+                                    disabled={!pilotEditable}
+                                    readOnly={!pilotEditable}
+                                  />
+                                </div>
+                                <div className={styles.commentField}>
+                                  <label>Critical Incident</label>
+                                  <textarea
+                                    value={dimension.pilotCriticalIncident || ''}
+                                    onChange={(e) =>
+                                      handleUpdateOrganizational(
+                                        dimension._id!,
+                                        'pilotCriticalIncident',
+                                        e.target.value
+                                      )
+                                    }
+                                    className={styles.textarea}
+                                    rows={2}
+                                    disabled={!pilotEditable}
+                                    readOnly={!pilotEditable}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
-                      {/* Review Periods */}
+                      {/* Review Periods - only current period editable */}
                       <div className={styles.reviewPeriods}>
                         <h5>Review Periods</h5>
                         {[
-                          { period: 'R1', scoreKey: 'r1Score' as const, incidentKey: 'r1CriticalIncident' as const },
-                          { period: 'R2', scoreKey: 'r2Score' as const, incidentKey: 'r2CriticalIncident' as const },
-                          { period: 'R3', scoreKey: 'r3Score' as const, incidentKey: 'r3CriticalIncident' as const },
-                          { period: 'R4', scoreKey: 'r4Score' as const, incidentKey: 'r4CriticalIncident' as const },
-                        ].map(({ period, scoreKey, incidentKey }) => (
-                          <div key={period} className={styles.reviewPeriod}>
-                            <h6>{period}</h6>
-                            <div className={styles.reviewFields}>
-                              <div>
-                                <label>Score</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                  value={dimension[scoreKey] || ''}
-                                  onChange={(e) =>
-                                    handleUpdateOrganizational(
-                                      dimension._id!,
-                                      scoreKey,
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  className={styles.inputSmall}
-                                />
-                              </div>
-                              <div className={styles.commentField}>
-                                <label>Critical Incident</label>
-                                <textarea
-                                  value={dimension[incidentKey] || ''}
-                                  onChange={(e) =>
-                                    handleUpdateOrganizational(dimension._id!, incidentKey, e.target.value)
-                                  }
-                                  className={styles.textarea}
-                                  rows={2}
-                                />
+                          { period: 'R1', periodNum: 1, scoreKey: 'r1Score' as const, incidentKey: 'r1CriticalIncident' as const },
+                          { period: 'R2', periodNum: 2, scoreKey: 'r2Score' as const, incidentKey: 'r2CriticalIncident' as const },
+                          { period: 'R3', periodNum: 3, scoreKey: 'r3Score' as const, incidentKey: 'r3CriticalIncident' as const },
+                          { period: 'R4', periodNum: 4, scoreKey: 'r4Score' as const, incidentKey: 'r4CriticalIncident' as const },
+                        ].map(({ period, periodNum, scoreKey, incidentKey }) => {
+                          const isCurrentPeriod = reviewCycle ? reviewCycle.currentReviewPeriod === periodNum : true;
+                          return (
+                            <div key={period} className={styles.reviewPeriod}>
+                              <h6>{period} {!isCurrentPeriod && <span className={styles.readOnlyBadge}>(read-only)</span>}</h6>
+                              <div className={styles.reviewFields}>
+                                <div>
+                                  <label>Score</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={dimension[scoreKey] || ''}
+                                    onChange={(e) =>
+                                      handleUpdateOrganizational(
+                                        dimension._id!,
+                                        scoreKey,
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className={styles.inputSmall}
+                                    disabled={!isCurrentPeriod}
+                                    readOnly={!isCurrentPeriod}
+                                  />
+                                </div>
+                                <div className={styles.commentField}>
+                                  <label>Critical Incident</label>
+                                  <textarea
+                                    value={dimension[incidentKey] || ''}
+                                    onChange={(e) =>
+                                      handleUpdateOrganizational(dimension._id!, incidentKey, e.target.value)
+                                    }
+                                    className={styles.textarea}
+                                    rows={2}
+                                    disabled={!isCurrentPeriod}
+                                    readOnly={!isCurrentPeriod}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1406,88 +1492,104 @@ function TeamMemberKRAs() {
                         />
                       </div>
 
-                      {/* Pilot Period */}
-                      <div className={styles.reviewPeriods}>
-                        <h5>Pilot Period</h5>
-                        <div className={styles.reviewPeriod}>
-                          <div className={styles.reviewFields}>
-                            <div>
-                              <label>Score</label>
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={development.pilotScore || ''}
-                                onChange={(e) =>
-                                  handleUpdateSelfDevelopment(
-                                    development._id!,
-                                    'pilotScore',
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                className={styles.inputSmall}
-                              />
-                            </div>
-                            <div className={styles.commentField}>
-                              <label>Reason</label>
-                              <textarea
-                                value={development.pilotReason || ''}
-                                onChange={(e) =>
-                                  handleUpdateSelfDevelopment(development._id!, 'pilotReason', e.target.value)
-                                }
-                                className={styles.textarea}
-                                rows={2}
-                              />
+                      {/* Pilot Period - editable only when current period is 1 */}
+                      {(() => {
+                        const pilotEditable = reviewCycle ? reviewCycle.currentReviewPeriod === 1 : true;
+                        return (
+                          <div className={styles.reviewPeriods}>
+                            <h5>Pilot Period {!pilotEditable && <span className={styles.readOnlyBadge}>(read-only)</span>}</h5>
+                            <div className={styles.reviewPeriod}>
+                              <div className={styles.reviewFields}>
+                                <div>
+                                  <label>Score</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={development.pilotScore || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSelfDevelopment(
+                                        development._id!,
+                                        'pilotScore',
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className={styles.inputSmall}
+                                    disabled={!pilotEditable}
+                                    readOnly={!pilotEditable}
+                                  />
+                                </div>
+                                <div className={styles.commentField}>
+                                  <label>Reason</label>
+                                  <textarea
+                                    value={development.pilotReason || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSelfDevelopment(development._id!, 'pilotReason', e.target.value)
+                                    }
+                                    className={styles.textarea}
+                                    rows={2}
+                                    disabled={!pilotEditable}
+                                    readOnly={!pilotEditable}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
-                      {/* Review Periods */}
+                      {/* Review Periods - only current period editable */}
                       <div className={styles.reviewPeriods}>
                         <h5>Review Periods</h5>
                         {[
-                          { period: 'R1', scoreKey: 'r1Score' as const, reasonKey: 'r1Reason' as const },
-                          { period: 'R2', scoreKey: 'r2Score' as const, reasonKey: 'r2Reason' as const },
-                          { period: 'R3', scoreKey: 'r3Score' as const, reasonKey: 'r3Reason' as const },
-                          { period: 'R4', scoreKey: 'r4Score' as const, reasonKey: 'r4Reason' as const },
-                        ].map(({ period, scoreKey, reasonKey }) => (
-                          <div key={period} className={styles.reviewPeriod}>
-                            <h6>{period}</h6>
-                            <div className={styles.reviewFields}>
-                              <div>
-                                <label>Score</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                  value={development[scoreKey] || ''}
-                                  onChange={(e) =>
-                                    handleUpdateSelfDevelopment(
-                                      development._id!,
-                                      scoreKey,
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  className={styles.inputSmall}
-                                />
-                              </div>
-                              <div className={styles.commentField}>
-                                <label>Reason</label>
-                                <textarea
-                                  value={development[reasonKey] || ''}
-                                  onChange={(e) =>
-                                    handleUpdateSelfDevelopment(development._id!, reasonKey, e.target.value)
-                                  }
-                                  className={styles.textarea}
-                                  rows={2}
-                                />
+                          { period: 'R1', periodNum: 1, scoreKey: 'r1Score' as const, reasonKey: 'r1Reason' as const },
+                          { period: 'R2', periodNum: 2, scoreKey: 'r2Score' as const, reasonKey: 'r2Reason' as const },
+                          { period: 'R3', periodNum: 3, scoreKey: 'r3Score' as const, reasonKey: 'r3Reason' as const },
+                          { period: 'R4', periodNum: 4, scoreKey: 'r4Score' as const, reasonKey: 'r4Reason' as const },
+                        ].map(({ period, periodNum, scoreKey, reasonKey }) => {
+                          const isCurrentPeriod = reviewCycle ? reviewCycle.currentReviewPeriod === periodNum : true;
+                          return (
+                            <div key={period} className={styles.reviewPeriod}>
+                              <h6>{period} {!isCurrentPeriod && <span className={styles.readOnlyBadge}>(read-only)</span>}</h6>
+                              <div className={styles.reviewFields}>
+                                <div>
+                                  <label>Score</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={development[scoreKey] || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSelfDevelopment(
+                                        development._id!,
+                                        scoreKey,
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className={styles.inputSmall}
+                                    disabled={!isCurrentPeriod}
+                                    readOnly={!isCurrentPeriod}
+                                  />
+                                </div>
+                                <div className={styles.commentField}>
+                                  <label>Reason</label>
+                                  <textarea
+                                    value={development[reasonKey] || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSelfDevelopment(development._id!, reasonKey, e.target.value)
+                                    }
+                                    className={styles.textarea}
+                                    rows={2}
+                                    disabled={!isCurrentPeriod}
+                                    readOnly={!isCurrentPeriod}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1590,88 +1692,104 @@ function TeamMemberKRAs() {
                         />
                       </div>
 
-                      {/* Pilot Period */}
-                      <div className={styles.reviewPeriods}>
-                        <h5>Pilot Period</h5>
-                        <div className={styles.reviewPeriod}>
-                          <div className={styles.reviewFields}>
-                            <div>
-                              <label>Score</label>
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={developing.pilotScore || ''}
-                                onChange={(e) =>
-                                  handleUpdateDevelopingOthers(
-                                    developing._id!,
-                                    'pilotScore',
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                className={styles.inputSmall}
-                              />
-                            </div>
-                            <div className={styles.commentField}>
-                              <label>Reason</label>
-                              <textarea
-                                value={developing.pilotReason || ''}
-                                onChange={(e) =>
-                                  handleUpdateDevelopingOthers(developing._id!, 'pilotReason', e.target.value)
-                                }
-                                className={styles.textarea}
-                                rows={2}
-                              />
+                      {/* Pilot Period - editable only when current period is 1 */}
+                      {(() => {
+                        const pilotEditable = reviewCycle ? reviewCycle.currentReviewPeriod === 1 : true;
+                        return (
+                          <div className={styles.reviewPeriods}>
+                            <h5>Pilot Period {!pilotEditable && <span className={styles.readOnlyBadge}>(read-only)</span>}</h5>
+                            <div className={styles.reviewPeriod}>
+                              <div className={styles.reviewFields}>
+                                <div>
+                                  <label>Score</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={developing.pilotScore || ''}
+                                    onChange={(e) =>
+                                      handleUpdateDevelopingOthers(
+                                        developing._id!,
+                                        'pilotScore',
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className={styles.inputSmall}
+                                    disabled={!pilotEditable}
+                                    readOnly={!pilotEditable}
+                                  />
+                                </div>
+                                <div className={styles.commentField}>
+                                  <label>Reason</label>
+                                  <textarea
+                                    value={developing.pilotReason || ''}
+                                    onChange={(e) =>
+                                      handleUpdateDevelopingOthers(developing._id!, 'pilotReason', e.target.value)
+                                    }
+                                    className={styles.textarea}
+                                    rows={2}
+                                    disabled={!pilotEditable}
+                                    readOnly={!pilotEditable}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
-                      {/* Review Periods */}
+                      {/* Review Periods - only current period editable */}
                       <div className={styles.reviewPeriods}>
                         <h5>Review Periods</h5>
                         {[
-                          { period: 'R1', scoreKey: 'r1Score' as const, reasonKey: 'r1Reason' as const },
-                          { period: 'R2', scoreKey: 'r2Score' as const, reasonKey: 'r2Reason' as const },
-                          { period: 'R3', scoreKey: 'r3Score' as const, reasonKey: 'r3Reason' as const },
-                          { period: 'R4', scoreKey: 'r4Score' as const, reasonKey: 'r4Reason' as const },
-                        ].map(({ period, scoreKey, reasonKey }) => (
-                          <div key={period} className={styles.reviewPeriod}>
-                            <h6>{period}</h6>
-                            <div className={styles.reviewFields}>
-                              <div>
-                                <label>Score</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                  value={developing[scoreKey] || ''}
-                                  onChange={(e) =>
-                                    handleUpdateDevelopingOthers(
-                                      developing._id!,
-                                      scoreKey,
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  className={styles.inputSmall}
-                                />
-                              </div>
-                              <div className={styles.commentField}>
-                                <label>Reason</label>
-                                <textarea
-                                  value={developing[reasonKey] || ''}
-                                  onChange={(e) =>
-                                    handleUpdateDevelopingOthers(developing._id!, reasonKey, e.target.value)
-                                  }
-                                  className={styles.textarea}
-                                  rows={2}
-                                />
+                          { period: 'R1', periodNum: 1, scoreKey: 'r1Score' as const, reasonKey: 'r1Reason' as const },
+                          { period: 'R2', periodNum: 2, scoreKey: 'r2Score' as const, reasonKey: 'r2Reason' as const },
+                          { period: 'R3', periodNum: 3, scoreKey: 'r3Score' as const, reasonKey: 'r3Reason' as const },
+                          { period: 'R4', periodNum: 4, scoreKey: 'r4Score' as const, reasonKey: 'r4Reason' as const },
+                        ].map(({ period, periodNum, scoreKey, reasonKey }) => {
+                          const isCurrentPeriod = reviewCycle ? reviewCycle.currentReviewPeriod === periodNum : true;
+                          return (
+                            <div key={period} className={styles.reviewPeriod}>
+                              <h6>{period} {!isCurrentPeriod && <span className={styles.readOnlyBadge}>(read-only)</span>}</h6>
+                              <div className={styles.reviewFields}>
+                                <div>
+                                  <label>Score</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={developing[scoreKey] || ''}
+                                    onChange={(e) =>
+                                      handleUpdateDevelopingOthers(
+                                        developing._id!,
+                                        scoreKey,
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className={styles.inputSmall}
+                                    disabled={!isCurrentPeriod}
+                                    readOnly={!isCurrentPeriod}
+                                  />
+                                </div>
+                                <div className={styles.commentField}>
+                                  <label>Reason</label>
+                                  <textarea
+                                    value={developing[reasonKey] || ''}
+                                    onChange={(e) =>
+                                      handleUpdateDevelopingOthers(developing._id!, reasonKey, e.target.value)
+                                    }
+                                    className={styles.textarea}
+                                    rows={2}
+                                    disabled={!isCurrentPeriod}
+                                    readOnly={!isCurrentPeriod}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

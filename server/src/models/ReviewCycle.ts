@@ -7,6 +7,16 @@ export interface IReviewCycle extends Document {
   nextReviewDate: Date;
   currentReviewPeriod: number; // 1, 2, 3, 4
   isActive: boolean;
+  // Quarterly dates (R1–R4) for display in KRA screens
+  r1Date?: Date;
+  r2Date?: Date;
+  r3Date?: Date;
+  r4Date?: Date;
+  // LCPL Facilitator per quarter
+  r1Facilitator?: string;
+  r2Facilitator?: string;
+  r3Facilitator?: string;
+  r4Facilitator?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +52,14 @@ const ReviewCycleSchema = new Schema<IReviewCycle>(
       type: Boolean,
       default: true,
     },
+    r1Date: { type: Date },
+    r2Date: { type: Date },
+    r3Date: { type: Date },
+    r4Date: { type: Date },
+    r1Facilitator: { type: String, trim: true },
+    r2Facilitator: { type: String, trim: true },
+    r3Facilitator: { type: String, trim: true },
+    r4Facilitator: { type: String, trim: true },
   },
   {
     timestamps: true,

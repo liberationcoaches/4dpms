@@ -28,7 +28,7 @@ export const getNavigationItems = (role: 'platform_admin' | 'client_admin' | 're
       roles: ['platform_admin', 'client_admin', 'reviewer', 'boss', 'manager', 'employee'],
     },
     {
-      label: 'Bosses',
+      label: 'Admins',
       path: '/client-admin/dashboard/bosses',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -41,7 +41,7 @@ export const getNavigationItems = (role: 'platform_admin' | 'client_admin' | 're
       roles: ['client_admin'],
     },
     {
-      label: 'Managers',
+      label: 'Supervisors',
       path: '/dashboard/boss/managers',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

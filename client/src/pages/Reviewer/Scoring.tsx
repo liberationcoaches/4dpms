@@ -49,12 +49,25 @@ interface KRAs {
   developingOthersKRAs?: any[];
 }
 
+interface ReviewCycleInfo {
+  currentReviewPeriod: number;
+  r1Date?: string;
+  r2Date?: string;
+  r3Date?: string;
+  r4Date?: string;
+  r1Facilitator?: string;
+  r2Facilitator?: string;
+  r3Facilitator?: string;
+  r4Facilitator?: string;
+}
+
 function Scoring() {
   const navigate = useNavigate();
   const { employeeId } = useParams<{ employeeId: string }>();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [kras, setKras] = useState<KRAs>({ functionalKRAs: [] });
   const [reviewPeriod, setReviewPeriod] = useState<number>(1);
+  const [reviewCycle, setReviewCycle] = useState<ReviewCycleInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [weightError, setWeightError] = useState<string>('');
@@ -90,6 +103,10 @@ function Scoring() {
       const data = await res.json();
       if (data.status === 'success') {
         setEmployee(data.data.employee);
+        if (data.data.reviewCycle) {
+          setReviewCycle(data.data.reviewCycle);
+          setReviewPeriod(data.data.reviewCycle.currentReviewPeriod ?? 1);
+        }
         // Initialize KRAs with empty array if not present
         const krasData = data.data.kras || { functionalKRAs: [] };
         // Ensure functionalKRAs is an array
@@ -398,7 +415,7 @@ function Scoring() {
   }
 
   if (!employee) {
-    return <div className={styles.error}>Employee data not found</div>;
+    return <div className={styles.error}>Member data not found</div>;
   }
 
   const functionalKRAs = kras.functionalKRAs || [];
@@ -409,10 +426,25 @@ function Scoring() {
         <button className={styles.backButton} onClick={() => navigate('/reviewer/dashboard')}>
           ← Back
         </button>
-        <h1>Enter Scores for {employee.name}</h1>
+        <h1>Enter Scores for Member: {employee.name}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
+      {/* Current period & quarterly dates - only current period is editable */}
+      {reviewCycle && (
+        <div className={styles.reviewCycleBanner}>
+          <strong>Current period: R{reviewCycle.currentReviewPeriod}</strong>
+          <span className={styles.reviewCycleHint}>Only R{reviewCycle.currentReviewPeriod} can be scored.</span>
+          <div className={styles.quarterDatesRow}>
+            {([1, 2, 3, 4] as const).map((n) => (
+              <span key={n} className={n === reviewCycle.currentReviewPeriod ? styles.quarterDateCurrent : styles.quarterDate}>
+                R{n}: {reviewCycle[`r${n}Date`] ? new Date(reviewCycle[`r${n}Date`]).toLocaleDateString() : '—'}
+                {reviewCycle[`r${n}Facilitator`] && ` · ${reviewCycle[`r${n}Facilitator`]}`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={styles.controls}>
         <label>
           Review Period:
@@ -420,6 +452,8 @@ function Scoring() {
             value={reviewPeriod}
             onChange={(e) => setReviewPeriod(Number(e.target.value))}
             className={styles.periodSelect}
+            disabled={!!reviewCycle}
+            title={reviewCycle ? 'Only the current review period can be edited' : undefined}
           >
               <option value={0}>Pilot</option>
               <option value={1}>Period 1 (R1)</option>

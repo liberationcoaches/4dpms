@@ -56,6 +56,47 @@
   font-size: 1rem;
 }
 
+.periodSelect:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.reviewCycleBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(33, 150, 243, 0.08);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  border-radius: 8px;
+}
+
+.reviewCycleHint {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.quarterDatesRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.quarterDate,
+.quarterDateCurrent {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.quarterDateCurrent {
+  font-weight: 600;
+  color: #1976d2;
+}
+
 .scoresSection {
   margin-bottom: 2rem;
 }

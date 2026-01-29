@@ -59,9 +59,9 @@ function SignUp({ onSubmit }: SignUpProps) {
 
     // Validate codes based on signup type
     if (formData.signupType === 'manager' && !formData.orgCode?.trim()) {
-      newErrors.orgCode = 'Organization code is required for managers';
+      newErrors.orgCode = 'Organization code is required for Supervisors';
     } else if (formData.signupType === 'employee' && !formData.teamCode?.trim()) {
-      newErrors.teamCode = 'Team code is required for employees';
+      newErrors.teamCode = 'Team code is required for Members';
     }
 
     setErrors(newErrors);
@@ -223,7 +223,7 @@ function SignUp({ onSubmit }: SignUpProps) {
                 <div className={styles.codeBox}>
                   <p className={styles.codeLabel}>Your Organization Code:</p>
                   <p className={styles.codeValue}>{generatedCode.orgCode}</p>
-                  <p className={styles.codeHint}>Share this code with your managers</p>
+                  <p className={styles.codeHint}>Share this code with your Supervisors</p>
                 </div>
               )}
               {generatedCode.teamCode && (
@@ -254,9 +254,9 @@ function SignUp({ onSubmit }: SignUpProps) {
                   aria-invalid={!!errors.signupType}
                   aria-describedby={errors.signupType ? 'signupType-error' : undefined}
                 >
-                  <option value="boss">Boss (Organization Owner)</option>
-                  <option value="manager">Manager</option>
-                  <option value="employee">Employee</option>
+                  <option value="boss">Admin (Organization Owner)</option>
+                  <option value="manager">Supervisor</option>
+                  <option value="employee">Member</option>
                 </select>
                 <span className={styles.selectArrow}>▼</span>
               </div>
@@ -349,7 +349,7 @@ function SignUp({ onSubmit }: SignUpProps) {
               )}
             </div>
 
-            {/* Organization Code (for Managers) */}
+            {/* Organization Code (for Supervisors) */}
             {formData.signupType === 'manager' && (
               <div className={styles.inputGroup}>
                 <label htmlFor="orgCode" className={styles.label}>
@@ -361,7 +361,7 @@ function SignUp({ onSubmit }: SignUpProps) {
                   className={`${styles.input} ${errors.orgCode ? styles.inputError : ''}`}
                   value={formData.orgCode || ''}
                   onChange={(e) => handleInputChange('orgCode', e.target.value.toUpperCase())}
-                  placeholder="Enter organization code from your boss"
+                  placeholder="Enter organization code from your Admin"
                   aria-invalid={!!errors.orgCode}
                   aria-describedby={errors.orgCode ? 'orgCode-error' : undefined}
                 />
@@ -373,7 +373,7 @@ function SignUp({ onSubmit }: SignUpProps) {
               </div>
             )}
 
-            {/* Team Code (for Employees) */}
+            {/* Team Code (for Members) */}
             {formData.signupType === 'employee' && (
               <div className={styles.inputGroup}>
                 <label htmlFor="teamCode" className={styles.label}>
@@ -385,7 +385,7 @@ function SignUp({ onSubmit }: SignUpProps) {
                   className={`${styles.input} ${errors.teamCode ? styles.inputError : ''}`}
                   value={formData.teamCode || ''}
                   onChange={(e) => handleInputChange('teamCode', e.target.value.toUpperCase())}
-                  placeholder="Enter team code from your manager"
+                  placeholder="Enter team code from your Supervisor"
                   aria-invalid={!!errors.teamCode}
                   aria-describedby={errors.teamCode ? 'teamCode-error' : undefined}
                 />

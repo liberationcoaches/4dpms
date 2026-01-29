@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
+import { ReviewCycle } from '../models/ReviewCycle';
 import mongoose from 'mongoose';
 
 /**
@@ -222,7 +223,7 @@ export async function getEmployeeForScoring(
     if (!organization || organization.reviewerId?.toString() !== reviewerId) {
       res.status(403).json({
         status: 'error',
-        message: 'Reviewer is not assigned to this employee\'s organization',
+        message: 'Reviewer is not assigned to this Member\'s organization',
       });
       return;
     }
@@ -235,6 +236,11 @@ export async function getEmployeeForScoring(
     const memberDetails = team?.membersDetails.find(
       (m) => m.mobile === employee.mobile
     );
+
+    const reviewCycle = await ReviewCycle.findOne({
+      organizationId: employee.organizationId,
+      isActive: true,
+    }).select('currentReviewPeriod r1Date r2Date r3Date r4Date r1Facilitator r2Facilitator r3Facilitator r4Facilitator').lean();
 
     res.status(200).json({
       status: 'success',
@@ -251,6 +257,17 @@ export async function getEmployeeForScoring(
           selfDevelopmentKRAs: [],
           developingOthersKRAs: [],
         },
+        reviewCycle: reviewCycle ? {
+          currentReviewPeriod: reviewCycle.currentReviewPeriod ?? 1,
+          r1Date: reviewCycle.r1Date,
+          r2Date: reviewCycle.r2Date,
+          r3Date: reviewCycle.r3Date,
+          r4Date: reviewCycle.r4Date,
+          r1Facilitator: reviewCycle.r1Facilitator,
+          r2Facilitator: reviewCycle.r2Facilitator,
+          r3Facilitator: reviewCycle.r3Facilitator,
+          r4Facilitator: reviewCycle.r4Facilitator,
+        } : null,
       },
     });
   } catch (error) {
@@ -313,7 +330,21 @@ export async function submitScores(
     if (!organization || organization.reviewerId?.toString() !== reviewerId) {
       res.status(403).json({
         status: 'error',
-        message: 'Reviewer is not assigned to this employee\'s organization',
+        message: 'Reviewer is not assigned to this Member\'s organization',
+      });
+      return;
+    }
+
+    // Only current review period is editable
+    const reviewCycle = await ReviewCycle.findOne({
+      organizationId: employee.organizationId,
+      isActive: true,
+    }).select('currentReviewPeriod').lean();
+    const currentPeriod = reviewCycle?.currentReviewPeriod ?? 1;
+    if (reviewPeriod !== currentPeriod) {
+      res.status(403).json({
+        status: 'error',
+        message: `Only the current review period (R${currentPeriod}) can be edited. You attempted to submit for R${reviewPeriod}.`,
       });
       return;
     }

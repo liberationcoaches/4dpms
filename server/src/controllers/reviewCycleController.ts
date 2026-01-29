@@ -40,7 +40,18 @@ export async function configureReviewCycle(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { frequency, startDate } = req.body;
+    const {
+      frequency,
+      startDate,
+      r1Date,
+      r2Date,
+      r3Date,
+      r4Date,
+      r1Facilitator,
+      r2Facilitator,
+      r3Facilitator,
+      r4Facilitator,
+    } = req.body;
     const bossId = req.query.userId as string;
 
     if (!bossId) {
@@ -56,7 +67,7 @@ export async function configureReviewCycle(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can configure review cycles',
+        message: 'Only Admins can configure review cycles',
       });
       return;
     }
@@ -103,12 +114,27 @@ export async function configureReviewCycle(
 
     const nextReviewDate = calculateNextReviewDate(start, frequency, 1);
 
+    const quarterDates = [
+      r1Date ? new Date(r1Date) : undefined,
+      r2Date ? new Date(r2Date) : undefined,
+      r3Date ? new Date(r3Date) : undefined,
+      r4Date ? new Date(r4Date) : undefined,
+    ].map((d) => (d && !isNaN(d.getTime()) ? d : undefined));
+
     if (reviewCycle) {
       // Update existing review cycle
       reviewCycle.frequency = frequency;
       reviewCycle.startDate = start;
       reviewCycle.nextReviewDate = nextReviewDate;
       reviewCycle.currentReviewPeriod = 1;
+      if (quarterDates[0] !== undefined) reviewCycle.r1Date = quarterDates[0];
+      if (quarterDates[1] !== undefined) reviewCycle.r2Date = quarterDates[1];
+      if (quarterDates[2] !== undefined) reviewCycle.r3Date = quarterDates[2];
+      if (quarterDates[3] !== undefined) reviewCycle.r4Date = quarterDates[3];
+      if (r1Facilitator !== undefined) reviewCycle.r1Facilitator = String(r1Facilitator).trim() || undefined;
+      if (r2Facilitator !== undefined) reviewCycle.r2Facilitator = String(r2Facilitator).trim() || undefined;
+      if (r3Facilitator !== undefined) reviewCycle.r3Facilitator = String(r3Facilitator).trim() || undefined;
+      if (r4Facilitator !== undefined) reviewCycle.r4Facilitator = String(r4Facilitator).trim() || undefined;
       await reviewCycle.save();
     } else {
       // Create new review cycle
@@ -119,6 +145,14 @@ export async function configureReviewCycle(
         nextReviewDate,
         currentReviewPeriod: 1,
         isActive: true,
+        r1Date: quarterDates[0],
+        r2Date: quarterDates[1],
+        r3Date: quarterDates[2],
+        r4Date: quarterDates[3],
+        r1Facilitator: r1Facilitator ? String(r1Facilitator).trim() : undefined,
+        r2Facilitator: r2Facilitator ? String(r2Facilitator).trim() : undefined,
+        r3Facilitator: r3Facilitator ? String(r3Facilitator).trim() : undefined,
+        r4Facilitator: r4Facilitator ? String(r4Facilitator).trim() : undefined,
       });
       await reviewCycle.save();
     }
@@ -163,7 +197,7 @@ export async function getReviewCycle(
       return;
     }
 
-    const organizationId = orgId || user.organizationId;
+    const organizationId = (orgId && orgId !== 'me' ? orgId : user.organizationId) as mongoose.Types.ObjectId | undefined;
 
     if (!organizationId) {
       res.status(400).json({
@@ -278,7 +312,7 @@ export async function triggerReviewPeriod(
     if (!user || (user.role !== 'boss' && user.role !== 'platform_admin')) {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses or platform admins can trigger review periods',
+        message: 'Only Admins or platform admins can trigger review periods',
       });
       return;
     }
@@ -313,6 +347,90 @@ export async function triggerReviewPeriod(
     res.status(200).json({
       status: 'success',
       message: 'Review period triggered successfully',
+      data: reviewCycle,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update review cycle quarterly dates and facilitators (Boss only)
+ * PUT /api/review-cycles/:cycleId
+ */
+export async function updateReviewCycle(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { cycleId } = req.params;
+    const userId = req.query.userId as string;
+    const {
+      r1Date,
+      r2Date,
+      r3Date,
+      r4Date,
+      r1Facilitator,
+      r2Facilitator,
+      r3Facilitator,
+      r4Facilitator,
+    } = req.body;
+
+    if (!userId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user || (user.role !== 'boss' && user.role !== 'platform_admin')) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only Admins or platform admins can update review cycle',
+      });
+      return;
+    }
+
+    const reviewCycle = await ReviewCycle.findById(cycleId);
+    if (!reviewCycle) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Review cycle not found',
+      });
+      return;
+    }
+
+    // Boss can only update their org's cycle
+    if (user.role === 'boss' && user.organizationId?.toString() !== reviewCycle.organizationId?.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'You can only update your organization\'s review cycle',
+      });
+      return;
+    }
+
+    const quarterDates = [r1Date, r2Date, r3Date, r4Date].map((d: string | undefined) => {
+      if (!d) return undefined;
+      const x = new Date(d);
+      return !isNaN(x.getTime()) ? x : undefined;
+    });
+    if (quarterDates[0] !== undefined) reviewCycle.r1Date = quarterDates[0];
+    if (quarterDates[1] !== undefined) reviewCycle.r2Date = quarterDates[1];
+    if (quarterDates[2] !== undefined) reviewCycle.r3Date = quarterDates[2];
+    if (quarterDates[3] !== undefined) reviewCycle.r4Date = quarterDates[3];
+    if (r1Facilitator !== undefined) reviewCycle.r1Facilitator = String(r1Facilitator).trim() || undefined;
+    if (r2Facilitator !== undefined) reviewCycle.r2Facilitator = String(r2Facilitator).trim() || undefined;
+    if (r3Facilitator !== undefined) reviewCycle.r3Facilitator = String(r3Facilitator).trim() || undefined;
+    if (r4Facilitator !== undefined) reviewCycle.r4Facilitator = String(r4Facilitator).trim() || undefined;
+
+    await reviewCycle.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Review cycle updated successfully',
       data: reviewCycle,
     });
   } catch (error) {

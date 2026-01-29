@@ -27,7 +27,7 @@ export async function getEmployeePerformance(
     if (!employee || employee.role !== 'employee') {
       res.status(403).json({
         status: 'error',
-        message: 'Only employees can access this',
+        message: 'Only Members can access this',
       });
       return;
     }
@@ -163,7 +163,7 @@ export async function acknowledgeReview(
     if (!employee || employee.role !== 'employee') {
       res.status(403).json({
         status: 'error',
-        message: 'Only employees can acknowledge reviews',
+        message: 'Only Members can acknowledge reviews',
       });
       return;
     }

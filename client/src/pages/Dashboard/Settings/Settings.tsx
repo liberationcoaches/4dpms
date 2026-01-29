@@ -2,6 +2,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import styles from './Settings.module.css';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import { DIMENSION_COLORS } from '@/utils/dimensionColors';
+import { fetchUserProfile } from '@/utils/userProfile';
 
 interface UserProfile {
   name: string;
@@ -44,18 +45,17 @@ function Settings() {
       return;
     }
 
-    // Fetch user profile
-    fetch(`/api/user/profile?userId=${userId}`)
-      .then((res) => res.json())
+    // Fetch user profile (clears storage and redirects to login on 404/stale user)
+    fetchUserProfile(userId)
       .then((data) => {
-        if (data.status === 'success' && data.data) {
+        if (data?.status === 'success' && data.data) {
           setProfile({
-            name: data.data.name || '',
-            email: data.data.email || '',
-            mobile: data.data.mobile || '',
+            name: (data.data.name as string) || '',
+            email: (data.data.email as string) || '',
+            mobile: (data.data.mobile as string) || '',
           });
-          const role = data.data.role || localStorage.getItem('userRole') || 'employee';
-          setUserRole(role);
+          const role = (data.data.role as string) || localStorage.getItem('userRole') || 'employee';
+          setUserRole(role as typeof userRole);
         }
         setIsLoading(false);
       })

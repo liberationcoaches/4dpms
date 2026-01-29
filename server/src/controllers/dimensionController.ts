@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Team } from '../models/Team';
 import { User } from '../models/User';
+import { ReviewCycle } from '../models/ReviewCycle';
 import { z } from 'zod';
 import {
   calculateOrganizationalAverage,
@@ -8,9 +9,31 @@ import {
   calculateDevelopingOthersAverage,
 } from '../utils/dimensionCalculations';
 
+/** Get current review period for user's organization; only that period's score fields are editable. */
+async function getCurrentReviewPeriod(user: { organizationId?: unknown; teamId?: unknown }, team: { createdBy: unknown } | null): Promise<number> {
+  const organizationId = user.organizationId ?? (team?.createdBy ? (await User.findById(team.createdBy).select('organizationId').then((b) => b?.organizationId)) : undefined);
+  const cycle = organizationId ? await ReviewCycle.findOne({ organizationId, isActive: true }).select('currentReviewPeriod').lean() : null;
+  return cycle?.currentReviewPeriod ?? 1;
+}
+
+/** Keep only current period's score fields in validated (r{N}Score, r{N}CriticalIncident, r{N}Reason). */
+function filterToCurrentPeriodOnly<T extends Record<string, unknown>>(validated: T, currentPeriod: number): T {
+  const prefix = `r${currentPeriod}`;
+  const allowed = new Set([`${prefix}Score`, `${prefix}CriticalIncident`, `${prefix}Reason`]);
+  const periodKeys = ['r1Score', 'r2Score', 'r3Score', 'r4Score', 'r1CriticalIncident', 'r2CriticalIncident', 'r3CriticalIncident', 'r4CriticalIncident', 'r1Reason', 'r2Reason', 'r3Reason', 'r4Reason', 'pilotScore', 'pilotCriticalIncident', 'pilotReason'];
+  const out = { ...validated };
+  periodKeys.forEach((key) => {
+    if (key in out && !allowed.has(key)) {
+      delete (out as Record<string, unknown>)[key];
+    }
+  });
+  return out as T;
+}
+
 // Organizational Dimension schemas
 const organizationalSchema = z.object({
-  coreValue: z.string().min(1),
+  coreValues: z.string().min(1).optional(),
+  coreValue: z.string().min(1).optional(),
   pilotScore: z.number().optional(),
   pilotCriticalIncident: z.string().optional(),
   r1Score: z.number().optional(),
@@ -73,8 +96,13 @@ export async function addOrganizational(req: Request, res: Response, next: NextF
     }
 
     const validated = organizationalSchema.parse(req.body);
+    const coreValues = validated.coreValues ?? validated.coreValue;
+    if (!coreValues || !String(coreValues).trim()) {
+      res.status(400).json({ status: 'error', message: 'Core values is required' });
+      return;
+    }
     const average = calculateOrganizationalAverage(validated);
-    const dimension = { ...validated, averageScore: average ?? undefined };
+    const dimension = { ...validated, coreValues, averageScore: average ?? undefined };
 
     const user = await User.findById(userId);
     if (!user || !user.teamId) {
@@ -169,7 +197,7 @@ export async function updateOrganizational(req: Request, res: Response, next: Ne
     }
 
     // Check if trying to edit core values - only allowed once
-    const isEditingCoreFields = validated.coreValue !== undefined;
+    const isEditingCoreFields = validated.coreValue !== undefined || validated.coreValues !== undefined;
     if (isEditingCoreFields && (existing.editCount || 0) >= 1) {
       res.status(403).json({
         status: 'error',
@@ -178,9 +206,13 @@ export async function updateOrganizational(req: Request, res: Response, next: Ne
       return;
     }
 
+    const currentPeriod = await getCurrentReviewPeriod(user, team);
+    const filtered = filterToCurrentPeriodOnly(validated as Record<string, unknown>, currentPeriod);
+
     const updated = { 
       ...existing, 
-      ...validated,
+      ...filtered,
+      coreValues: (filtered.coreValues as string) ?? (filtered.coreValue as string) ?? existing.coreValues,
       editCount: isEditingCoreFields ? (existing.editCount || 0) + 1 : (existing.editCount || 0),
     };
     const average = calculateOrganizationalAverage(updated);
@@ -321,9 +353,12 @@ export async function updateSelfDevelopment(req: Request, res: Response, next: N
       return;
     }
 
+    const currentPeriod = await getCurrentReviewPeriod(user, team);
+    const filtered = filterToCurrentPeriodOnly(validated as Record<string, unknown>, currentPeriod);
+
     const updated = { 
       ...existing, 
-      ...validated,
+      ...filtered,
       editCount: isEditingCoreFields ? (existing.editCount || 0) + 1 : (existing.editCount || 0),
     };
     const average = calculateSelfDevelopmentAverage(updated);
@@ -464,9 +499,12 @@ export async function updateDevelopingOthers(req: Request, res: Response, next: 
       return;
     }
 
+    const currentPeriod = await getCurrentReviewPeriod(user, team);
+    const filtered = filterToCurrentPeriodOnly(validated as Record<string, unknown>, currentPeriod);
+
     const updated = { 
       ...existing, 
-      ...validated,
+      ...filtered,
       editCount: isEditingCoreFields ? (existing.editCount || 0) + 1 : (existing.editCount || 0),
     };
     const average = calculateDevelopingOthersAverage(updated);

@@ -477,6 +477,49 @@
   color: var(--color-main-black-100);
 }
 
+.reviewCycleBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: rgba(33, 150, 243, 0.08);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.reviewCycleHint {
+  font-size: var(--font-size-14);
+  color: var(--color-main-grey-60);
+}
+
+.quarterDatesRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  width: 100%;
+  margin-top: var(--spacing-xs);
+}
+
+.quarterDate,
+.quarterDateCurrent {
+  font-size: var(--font-size-13);
+  color: var(--color-main-grey-60);
+}
+
+.quarterDateCurrent {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-main-blue);
+}
+
+.readOnlyBadge {
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+  font-weight: var(--font-weight-regular);
+  margin-left: var(--spacing-xs);
+}
+
 .addButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;

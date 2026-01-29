@@ -151,7 +151,13 @@ export async function getAllOrganizations(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizations = await Organization.find()
+    // Only return top-level organizations (exclude departments/divisions that have a parent)
+    const organizations = await Organization.find({
+      $or: [
+        { parentOrganizationId: { $exists: false } },
+        { parentOrganizationId: null },
+      ],
+    })
       .populate('reviewerId', 'name email')
       .populate('bossId', 'name email')
       .sort({ createdAt: -1 });
@@ -337,7 +343,7 @@ export async function assignReviewer(
         userId: reviewer._id,
         type: 'system',
         title: 'Assigned to Organization',
-        message: `You have been assigned as a reviewer for ${organization.name}. You can now review employees in this organization.`,
+        message: `You have been assigned as a reviewer for ${organization.name}. You can now review Members in this organization.`,
         isRead: false,
         metadata: {
           type: 'reviewer_assignment',
@@ -494,12 +500,29 @@ export async function getAdminAnalytics(
   next: NextFunction
 ): Promise<void> {
   try {
-    const totalOrganizations = await Organization.countDocuments();
-    const activeOrganizations = await Organization.countDocuments({ subscriptionStatus: 'active' });
-    const trialOrganizations = await Organization.countDocuments({ subscriptionStatus: 'trial' });
-    const expiredOrganizations = await Organization.countDocuments({ subscriptionStatus: 'expired' });
-    
+    // Only count top-level organizations (exclude departments/divisions)
+    const topLevelFilter = {
+      $or: [
+        { parentOrganizationId: { $exists: false } },
+        { parentOrganizationId: null },
+      ],
+    };
+    const totalOrganizations = await Organization.countDocuments(topLevelFilter);
+    const activeOrganizations = await Organization.countDocuments({
+      ...topLevelFilter,
+      subscriptionStatus: 'active',
+    });
+    const trialOrganizations = await Organization.countDocuments({
+      ...topLevelFilter,
+      subscriptionStatus: 'trial',
+    });
+    const expiredOrganizations = await Organization.countDocuments({
+      ...topLevelFilter,
+      subscriptionStatus: 'expired',
+    });
+
     const organizationsWithReviewers = await Organization.countDocuments({
+      ...topLevelFilter,
       reviewerId: { $exists: true, $ne: null },
     });
 

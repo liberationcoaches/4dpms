@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home/Home';
 import SignUp from './pages/Auth/SignUp/SignUp';
@@ -46,8 +46,9 @@ function App() {
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<Notifications />} />
       </Route>
-      {/* Team routes are now part of Manager dashboard */}
+      {/* Team routes are now part of Supervisor dashboard */}
       <Route path="/dashboard/manager/team/:memberId" element={<TeamMemberKRAs />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="/admin/organizations/:id" element={<OrganizationDetail />} />
       <Route path="/client-admin/dashboard" element={<ClientAdminDashboard />} />

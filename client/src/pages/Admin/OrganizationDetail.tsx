@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import styles from './OrganizationDetail.module.css';
 import logo from '@/assets/logo.png';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface Organization {
   _id: string;
@@ -50,12 +51,12 @@ function OrganizationDetail() {
   }, [id, navigate]);
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
-        setUser({ name: data.data.name, email: data.data.email });
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
+        setUser({ name: data.data.name as string, email: data.data.email as string });
       }
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
@@ -305,7 +306,7 @@ function OrganizationDetail() {
                   <span>{organization.type}</span>
                 </div>
                 <div className={styles.infoItem}>
-                  <strong>Employee Size:</strong>
+                  <strong>Member Size:</strong>
                   <span>{organization.employeeSize || 'Not specified'}</span>
                 </div>
                 <div className={styles.infoItem}>
@@ -411,7 +412,7 @@ function OrganizationDetail() {
 
             {organization.bossId && (
               <div className={styles.infoCard}>
-                <h2>Boss</h2>
+                <h2>Admin</h2>
                 <div className={styles.bossInfo}>
                   <p><strong>Name:</strong> {organization.bossId.name}</p>
                   <p><strong>Email:</strong> {organization.bossId.email}</p>
@@ -421,7 +422,7 @@ function OrganizationDetail() {
 
             {organization.managers && organization.managers.length > 0 && (
               <div className={styles.infoCard}>
-                <h2>Managers ({organization.managers.length})</h2>
+                <h2>Supervisors ({organization.managers.length})</h2>
                 <div className={styles.managersList}>
                   {organization.managers.map((manager) => (
                     <div key={manager._id} className={styles.managerItem}>

@@ -93,7 +93,7 @@ function MidCycleNotes() {
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.formGroup}>
-          <label>Select Employee *</label>
+          <label>Select Member *</label>
           <select
             value={selectedEmployee}
             onChange={(e) => setSelectedEmployee(e.target.value)}

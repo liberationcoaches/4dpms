@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './AdminDashboard.module.css';
 import logo from '@/assets/logo.png';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface Organization {
   _id: string;
@@ -111,15 +112,15 @@ function AdminDashboard() {
   }, [activeTab]);
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
         const userData = {
-          name: data.data.name || '',
-          email: data.data.email || '',
-          mobile: data.data.mobile || '',
+          name: (data.data.name as string) || '',
+          email: (data.data.email as string) || '',
+          mobile: (data.data.mobile as string) || '',
         };
         setUser(userData);
         setProfile(userData);
@@ -423,11 +424,11 @@ function AdminDashboard() {
       case 'reviewer':
         return 'Reviewers';
       case 'boss':
-        return 'Bosses';
+        return 'Admins';
       case 'manager':
-        return 'Managers';
+        return 'Supervisors';
       case 'employee':
-        return 'Employees';
+        return 'Members';
       default:
         return role;
     }
@@ -723,7 +724,7 @@ function AdminDashboard() {
                       </select>
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Size (Number of Employees) *</label>
+                      <label>Size (Number of Members) *</label>
                       <input
                         type="number"
                         min="1"
@@ -742,7 +743,7 @@ function AdminDashboard() {
                       />
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Boss Email (Optional)</label>
+                      <label>Admin Email (Optional)</label>
                       <input
                         type="email"
                         value={newOrg.bossEmail}
@@ -809,7 +810,7 @@ function AdminDashboard() {
                           onClick={() => handleUserCountClick('boss')}
                           title="Click to view bosses"
                         >
-                          <span className={styles.statLabel}>Bosses:</span>
+                          <span className={styles.statLabel}>Admins:</span>
                           <span className={styles.statValue}>{analytics.users.bosses}</span>
                         </div>
                         <div
@@ -817,7 +818,7 @@ function AdminDashboard() {
                           onClick={() => handleUserCountClick('manager')}
                           title="Click to view managers"
                         >
-                          <span className={styles.statLabel}>Managers:</span>
+                          <span className={styles.statLabel}>Supervisors:</span>
                           <span className={styles.statValue}>{analytics.users.managers}</span>
                         </div>
                         <div
@@ -825,7 +826,7 @@ function AdminDashboard() {
                           onClick={() => handleUserCountClick('employee')}
                           title="Click to view employees"
                         >
-                          <span className={styles.statLabel}>Employees:</span>
+                          <span className={styles.statLabel}>Members:</span>
                           <span className={styles.statValue}>{analytics.users.employees}</span>
                         </div>
                       </div>
@@ -879,7 +880,7 @@ function AdminDashboard() {
                       </select>
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Size (Number of Employees) *</label>
+                      <label>Size (Number of Members) *</label>
                       <input
                         type="number"
                         min="1"
@@ -898,7 +899,7 @@ function AdminDashboard() {
                       />
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Boss Email (Optional)</label>
+                      <label>Admin Email (Optional)</label>
                       <input
                         type="email"
                         value={newOrg.bossEmail}
@@ -936,7 +937,7 @@ function AdminDashboard() {
                           <p><strong>Reviewer:</strong> {org.reviewerId.name}</p>
                         )}
                         {org.bossId && (
-                          <p><strong>Boss:</strong> {org.bossId.name}</p>
+                          <p><strong>Admin:</strong> {org.bossId.name}</p>
                         )}
                       </div>
                     </div>
@@ -961,21 +962,21 @@ function AdminDashboard() {
                   className={styles.userStatCard}
                   onClick={() => handleUserCountClick('boss')}
                 >
-                  <h3>Bosses</h3>
+                  <h3>Admins</h3>
                   <div className={styles.statValue}>{analytics?.users.bosses || 0}</div>
                 </div>
                 <div
                   className={styles.userStatCard}
                   onClick={() => handleUserCountClick('manager')}
                 >
-                  <h3>Managers</h3>
+                  <h3>Supervisors</h3>
                   <div className={styles.statValue}>{analytics?.users.managers || 0}</div>
                 </div>
                 <div
                   className={styles.userStatCard}
                   onClick={() => handleUserCountClick('employee')}
                 >
-                  <h3>Employees</h3>
+                  <h3>Members</h3>
                   <div className={styles.statValue}>{analytics?.users.employees || 0}</div>
                 </div>
               </div>
@@ -1188,7 +1189,7 @@ function AdminDashboard() {
                           onClick={() => handleUserCountClick('boss')}
                           title="Click to view bosses"
                         >
-                          <span className={styles.statLabel}>Bosses:</span>
+                          <span className={styles.statLabel}>Admins:</span>
                           <span className={styles.statValue}>{analytics.users.bosses}</span>
                         </div>
                         <div
@@ -1196,7 +1197,7 @@ function AdminDashboard() {
                           onClick={() => handleUserCountClick('manager')}
                           title="Click to view managers"
                         >
-                          <span className={styles.statLabel}>Managers:</span>
+                          <span className={styles.statLabel}>Supervisors:</span>
                           <span className={styles.statValue}>{analytics.users.managers}</span>
                         </div>
                         <div
@@ -1204,7 +1205,7 @@ function AdminDashboard() {
                           onClick={() => handleUserCountClick('employee')}
                           title="Click to view employees"
                         >
-                          <span className={styles.statLabel}>Employees:</span>
+                          <span className={styles.statLabel}>Members:</span>
                           <span className={styles.statValue}>{analytics.users.employees}</span>
                         </div>
                       </div>

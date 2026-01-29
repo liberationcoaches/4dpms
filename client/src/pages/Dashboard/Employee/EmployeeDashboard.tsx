@@ -4,6 +4,7 @@ import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './EmployeeDashboard.module.css';
 import logo from '@/assets/logo.png';
 import { getNavigationItems } from '@/utils/navigationConfig';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface PerformanceData {
   employee: {
@@ -90,15 +91,15 @@ function EmployeeDashboard() {
   }, [navigate]);
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
         const userData = {
-          name: data.data.name || '',
-          email: data.data.email || '',
-          mobile: data.data.mobile || '',
+          name: (data.data.name as string) || '',
+          email: (data.data.email as string) || '',
+          mobile: (data.data.mobile as string) || '',
         };
         setUser(userData);
         setProfile(userData);
@@ -280,12 +281,16 @@ function EmployeeDashboard() {
     // Update the employee's KRA
     try {
       const userId = localStorage.getItem('userId');
+      if (!userId) {
+        alert('Session expired. Please sign in again.');
+        return;
+      }
       // Find employee in team to get member index
       const teamRes = await fetch(`/api/team/members?userId=${userId}`);
       const teamData = await teamRes.json();
       if (teamData.status === 'success' && teamData.data) {
-        const userProfile = await fetch(`/api/user/profile?userId=${userId}`).then(r => r.json());
-        if (userProfile.status === 'success' && userProfile.data) {
+        const userProfile = await fetchUserProfileApi(userId);
+        if (userProfile?.status === 'success' && userProfile.data) {
           const memberIndex = teamData.data.findIndex((m: any) => m.mobile === userProfile.data.mobile);
           if (memberIndex !== -1) {
             const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
@@ -428,7 +433,7 @@ function EmployeeDashboard() {
               {user?.name ? getInitials(user.name) : (performanceData?.employee.name ? getInitials(performanceData.employee.name) : 'E')}
             </div>
             <div className={baseStyles.profileInfo}>
-              <span className={baseStyles.profileName}>{user?.name || performanceData?.employee.name || 'Employee'}</span>
+              <span className={baseStyles.profileName}>{user?.name || performanceData?.employee.name || 'Member'}</span>
               <span className={baseStyles.profileEmail}>{user?.email || performanceData?.employee.email || ''}</span>
             </div>
           </div>
@@ -455,8 +460,8 @@ function EmployeeDashboard() {
                 {user?.name ? getInitials(user.name) : 'E'}
               </div>
               <div className={baseStyles.userInfo}>
-                <span className={baseStyles.userName}>{user?.name || 'Employee'}</span>
-                <span className={baseStyles.userRole}>Employee</span>
+                <span className={baseStyles.userName}>{user?.name || 'Member'}</span>
+                <span className={baseStyles.userRole}>Member</span>
               </div>
             </div>
 
@@ -514,7 +519,7 @@ function EmployeeDashboard() {
           {activeTab === 'dashboard' && (
             <>
               <div className={styles.pageHeader}>
-                <h1>Employee Dashboard</h1>
+                <h1>Member Dashboard</h1>
                 <p className={styles.welcome}>Welcome, {performanceData.employee.name}</p>
               </div>
 
@@ -696,7 +701,7 @@ function EmployeeDashboard() {
                 }}
                 onClick={() => setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational })}
               >
-                <h3 style={{ margin: 0 }}>Organizational KRAs ({performanceData.kras.organizationalKRAs?.length || 0})</h3>
+                <h3 style={{ margin: 0 }}>Organizational Dimension - Core Values ({performanceData.kras.organizationalKRAs?.length || 0})</h3>
                 <button
                   style={{
                     background: 'none',
@@ -778,7 +783,7 @@ function EmployeeDashboard() {
                 <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
               )}
               {performanceData.kras.organizationalKRAs?.length === 0 && (
-                <p>No Organizational KRAs assigned</p>
+                <p>No core values assigned</p>
               )}
             </div>
             <div className={styles.kraCategory}>
@@ -791,7 +796,7 @@ function EmployeeDashboard() {
                 }}
                 onClick={() => setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment })}
               >
-                <h3 style={{ margin: 0 }}>Self Development KRAs ({performanceData.kras.selfDevelopmentKRAs?.length || 0})</h3>
+                <h3 style={{ margin: 0 }}>Self Development (Areas of Concern) ({performanceData.kras.selfDevelopmentKRAs?.length || 0})</h3>
                 <button
                   style={{
                     background: 'none',
@@ -873,7 +878,7 @@ function EmployeeDashboard() {
                 <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
               )}
               {performanceData.kras.selfDevelopmentKRAs?.length === 0 && (
-                <p>No Self Development KRAs assigned</p>
+                <p>No areas of concern assigned</p>
               )}
             </div>
           </div>

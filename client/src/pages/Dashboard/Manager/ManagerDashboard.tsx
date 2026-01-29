@@ -5,6 +5,7 @@ import styles from './ManagerDashboard.module.css';
 import logo from '@/assets/logo.png';
 import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
 import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface Employee {
   _id: string;
@@ -115,15 +116,15 @@ function ManagerDashboard() {
   }, [navigate]);
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
         const userData = {
-          name: data.data.name || '',
-          email: data.data.email || '',
-          mobile: data.data.mobile || '',
+          name: (data.data.name as string) || '',
+          email: (data.data.email as string) || '',
+          mobile: (data.data.mobile as string) || '',
         };
         setUser(userData);
         setProfile(userData);
@@ -250,9 +251,15 @@ function ManagerDashboard() {
             fetchEmployeeKRAs(selectedEmployee._id, memberIndex);
           }
         }
-        alert('KRA added successfully!');
+        alert(
+          kraType === 'functional'
+            ? 'KRA added successfully!'
+            : kraType === 'organizational'
+              ? 'Core Value added successfully!'
+              : 'Area of Concern added successfully!'
+        );
       } else {
-        alert(data.message || 'Failed to add KRA');
+        alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
       }
     } catch (error) {
       alert('Network error');
@@ -275,7 +282,7 @@ function ManagerDashboard() {
         setNewEmployee({ name: '', email: '', mobile: '', designation: '' });
         fetchEmployees();
         fetchTeamPerformance();
-        alert('Employee created successfully!');
+        alert('Member created successfully!');
       } else {
         alert(data.message || 'Failed to create employee');
       }
@@ -404,8 +411,8 @@ function ManagerDashboard() {
         const teamRes = await fetch(`/api/team/members?userId=${userId}`);
         const teamData = await teamRes.json();
         if (teamData.status === 'success' && teamData.data) {
-          const userProfile = await fetch(`/api/user/profile?userId=${userId}`).then(r => r.json());
-          if (userProfile.status === 'success' && userProfile.data) {
+          const userProfile = await fetchUserProfileApi(userId!);
+          if (userProfile?.status === 'success' && userProfile.data) {
             const memberIndex = teamData.data.findIndex((m: any) => m.mobile === userProfile.data.mobile);
             if (memberIndex !== -1) {
               const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
@@ -602,7 +609,7 @@ function ManagerDashboard() {
               {user?.name ? getInitials(user.name) : 'M'}
             </div>
             <div className={baseStyles.profileInfo}>
-              <span className={baseStyles.profileName}>{user?.name || 'Manager'}</span>
+              <span className={baseStyles.profileName}>{user?.name || 'Supervisor'}</span>
               <span className={baseStyles.profileEmail}>{user?.email || ''}</span>
             </div>
           </div>
@@ -634,8 +641,8 @@ function ManagerDashboard() {
                 {user?.name ? getInitials(user.name) : 'M'}
               </div>
               <div className={baseStyles.userInfo}>
-                <span className={baseStyles.userName}>{user?.name || 'Manager'}</span>
-                <span className={baseStyles.userRole}>Manager</span>
+                <span className={baseStyles.userName}>{user?.name || 'Supervisor'}</span>
+                <span className={baseStyles.userRole}>Supervisor</span>
               </div>
             </div>
 
@@ -888,7 +895,7 @@ function ManagerDashboard() {
                         }}
                         onClick={() => setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational })}
                       >
-                        <h3 style={{ margin: 0 }}>Organizational KRAs ({myKRAs.organizationalKRAs?.length || 0})</h3>
+                        <h3 style={{ margin: 0 }}>Organizational Dimension - Core Values ({myKRAs.organizationalKRAs?.length || 0})</h3>
                         <button
                           style={{
                             background: 'none',
@@ -970,7 +977,7 @@ function ManagerDashboard() {
                         <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
                       )}
                       {myKRAs.organizationalKRAs?.length === 0 && (
-                        <p>No Organizational KRAs assigned</p>
+                        <p>No core values assigned</p>
                       )}
                     </div>
                     <div className={styles.kraCategory}>
@@ -1065,7 +1072,7 @@ function ManagerDashboard() {
                         <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
                       )}
                       {myKRAs.selfDevelopmentKRAs?.length === 0 && (
-                        <p>No Self Development KRAs assigned</p>
+                        <p>No areas of concern assigned</p>
                       )}
                     </div>
                   </div>
@@ -1082,13 +1089,13 @@ function ManagerDashboard() {
                   className={baseStyles.createButton}
                   onClick={() => setShowCreateForm(!showCreateForm)}
                 >
-                  {showCreateForm ? 'Cancel' : '+ Create Employee'}
+                  {showCreateForm ? 'Cancel' : '+ Create Member'}
                 </button>
               </div>
 
               {showCreateForm && (
                 <div className={styles.createForm}>
-                  <h2>Create New Employee</h2>
+                  <h2>Create New Member</h2>
                   <form onSubmit={handleCreateEmployee}>
                     <div className={baseStyles.formGroup}>
                       <label>Name *</label>
@@ -1132,7 +1139,7 @@ function ManagerDashboard() {
                       />
                     </div>
                     <button type="submit" className={baseStyles.submitButton}>
-                      Create Employee
+                      Create Member
                     </button>
                   </form>
                 </div>
@@ -1180,7 +1187,7 @@ function ManagerDashboard() {
                                 setKraType('organizational');
                               }}
                             >
-                              Add Organizational KRA
+                              Add Core Value
                             </button>
                             <button
                               className={styles.actionButton}
@@ -1191,7 +1198,7 @@ function ManagerDashboard() {
                                 setKraType('self-development');
                               }}
                             >
-                              Add Self Development KRA
+                              Add Area of Concern
                             </button>
                             <button
                               className={styles.actionButton}
@@ -1218,7 +1225,7 @@ function ManagerDashboard() {
                                 }
                               }}
                             >
-                              {showKRAsView === employee._id ? 'Hide KRAs' : 'View KRAs'}
+                              {showKRAsView === employee._id ? 'Hide Dimensions' : 'View Dimensions'}
                             </button>
                           </div>
                           {showKRAsView === employee._id && employeeKRAs[employee._id] && (
@@ -1318,7 +1325,7 @@ function ManagerDashboard() {
                           ) : (
                             <p>No Functional KRAs</p>
                           )}
-                              <h4>Organizational KRAs</h4>
+                              <h4>Organizational Dimension (Core Values)</h4>
                               {employeeKRAs[employee._id].organizationalKRAs?.length > 0 ? (
                                 <ul>
                                   {employeeKRAs[employee._id].organizationalKRAs.map((kra: any, idx: number) => (
@@ -1326,9 +1333,9 @@ function ManagerDashboard() {
                                   ))}
                                 </ul>
                               ) : (
-                                <p>No Organizational KRAs</p>
+                                <p>No core values added</p>
                               )}
-                              <h4>Self Development KRAs</h4>
+                              <h4>Self Development (Areas of Concern)</h4>
                               {employeeKRAs[employee._id].selfDevelopmentKRAs?.length > 0 ? (
                                 <ul>
                                   {employeeKRAs[employee._id].selfDevelopmentKRAs.map((kra: any, idx: number) => (
@@ -1336,7 +1343,7 @@ function ManagerDashboard() {
                                   ))}
                                 </ul>
                               ) : (
-                                <p>No Self Development KRAs</p>
+                                <p>No areas of concern added</p>
                               )}
                             </div>
                           )}
@@ -1425,12 +1432,12 @@ function ManagerDashboard() {
         </div>
       </div>
 
-      {/* KRA Modal for Employees */}
+      {/* KRA Modal for Members */}
       {showKRAModal && selectedEmployee && (
         <div className={styles.modalOverlay} onClick={() => setShowKRAModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>Add {kraType === 'functional' ? 'Functional' : kraType === 'organizational' ? 'Organizational' : 'Self Development'} KRA for {selectedEmployee.name}</h2>
+              <h2>Add {kraType === 'functional' ? 'Functional KRA' : kraType === 'organizational' ? 'Core Value' : 'Area of Concern'} for {selectedEmployee.name}</h2>
               <button
                 className={styles.closeButton}
                 onClick={() => setShowKRAModal(false)}
@@ -1477,7 +1484,7 @@ function ManagerDashboard() {
                   )}
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                     <button type="submit" className={baseStyles.submitButton}>
-                      Add KRA
+                      {kraType === 'organizational' ? 'Add Core Value' : 'Add Area of Concern'}
                     </button>
                     <button
                       type="button"

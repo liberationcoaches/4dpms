@@ -286,12 +286,19 @@ export async function sendKRANotification(
       'self-development': 'Self Development',
       'developing-others': 'Developing Others',
     };
+    const itemLabelMap: Record<string, string> = {
+      'functional': 'Functional KRA',
+      'organizational': 'Core Value',
+      'self-development': 'Area of Concern',
+      'developing-others': 'Person (Developing Others)',
+    };
+    const itemLabel = itemLabelMap[kraType] || typeMap[kraType] || kraType;
 
     const notification = new Notification({
       userId,
       type: 'system',
-      title: 'New KRA Added',
-      message: `A new ${typeMap[kraType] || kraType} KRA has been added to your profile by ${addedBy}. Please review it in your dashboard.`,
+      title: kraType === 'functional' ? 'New KRA Added' : 'New Item Added',
+      message: `A new ${itemLabel} has been added to your profile by ${addedBy}. Please review it in your dashboard.`,
       isRead: false,
       metadata: {
         type: 'kra_added',

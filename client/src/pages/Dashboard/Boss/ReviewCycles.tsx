@@ -9,17 +9,34 @@ interface ReviewCycle {
   nextReviewDate: string;
   currentReviewPeriod: number;
   isActive: boolean;
+  r1Date?: string;
+  r2Date?: string;
+  r3Date?: string;
+  r4Date?: string;
+  r1Facilitator?: string;
+  r2Facilitator?: string;
+  r3Facilitator?: string;
+  r4Facilitator?: string;
 }
+
+const emptyQuarterConfig = {
+  r1Date: '', r2Date: '', r3Date: '', r4Date: '',
+  r1Facilitator: '', r2Facilitator: '', r3Facilitator: '', r4Facilitator: '',
+};
 
 function ReviewCycles() {
   const navigate = useNavigate();
   const [reviewCycle, setReviewCycle] = useState<ReviewCycle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showConfigForm, setShowConfigForm] = useState(false);
+  const [showEditQuarters, setShowEditQuarters] = useState(false);
   const [config, setConfig] = useState({
     frequency: 'quarterly' as 'monthly' | 'quarterly' | 'biannual' | 'annual',
     startDate: '',
+    ...emptyQuarterConfig,
   });
+  const [quarterEdit, setQuarterEdit] = useState(emptyQuarterConfig);
+  const [savingQuarters, setSavingQuarters] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -59,13 +76,24 @@ function ReviewCycles() {
       const res = await fetch(`/api/review-cycles?userId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify({
+          frequency: config.frequency,
+          startDate: config.startDate,
+          r1Date: config.r1Date || undefined,
+          r2Date: config.r2Date || undefined,
+          r3Date: config.r3Date || undefined,
+          r4Date: config.r4Date || undefined,
+          r1Facilitator: config.r1Facilitator?.trim() || undefined,
+          r2Facilitator: config.r2Facilitator?.trim() || undefined,
+          r3Facilitator: config.r3Facilitator?.trim() || undefined,
+          r4Facilitator: config.r4Facilitator?.trim() || undefined,
+        }),
       });
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         setShowConfigForm(false);
-        setConfig({ frequency: 'quarterly', startDate: '' });
+        setConfig({ frequency: 'quarterly', startDate: '', ...emptyQuarterConfig });
         fetchReviewCycle();
         alert('Review cycle configured successfully!');
       } else {
@@ -100,6 +128,56 @@ function ReviewCycles() {
     } catch (error) {
       console.error('Failed to trigger review period:', error);
       alert('Network error. Please check if the server is running.');
+    }
+  };
+
+  const openEditQuarters = () => {
+    setQuarterEdit({
+      r1Date: reviewCycle?.r1Date ? reviewCycle.r1Date.slice(0, 10) : '',
+      r2Date: reviewCycle?.r2Date ? reviewCycle.r2Date.slice(0, 10) : '',
+      r3Date: reviewCycle?.r3Date ? reviewCycle.r3Date.slice(0, 10) : '',
+      r4Date: reviewCycle?.r4Date ? reviewCycle.r4Date.slice(0, 10) : '',
+      r1Facilitator: reviewCycle?.r1Facilitator ?? '',
+      r2Facilitator: reviewCycle?.r2Facilitator ?? '',
+      r3Facilitator: reviewCycle?.r3Facilitator ?? '',
+      r4Facilitator: reviewCycle?.r4Facilitator ?? '',
+    });
+    setShowEditQuarters(true);
+  };
+
+  const handleSaveQuarters = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewCycle) return;
+    setSavingQuarters(true);
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/review-cycles/${reviewCycle._id}?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          r1Date: quarterEdit.r1Date || undefined,
+          r2Date: quarterEdit.r2Date || undefined,
+          r3Date: quarterEdit.r3Date || undefined,
+          r4Date: quarterEdit.r4Date || undefined,
+          r1Facilitator: quarterEdit.r1Facilitator.trim() || undefined,
+          r2Facilitator: quarterEdit.r2Facilitator.trim() || undefined,
+          r3Facilitator: quarterEdit.r3Facilitator.trim() || undefined,
+          r4Facilitator: quarterEdit.r4Facilitator.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setReviewCycle(data.data);
+        setShowEditQuarters(false);
+        alert('Quarterly dates and facilitators updated.');
+      } else {
+        alert(data.message || 'Failed to update');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error.');
+    } finally {
+      setSavingQuarters(false);
     }
   };
 
@@ -147,6 +225,28 @@ function ReviewCycles() {
                 required
               />
             </div>
+            <h3 className={styles.quarterSectionTitle}>Quarterly dates &amp; facilitators (optional)</h3>
+            {([1, 2, 3, 4] as const).map((n) => (
+              <div key={n} className={styles.quarterRow}>
+                <div className={styles.formGroup}>
+                  <label>R{n} Date</label>
+                  <input
+                    type="date"
+                    value={config[`r${n}Date` as keyof typeof config] as string}
+                    onChange={(e) => setConfig({ ...config, [`r${n}Date`]: e.target.value })}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>R{n} Facilitator</label>
+                  <input
+                    type="text"
+                    placeholder="LCPL Facilitator name"
+                    value={config[`r${n}Facilitator` as keyof typeof config] as string}
+                    onChange={(e) => setConfig({ ...config, [`r${n}Facilitator`]: e.target.value })}
+                  />
+                </div>
+              </div>
+            ))}
             <button type="submit" className={styles.submitButton}>
               Configure Review Cycle
             </button>
@@ -169,7 +269,7 @@ function ReviewCycles() {
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Current Period:</span>
-                <span className={styles.value}>Period {reviewCycle.currentReviewPeriod}</span>
+                <span className={styles.value}>R{reviewCycle.currentReviewPeriod}</span>
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Next Review Date:</span>
@@ -182,6 +282,59 @@ function ReviewCycles() {
                 </span>
               </div>
             </div>
+            <div className={styles.quarterDatesSection}>
+              <h3>Quarterly dates &amp; facilitators</h3>
+              <div className={styles.quarterGrid}>
+                {([1, 2, 3, 4] as const).map((n) => (
+                  <div key={n} className={styles.quarterItem}>
+                    <span className={styles.quarterLabel}>R{n}</span>
+                    <span className={styles.quarterValue}>
+                      {reviewCycle[`r${n}Date` as keyof ReviewCycle] ? new Date(reviewCycle[`r${n}Date` as keyof ReviewCycle] as string).toLocaleDateString() : '—'}
+                    </span>
+                    <span className={styles.quarterFacilitator}>
+                      {reviewCycle[`r${n}Facilitator` as keyof ReviewCycle] || '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className={styles.editQuartersButton} onClick={openEditQuarters}>
+                Edit quarterly dates &amp; facilitators
+              </button>
+            </div>
+            {showEditQuarters && (
+              <div className={styles.configForm}>
+                <h3>Edit quarterly dates &amp; facilitators</h3>
+                <form onSubmit={handleSaveQuarters}>
+                  {([1, 2, 3, 4] as const).map((n) => (
+                    <div key={n} className={styles.quarterRow}>
+                      <div className={styles.formGroup}>
+                        <label>R{n} Date</label>
+                        <input
+                          type="date"
+                          value={quarterEdit[`r${n}Date`]}
+                          onChange={(e) => setQuarterEdit({ ...quarterEdit, [`r${n}Date`]: e.target.value })}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>R{n} Facilitator</label>
+                        <input
+                          type="text"
+                          placeholder="LCPL Facilitator"
+                          value={quarterEdit[`r${n}Facilitator`]}
+                          onChange={(e) => setQuarterEdit({ ...quarterEdit, [`r${n}Facilitator`]: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <div className={styles.formActions}>
+                    <button type="button" className={styles.cancelButton} onClick={() => setShowEditQuarters(false)}>Cancel</button>
+                    <button type="submit" className={styles.submitButton} disabled={savingQuarters}>
+                      {savingQuarters ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
             <button
               className={styles.triggerButton}
               onClick={handleTrigger}

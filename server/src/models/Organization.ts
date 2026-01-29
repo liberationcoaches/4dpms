@@ -18,6 +18,7 @@ export interface IOrganization extends Document {
   managers: mongoose.Types.ObjectId[]; // Managers in this organization
   subscriptionStatus?: string; // Subscription status: 'active', 'trial', 'expired'
   clientAdminId?: mongoose.Types.ObjectId; // Client Side Admin for this organization
+  parentOrganizationId?: mongoose.Types.ObjectId; // When set, this org is a department/division of the parent (excluded from Platform Admin org list)
   dimensionWeights?: IDimensionWeights; // Organization-wide dimension weights
   createdAt: Date;
   updatedAt: Date;
@@ -76,6 +77,12 @@ const OrganizationSchema = new Schema<IOrganization>(
     clientAdminId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      required: false,
+      index: true,
+    },
+    parentOrganizationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
       required: false,
       index: true,
     },

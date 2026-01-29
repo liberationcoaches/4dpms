@@ -58,7 +58,7 @@ export const signUpSchema = z.object({
   if (data.signupType === 'employee') return !!data.teamCode;
   return true;
 }, {
-  message: 'Organization code is required for managers, Team code is required for employees',
+  message: 'Organization code is required for Supervisors, Team code is required for Members',
   path: ['orgCode'],
 });
 

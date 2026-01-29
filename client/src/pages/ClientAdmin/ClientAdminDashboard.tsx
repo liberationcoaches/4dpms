@@ -7,6 +7,7 @@ import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
 import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
 import { PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,   } from 'recharts';
 import { DIMENSION_COLORS } from '@/utils/dimensionColors';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface Boss {
   _id: string;
@@ -137,15 +138,15 @@ function ClientAdminDashboard() {
   };
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
         const userData = {
-          name: data.data.name || '',
-          email: data.data.email || '',
-          mobile: data.data.mobile || '',
+          name: (data.data.name as string) || '',
+          email: (data.data.email as string) || '',
+          mobile: (data.data.mobile as string) || '',
         };
         setUser(userData);
         setProfile(userData);
@@ -228,9 +229,9 @@ function ClientAdminDashboard() {
         setNewBoss({ name: '', email: '', mobile: '' });
         fetchBosses();
         fetchOrganizationUsers();
-        alert('Boss created successfully!');
+        alert('Admin created successfully!');
       } else {
-        alert(data.message || 'Failed to create boss');
+        alert(data.message || 'Failed to create Admin');
       }
     } catch (error) {
       alert('Network error');
@@ -357,9 +358,15 @@ function ClientAdminDashboard() {
           setNewKRA({});
           setEditingKRAIndex(null);
           fetchBossKRAs(selectedBoss._id);
-          alert('KRA added successfully!');
+          alert(
+            kraType === 'functional'
+              ? 'KRA added successfully!'
+              : kraType === 'organizational'
+                ? 'Core Value added successfully!'
+                : 'Area of Concern added successfully!'
+          );
         } else {
-          alert(data.message || 'Failed to add KRA');
+          alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
         }
       }
     } catch (error) {
@@ -842,7 +849,7 @@ function ClientAdminDashboard() {
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
-                <span>Bosses</span>
+                <span>Admins</span>
               </button>
 
               <button
@@ -1136,7 +1143,7 @@ function ClientAdminDashboard() {
                       onClick={() => setExpandedCard(expandedCard === 'managers' ? null : 'managers')}
                     >
                       <div>
-                        <h3>Managers</h3>
+                        <h3>Supervisors</h3>
                         <div className={styles.summaryValue}>{analytics.summary.managers}</div>
                       </div>
                       <div className={styles.summaryIcon}>
@@ -1155,20 +1162,20 @@ function ClientAdminDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className={styles.summaryCardEmpty}>No managers found</div>
+                          <div className={styles.summaryCardEmpty}>No Supervisors found</div>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* Employees Card */}
+                  {/* Members Card */}
                   <div className={`${styles.summaryCard} ${expandedCard === 'employees' ? styles.summaryCardExpanded : ''}`}>
                     <div 
                       className={styles.summaryCardHeader}
                       onClick={() => setExpandedCard(expandedCard === 'employees' ? null : 'employees')}
                     >
                       <div>
-                        <h3>Employees</h3>
+                        <h3>Members</h3>
                         <div className={styles.summaryValue}>{analytics.summary.employees}</div>
                       </div>
                       <div className={styles.summaryIcon}>
@@ -1187,7 +1194,7 @@ function ClientAdminDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className={styles.summaryCardEmpty}>No employees found</div>
+                          <div className={styles.summaryCardEmpty}>No Members found</div>
                         )}
                       </div>
                     )}
@@ -1411,10 +1418,10 @@ function ClientAdminDashboard() {
                 </div>
               )}
 
-              {/* Create Boss Form (shown when button clicked) */}
+              {/* Create Admin Form (shown when button clicked) */}
               {showCreateBossForm && (
                 <div className={styles.createForm}>
-                  <h2>Create New Boss</h2>
+                  <h2>Create New Admin</h2>
                   <form onSubmit={handleCreateBoss}>
                     <div className={styles.formGroup}>
                       <label>Name *</label>
@@ -1444,7 +1451,7 @@ function ClientAdminDashboard() {
                       />
                     </div>
                     <button type="submit" className={styles.submitButton}>
-                      Create Boss
+                      Create Admin
                     </button>
                   </form>
                 </div>
@@ -1455,18 +1462,18 @@ function ClientAdminDashboard() {
           {activeTab === 'bosses' && (
             <div className={styles.tabContent}>
               <div className={styles.pageHeader}>
-                <h1>Bosses</h1>
+                <h1>Admins</h1>
                 <button
                   className={styles.createButton}
                   onClick={() => setShowCreateBossForm(!showCreateBossForm)}
                 >
-                  {showCreateBossForm ? 'Cancel' : '+ Create Boss'}
+                  {showCreateBossForm ? 'Cancel' : '+ Create Admin'}
                 </button>
               </div>
 
               {showCreateBossForm && (
                 <div className={styles.createForm}>
-                  <h2>Create New Boss</h2>
+                  <h2>Create New Admin</h2>
                   <form onSubmit={handleCreateBoss}>
                     <div className={styles.formGroup}>
                       <label>Name *</label>
@@ -1496,14 +1503,14 @@ function ClientAdminDashboard() {
                       />
                     </div>
                     <button type="submit" className={styles.submitButton}>
-                      Create Boss
+                      Create Admin
                     </button>
                   </form>
                 </div>
               )}
 
               {bosses.length === 0 ? (
-                <p className={styles.empty}>No bosses found. Create one to get started.</p>
+                <p className={styles.empty}>No Admins found. Create one to get started.</p>
               ) : (
                 <div className={styles.bossesGrid}>
                   {bosses.map((boss) => (
@@ -1536,7 +1543,7 @@ function ClientAdminDashboard() {
                             setKraType('organizational');
                           }}
                         >
-                          Add Organizational KRA
+                          Add Core Value
                         </button>
                         <button
                           className={styles.bossActionButton}
@@ -1547,7 +1554,7 @@ function ClientAdminDashboard() {
                             setKraType('self-development');
                           }}
                         >
-                          Add Self Development KRA
+                          Add Area of Concern
                         </button>
                         <button
                           className={styles.bossActionButton}
@@ -1561,7 +1568,7 @@ function ClientAdminDashboard() {
                             }
                           }}
                         >
-                          {showKRAsView === boss._id ? 'Hide KRAs' : 'View KRAs'}
+                          {showKRAsView === boss._id ? 'Hide Dimensions' : 'View Dimensions'}
                         </button>
                       </div>
                       {showKRAsView === boss._id && bossKRAs[boss._id] && (
@@ -1733,7 +1740,7 @@ function ClientAdminDashboard() {
                           ) : (
                             <p>No Functional KRAs</p>
                           )}
-                          <h4>Organizational KRAs</h4>
+                          <h4>Organizational Dimension (Core Values)</h4>
                           {bossKRAs[boss._id].organizationalKRAs?.length > 0 ? (
                             <ul>
                               {bossKRAs[boss._id].organizationalKRAs.map((kra: any, idx: number) => (
@@ -1741,9 +1748,9 @@ function ClientAdminDashboard() {
                               ))}
                             </ul>
                           ) : (
-                            <p>No Organizational KRAs</p>
+                            <p>No core values added</p>
                           )}
-                          <h4>Self Development KRAs</h4>
+                          <h4>Self Development (Areas of Concern)</h4>
                           {bossKRAs[boss._id].selfDevelopmentKRAs?.length > 0 ? (
                             <ul>
                               {bossKRAs[boss._id].selfDevelopmentKRAs.map((kra: any, idx: number) => (
@@ -1751,7 +1758,7 @@ function ClientAdminDashboard() {
                               ))}
                             </ul>
                           ) : (
-                            <p>No Self Development KRAs</p>
+                            <p>No areas of concern added</p>
                           )}
                         </div>
                       )}
@@ -1768,7 +1775,7 @@ function ClientAdminDashboard() {
               {organizationUsers && (
                 <div className={styles.usersSection}>
                   <div className={styles.userCategory}>
-                    <h2>Bosses ({organizationUsers.bosses.length})</h2>
+                    <h2>Admins ({organizationUsers.bosses.length})</h2>
                     <div className={styles.userList}>
                       {organizationUsers.bosses.map((boss) => (
                         <div key={boss._id} className={styles.userCard}>
@@ -1780,7 +1787,7 @@ function ClientAdminDashboard() {
                     </div>
                   </div>
                   <div className={styles.userCategory}>
-                    <h2>Managers ({organizationUsers.managers.length})</h2>
+                    <h2>Supervisors ({organizationUsers.managers.length})</h2>
                     <div className={styles.userList}>
                       {organizationUsers.managers.map((manager) => (
                         <div key={manager._id} className={styles.userCard}>
@@ -1792,7 +1799,7 @@ function ClientAdminDashboard() {
                     </div>
                   </div>
                   <div className={styles.userCategory}>
-                    <h2>Employees ({organizationUsers.employees.length})</h2>
+                    <h2>Members ({organizationUsers.employees.length})</h2>
                     <div className={styles.userList}>
                       {organizationUsers.employees.map((employee) => (
                         <div key={employee._id} className={styles.userCard}>
@@ -1876,7 +1883,7 @@ function ClientAdminDashboard() {
                 <h2 className={baseStyles.pageTitle} style={{ marginTop: '2rem', marginBottom: '1rem' }}>Performance Dimension Weights</h2>
                 <p className={styles.weightsDescription}>
                   Configure the weight distribution for performance evaluation dimensions across your organization. 
-                  These weights will apply to all Bosses, Managers, and Employees. The first three dimensions are mandatory, 
+                  These weights will apply to all Admins, Supervisors, and Members. The first three dimensions are mandatory, 
                   while "Developing Others" is optional. Total must equal 100%.
                 </p>
 
@@ -2025,7 +2032,7 @@ function ClientAdminDashboard() {
         <div className={styles.modalOverlay} onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>{editingKRAIndex !== null ? 'Edit' : 'Add'} {kraType === 'functional' ? 'Functional' : kraType === 'organizational' ? 'Organizational' : 'Self Development'} KRA for {selectedBoss.name}</h2>
+              <h2>{editingKRAIndex !== null ? 'Edit' : 'Add'} {kraType === 'functional' ? 'Functional KRA' : kraType === 'organizational' ? 'Core Value' : 'Area of Concern'} for {selectedBoss.name}</h2>
               <button
                 className={styles.closeButton}
                 onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
@@ -2074,7 +2081,7 @@ function ClientAdminDashboard() {
                   )}
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                     <button type="submit" className={baseStyles.submitButton}>
-                      Add KRA
+                      {kraType === 'organizational' ? 'Add Core Value' : 'Add Area of Concern'}
                     </button>
                     <button
                       type="button"

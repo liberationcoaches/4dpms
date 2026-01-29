@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Team, IFunctionalKRA } from '../models/Team';
 import { User } from '../models/User';
+import { ReviewCycle } from '../models/ReviewCycle';
 import { z } from 'zod';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 
@@ -230,10 +231,31 @@ export async function updateKRA(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    // Update KRA - preserve required fields if not provided in update
+    // Only current review period is editable for scores
+    const organizationId = user.organizationId ?? (await User.findById(team.createdBy).select('organizationId').then((b) => b?.organizationId));
+    const reviewCycle = organizationId
+      ? await ReviewCycle.findOne({ organizationId, isActive: true }).select('currentReviewPeriod').lean()
+      : null;
+    const currentPeriod = reviewCycle?.currentReviewPeriod ?? 1;
+    const allowedPeriodPrefix = `r${currentPeriod}` as 'r1' | 'r2' | 'r3' | 'r4';
+    const periodScoreKeys = ['r1Score', 'r2Score', 'r3Score', 'r4Score', 'r1Weight', 'r2Weight', 'r3Weight', 'r4Weight', 'r1ActualPerf', 'r2ActualPerf', 'r3ActualPerf', 'r4ActualPerf', 'r1ReviewedBy', 'r2ReviewedBy', 'r3ReviewedBy', 'r4ReviewedBy'] as const;
+    const filteredUpdate: Record<string, unknown> = { ...validatedKRA };
+    periodScoreKeys.forEach((key) => {
+      if (key in filteredUpdate && !key.startsWith(allowedPeriodPrefix)) {
+        delete filteredUpdate[key];
+      }
+    });
+    // Also disallow pilot score/weight if not current period (pilot is not R1-R4)
+    if (currentPeriod !== 0) {
+      delete filteredUpdate.pilotScore;
+      delete filteredUpdate.pilotWeight;
+      delete filteredUpdate.pilotActualPerf;
+    }
+
+    // Update KRA - preserve required fields if not provided in update (use filtered update for period-based editing)
     const updatedKRA = {
       ...existingKRA,
-      ...validatedKRA,
+      ...filteredUpdate,
       // Ensure kra field is always present (use existing if not provided in update)
       kra: validatedKRA.kra || existingKRA.kra,
       // Increment edit count if KRA details were modified

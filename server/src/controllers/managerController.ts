@@ -92,7 +92,7 @@ export async function createEmployee(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can create employees',
+        message: 'Only Supervisors can create Members',
       });
       return;
     }
@@ -236,7 +236,7 @@ export async function getEmployees(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can view employees',
+        message: 'Only Supervisors can view Members',
       });
       return;
     }
@@ -280,7 +280,7 @@ export async function getTeamPerformance(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can view team performance',
+        message: 'Only Supervisors can view team performance',
       });
       return;
     }
@@ -403,7 +403,7 @@ export async function addEmployeeFunctionalKRA(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can add KRAs for employees',
+        message: 'Only Supervisors can add KRAs for Members',
       });
       return;
     }
@@ -546,7 +546,7 @@ export async function addEmployeeOrganizationalKRA(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can add KRAs for employees',
+        message: 'Only Supervisors can add KRAs for Members',
       });
       return;
     }
@@ -637,7 +637,7 @@ export async function addEmployeeSelfDevelopmentKRA(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can add KRAs for employees',
+        message: 'Only Supervisors can add KRAs for Members',
       });
       return;
     }
@@ -728,7 +728,7 @@ export async function getEmployeeKRAs(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can view employee KRAs',
+        message: 'Only Supervisors can view Member KRAs',
       });
       return;
     }
@@ -801,7 +801,7 @@ export async function getMyKRAs(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can view their own KRAs',
+        message: 'Only Supervisors can view their own KRAs',
       });
       return;
     }

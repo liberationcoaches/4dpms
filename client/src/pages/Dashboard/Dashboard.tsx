@@ -4,6 +4,7 @@ import baseStyles from '@/styles/DashboardBase.module.css';
 import logo from '@/assets/logo.png';
 import { getNavigationItems } from '@/utils/navigationConfig';
 import { getDashboardPath } from '@/utils/dashboardRoutes';
+import { fetchUserProfile } from '@/utils/userProfile';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -21,23 +22,18 @@ function Dashboard() {
       return;
     }
 
-    // Fetch user profile
-    fetch(`/api/user/profile?userId=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 'success' && data.data) {
-          setUser(data.data);
-          const role = data.data.role || localStorage.getItem('userRole') || 'employee';
-          setUserRole(role);
-          localStorage.setItem('userRole', role);
-          
-          // Redirect /dashboard to role-specific dashboard (but not if on a child route like /dashboard/settings)
-          if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
-            navigate(getDashboardPath(role));
-          }
+    // Fetch user profile (clears storage and redirects to login on 404/stale user)
+    fetchUserProfile(userId).then((data) => {
+      if (data?.status === 'success' && data.data) {
+        setUser(data.data as { name: string; email: string; mobile: string; role?: string });
+        const role = (data.data.role as string) || localStorage.getItem('userRole') || 'employee';
+        setUserRole(role as typeof userRole);
+        localStorage.setItem('userRole', role);
+        if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
+          navigate(getDashboardPath(role));
         }
-      })
-      .catch(console.error);
+      }
+    }).catch(console.error);
 
     // Fetch notification count
     fetch(`/api/notifications/count?userId=${userId}`)

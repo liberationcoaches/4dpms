@@ -137,7 +137,7 @@ export async function createUser(data: SignUpInput): Promise<{ user: IUser; orgC
   } else if (data.signupType === 'employee') {
     // Employee signup: Use team code
     if (!data.teamCode) {
-      throw new Error('Team code is required for employee signup');
+      throw new Error('Team code is required for Member signup');
     }
 
     const team = await Team.findOne({ code: data.teamCode.toUpperCase() });

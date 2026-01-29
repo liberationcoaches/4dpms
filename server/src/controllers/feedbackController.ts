@@ -28,7 +28,7 @@ export async function addMidCycleNote(
     if (!manager || manager.role !== 'manager') {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers can add mid-cycle notes',
+        message: 'Only Supervisors can add mid-cycle notes',
       });
       return;
     }
@@ -202,7 +202,7 @@ export async function addFeedback(
     if (!user || !['manager', 'boss'].includes(user.role)) {
       res.status(403).json({
         status: 'error',
-        message: 'Only managers and bosses can add feedback',
+        message: 'Only Supervisors and Admins can add feedback',
       });
       return;
     }

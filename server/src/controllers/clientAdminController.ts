@@ -106,7 +106,7 @@ export async function createBoss(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can create bosses',
+        message: 'Only client admins can create Admins',
       });
       return;
     }
@@ -199,7 +199,7 @@ export async function getBosses(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can view bosses',
+        message: 'Only client admins can view Admins',
       });
       return;
     }
@@ -368,7 +368,7 @@ export async function addBossFunctionalKRA(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can add KRAs for bosses',
+        message: 'Only client admins can add KRAs for Admins',
       });
       return;
     }
@@ -483,7 +483,7 @@ export async function addBossOrganizationalKRA(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can add KRAs for bosses',
+        message: 'Only client admins can add KRAs for Admins',
       });
       return;
     }
@@ -577,7 +577,7 @@ export async function addBossSelfDevelopmentKRA(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can add KRAs for bosses',
+        message: 'Only client admins can add KRAs for Admins',
       });
       return;
     }
@@ -674,7 +674,7 @@ export async function getBossKRAs(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can view boss KRAs',
+        message: 'Only client admins can view Admin KRAs',
       });
       return;
     }
@@ -749,7 +749,7 @@ export async function updateBossFunctionalKRA(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can update boss KRAs',
+        message: 'Only client admins can update Admin KRAs',
       });
       return;
     }
@@ -885,7 +885,7 @@ export async function deleteBossFunctionalKRA(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can delete boss KRAs',
+        message: 'Only client admins can delete Admin KRAs',
       });
       return;
     }
@@ -982,7 +982,7 @@ export async function lockBossFunctionalKRAScores(
     if (!clientAdmin || clientAdmin.role !== 'client_admin') {
       res.status(403).json({
         status: 'error',
-        message: 'Only client admins can lock boss KRA scores',
+        message: 'Only client admins can lock Admin KRA scores',
       });
       return;
     }

@@ -111,7 +111,7 @@ export async function createManager(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can create managers',
+        message: 'Only Admins can create Supervisors',
       });
       return;
     }
@@ -197,7 +197,7 @@ export async function getManagers(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can view managers',
+        message: 'Only Admins can view Supervisors',
       });
       return;
     }
@@ -241,7 +241,7 @@ export async function getBossOrganization(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can access this',
+        message: 'Only Admins can access this',
       });
       return;
     }
@@ -291,7 +291,7 @@ export async function getBossAnalytics(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can access analytics',
+        message: 'Only Admins can access analytics',
       });
       return;
     }
@@ -433,7 +433,7 @@ export async function addManagerFunctionalKRA(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can add KRAs for managers',
+        message: 'Only Admins can add KRAs for Supervisors',
       });
       return;
     }
@@ -577,7 +577,7 @@ export async function addManagerOrganizationalKRA(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can add KRAs for managers',
+        message: 'Only Admins can add KRAs for Supervisors',
       });
       return;
     }
@@ -674,7 +674,7 @@ export async function addManagerSelfDevelopmentKRA(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can add KRAs for managers',
+        message: 'Only Admins can add KRAs for Supervisors',
       });
       return;
     }
@@ -771,7 +771,7 @@ export async function getManagerKRAs(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can view manager KRAs',
+        message: 'Only Admins can view Supervisor KRAs',
       });
       return;
     }
@@ -844,7 +844,7 @@ export async function getMyKRAs(
     if (!boss || boss.role !== 'boss') {
       res.status(403).json({
         status: 'error',
-        message: 'Only bosses can view their own KRAs',
+        message: 'Only Admins can view their own KRAs',
       });
       return;
     }

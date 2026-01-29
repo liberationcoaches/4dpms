@@ -1,11 +1,11 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './BossDashboard.module.css';
 import logo from '@/assets/logo.png';
 import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
 import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
-import { getNavigationItems } from '@/utils/navigationConfig';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface Manager {
   _id: string;
@@ -54,7 +54,6 @@ interface Analytics {
 
 function BossDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [managers, setManagers] = useState<Manager[]>([]);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -119,16 +118,16 @@ function BossDashboard() {
   }, [navigate]);
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
-        setUser({ name: data.data.name, email: data.data.email });
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
+        setUser({ name: data.data.name as string, email: data.data.email as string });
         setProfile({
-          name: data.data.name || '',
-          email: data.data.email || '',
-          mobile: data.data.mobile || '',
+          name: (data.data.name as string) || '',
+          email: (data.data.email as string) || '',
+          mobile: (data.data.mobile as string) || '',
         });
       }
     } catch (error) {
@@ -166,8 +165,6 @@ function BossDashboard() {
     navigate('/dashboard/boss');
   };
 
-  const navigationItems = getNavigationItems('boss');
-  
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -339,9 +336,15 @@ function BossDashboard() {
         setShowKRAModal(false);
         setNewKRA({});
         fetchManagerKRAs(selectedManager._id);
-        alert('KRA added successfully!');
+        alert(
+          kraType === 'functional'
+            ? 'KRA added successfully!'
+            : kraType === 'organizational'
+              ? 'Core Value added successfully!'
+              : 'Area of Concern added successfully!'
+        );
       } else {
-        alert(data.message || 'Failed to add KRA');
+        alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
       }
     } catch (error) {
       alert('Network error');
@@ -364,7 +367,7 @@ function BossDashboard() {
         setNewManager({ name: '', email: '', mobile: '', designation: '' });
         fetchManagers();
         fetchAnalytics();
-        alert('Manager created successfully!');
+        alert('Supervisor created successfully!');
       } else {
         alert(data.message || 'Failed to create manager');
       }
@@ -402,8 +405,8 @@ function BossDashboard() {
         const teamRes = await fetch(`/api/team/members?userId=${userId}`);
         const teamData = await teamRes.json();
         if (teamData.status === 'success' && teamData.data) {
-          const userProfile = await fetch(`/api/user/profile?userId=${userId}`).then(r => r.json());
-          if (userProfile.status === 'success' && userProfile.data) {
+          const userProfile = await fetchUserProfileApi(userId!);
+          if (userProfile?.status === 'success' && userProfile.data) {
             const memberIndex = teamData.data.findIndex((m: any) => m.mobile === userProfile.data.mobile);
             if (memberIndex !== -1) {
               const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
@@ -602,7 +605,7 @@ function BossDashboard() {
               {user?.name ? getInitials(user.name) : 'B'}
             </div>
             <div className={baseStyles.profileInfo}>
-              <span className={baseStyles.profileName}>{user?.name || 'Boss'}</span>
+              <span className={baseStyles.profileName}>{user?.name || 'Admin'}</span>
               <span className={baseStyles.profileEmail}>{user?.email || ''}</span>
             </div>
           </div>
@@ -634,8 +637,8 @@ function BossDashboard() {
                 {user?.name ? getInitials(user.name) : 'B'}
               </div>
               <div className={baseStyles.userInfo}>
-                <span className={baseStyles.userName}>{user?.name || 'Boss'}</span>
-                <span className={baseStyles.userRole}>Boss</span>
+                <span className={baseStyles.userName}>{user?.name || 'Admin'}</span>
+                <span className={baseStyles.userRole}>Admin</span>
               </div>
             </div>
 
@@ -663,7 +666,7 @@ function BossDashboard() {
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
-                <span>Managers</span>
+                <span>Supervisors</span>
               </button>
 
               <button
@@ -723,7 +726,7 @@ function BossDashboard() {
             <div className={styles.tabContent}>
               <div className={styles.pageHeader}>
                 <div>
-                  <h1>Boss Dashboard</h1>
+                  <h1>Admin Dashboard</h1>
                   {organization && (
                     <p className={styles.orgName}>{organization.name}</p>
                   )}
@@ -862,7 +865,7 @@ function BossDashboard() {
                         }}
                         onClick={() => setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational })}
                       >
-                        <h3 style={{ margin: 0 }}>Organizational KRAs ({myKRAs.organizationalKRAs?.length || 0})</h3>
+                        <h3 style={{ margin: 0 }}>Organizational Dimension - Core Values ({myKRAs.organizationalKRAs?.length || 0})</h3>
                         <button
                           style={{
                             background: 'none',
@@ -944,7 +947,7 @@ function BossDashboard() {
                         <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
                       )}
                       {myKRAs.organizationalKRAs?.length === 0 && (
-                        <p>No Organizational KRAs assigned</p>
+                        <p>No core values assigned</p>
                       )}
                     </div>
                     <div className={styles.kraCategory}>
@@ -957,7 +960,7 @@ function BossDashboard() {
                         }}
                         onClick={() => setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment })}
                       >
-                        <h3 style={{ margin: 0 }}>Self Development KRAs ({myKRAs.selfDevelopmentKRAs?.length || 0})</h3>
+                        <h3 style={{ margin: 0 }}>Self Development (Areas of Concern) ({myKRAs.selfDevelopmentKRAs?.length || 0})</h3>
                         <button
                           style={{
                             background: 'none',
@@ -1039,7 +1042,7 @@ function BossDashboard() {
                         <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
                       )}
                       {myKRAs.selfDevelopmentKRAs?.length === 0 && (
-                        <p>No Self Development KRAs assigned</p>
+                        <p>No areas of concern assigned</p>
                       )}
                     </div>
                   </div>
@@ -1048,7 +1051,7 @@ function BossDashboard() {
 
               {showCreateForm && (
                 <div className={styles.createForm}>
-                  <h2>Create New Manager</h2>
+                  <h2>Create New Supervisor</h2>
                   <form onSubmit={handleCreateManager}>
                     <div className={baseStyles.formGroup}>
                       <label>Name *</label>
@@ -1092,7 +1095,7 @@ function BossDashboard() {
                       />
                     </div>
                     <button type="submit" className={baseStyles.submitButton}>
-                      Create Manager
+                      Create Supervisor
                     </button>
                   </form>
                 </div>
@@ -1103,11 +1106,11 @@ function BossDashboard() {
                   <h2>Organization Overview</h2>
                   <div className={styles.analyticsGrid}>
                     <div className={styles.analyticsCard}>
-                      <h3>Managers</h3>
+                      <h3>Supervisors</h3>
                       <div className={styles.statValue}>{analytics.managers.total}</div>
                     </div>
                     <div className={styles.analyticsCard}>
-                      <h3>Employees</h3>
+                      <h3>Members</h3>
                       <div className={styles.statValue}>{analytics.employees.total}</div>
                     </div>
                     <div className={styles.analyticsCard}>
@@ -1145,7 +1148,7 @@ function BossDashboard() {
               )}
 
               <div className={styles.managers}>
-                <h2>Managers</h2>
+                <h2>Supervisors</h2>
                 {managers.length === 0 ? (
                   <p className={styles.empty}>No managers yet. Create one to get started.</p>
                 ) : (
@@ -1169,12 +1172,12 @@ function BossDashboard() {
           {activeTab === 'managers' && (
             <div className={styles.tabContent}>
               <div className={styles.pageHeader}>
-                <h1>Managers</h1>
+                <h1>Supervisors</h1>
               </div>
 
               {showCreateForm && (
                 <div className={styles.createForm}>
-                  <h2>Create New Manager</h2>
+                  <h2>Create New Supervisor</h2>
                   <form onSubmit={handleCreateManager}>
                     <div className={baseStyles.formGroup}>
                       <label>Name *</label>
@@ -1218,7 +1221,7 @@ function BossDashboard() {
                       />
                     </div>
                     <button type="submit" className={baseStyles.submitButton}>
-                      Create Manager
+                      Create Supervisor
                     </button>
                   </form>
                 </div>
@@ -1258,7 +1261,7 @@ function BossDashboard() {
                             setKraType('organizational');
                           }}
                         >
-                          Add Organizational KRA
+                          Add Core Value
                         </button>
                         <button
                           className={styles.actionButton}
@@ -1269,7 +1272,7 @@ function BossDashboard() {
                             setKraType('self-development');
                           }}
                         >
-                          Add Self Development KRA
+                          Add Area of Concern
                         </button>
                         <button
                           className={styles.actionButton}
@@ -1283,7 +1286,7 @@ function BossDashboard() {
                             }
                           }}
                         >
-                          {showKRAsView === manager._id ? 'Hide KRAs' : 'View KRAs'}
+                          {showKRAsView === manager._id ? 'Hide Dimensions' : 'View Dimensions'}
                         </button>
                       </div>
                       {showKRAsView === manager._id && managerKRAs[manager._id] && (
@@ -1383,7 +1386,7 @@ function BossDashboard() {
                           ) : (
                             <p>No Functional KRAs</p>
                           )}
-                          <h4>Organizational KRAs</h4>
+                          <h4>Organizational Dimension (Core Values)</h4>
                           {managerKRAs[manager._id].organizationalKRAs?.length > 0 ? (
                             <ul>
                               {managerKRAs[manager._id].organizationalKRAs.map((kra: any, idx: number) => (
@@ -1391,9 +1394,9 @@ function BossDashboard() {
                               ))}
                             </ul>
                           ) : (
-                            <p>No Organizational KRAs</p>
+                            <p>No core values added</p>
                           )}
-                          <h4>Self Development KRAs</h4>
+                          <h4>Self Development (Areas of Concern)</h4>
                           {managerKRAs[manager._id].selfDevelopmentKRAs?.length > 0 ? (
                             <ul>
                               {managerKRAs[manager._id].selfDevelopmentKRAs.map((kra: any, idx: number) => (
@@ -1401,7 +1404,7 @@ function BossDashboard() {
                               ))}
                             </ul>
                           ) : (
-                            <p>No Self Development KRAs</p>
+                            <p>No areas of concern added</p>
                           )}
                         </div>
                       )}
@@ -1420,11 +1423,11 @@ function BossDashboard() {
                   <h2>Organization Overview</h2>
                   <div className={styles.analyticsGrid}>
                     <div className={styles.analyticsCard}>
-                      <h3>Managers</h3>
+                      <h3>Supervisors</h3>
                       <div className={styles.statValue}>{analytics.managers.total}</div>
                     </div>
                     <div className={styles.analyticsCard}>
-                      <h3>Employees</h3>
+                      <h3>Members</h3>
                       <div className={styles.statValue}>{analytics.employees.total}</div>
                     </div>
                     <div className={styles.analyticsCard}>
@@ -1542,7 +1545,7 @@ function BossDashboard() {
                       )}
                     </div>
                     <div className={styles.kraCategory}>
-                      <h3>Organizational KRAs ({myKRAs.organizationalKRAs?.length || 0})</h3>
+                      <h3>Organizational Dimension - Core Values ({myKRAs.organizationalKRAs?.length || 0})</h3>
                       {myKRAs.organizationalKRAs?.length > 0 ? (
                         <ul>
                           {myKRAs.organizationalKRAs.map((kra: any, idx: number) => (
@@ -1550,11 +1553,11 @@ function BossDashboard() {
                           ))}
                         </ul>
                       ) : (
-                        <p>No Organizational KRAs assigned</p>
+                        <p>No core values assigned</p>
                       )}
                     </div>
                     <div className={styles.kraCategory}>
-                      <h3>Self Development KRAs ({myKRAs.selfDevelopmentKRAs?.length || 0})</h3>
+                      <h3>Self Development (Areas of Concern) ({myKRAs.selfDevelopmentKRAs?.length || 0})</h3>
                       {myKRAs.selfDevelopmentKRAs?.length > 0 ? (
                         <ul>
                           {myKRAs.selfDevelopmentKRAs.map((kra: any, idx: number) => (
@@ -1562,7 +1565,7 @@ function BossDashboard() {
                           ))}
                         </ul>
                       ) : (
-                        <p>No Self Development KRAs assigned</p>
+                        <p>No areas of concern assigned</p>
                       )}
                     </div>
                   </div>
@@ -1573,12 +1576,12 @@ function BossDashboard() {
         </div>
       </div>
 
-      {/* KRA Modal for Managers */}
+      {/* KRA Modal for Supervisors */}
       {showKRAModal && selectedManager && (
         <div className={styles.modalOverlay} onClick={() => setShowKRAModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>Add {kraType === 'functional' ? 'Functional' : kraType === 'organizational' ? 'Organizational' : 'Self Development'} KRA for {selectedManager.name}</h2>
+              <h2>Add {kraType === 'functional' ? 'Functional KRA' : kraType === 'organizational' ? 'Core Value' : 'Area of Concern'} for {selectedManager.name}</h2>
               <button
                 className={styles.closeButton}
                 onClick={() => setShowKRAModal(false)}
@@ -1625,7 +1628,7 @@ function BossDashboard() {
                   )}
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                     <button type="submit" className={baseStyles.submitButton}>
-                      Add KRA
+                      {kraType === 'organizational' ? 'Add Core Value' : 'Add Area of Concern'}
                     </button>
                     <button
                       type="button"

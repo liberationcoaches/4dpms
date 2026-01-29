@@ -4,6 +4,7 @@ import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ReviewerDashboard.module.css';
 import logo from '@/assets/logo.png';
 import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
+import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
 interface Organization {
   _id: string;
@@ -60,15 +61,15 @@ function ReviewerDashboard() {
   }, [navigate]);
 
   const fetchUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/user/profile?userId=${userId}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data) {
+      const data = await fetchUserProfileApi(userId);
+      if (data?.status === 'success' && data.data) {
         const userData = {
-          name: data.data.name || '',
-          email: data.data.email || '',
-          mobile: data.data.mobile || '',
+          name: (data.data.name as string) || '',
+          email: (data.data.email as string) || '',
+          mobile: (data.data.mobile as string) || '',
         };
         setUser(userData);
         setProfile(userData);
@@ -401,7 +402,7 @@ function ReviewerDashboard() {
                   <h3>{org.name}</h3>
                   <p>{org.industry}</p>
                   <span className={styles.badge}>{org.subscriptionStatus}</span>
-                  <div className={styles.actionButton}>View Employees</div>
+                  <div className={styles.actionButton}>View Members</div>
                 </div>
               ))}
             </div>
@@ -410,9 +411,9 @@ function ReviewerDashboard() {
           ) : (
             <div className={styles.employees}>
           {isLoading ? (
-            <div className={styles.loading}>Loading Employees...</div>
+            <div className={styles.loading}>Loading Members...</div>
           ) : employees.length === 0 ? (
-            <p className={styles.empty}>No employees found in this organization.</p>
+            <p className={styles.empty}>No Members found in this organization.</p>
           ) : (
             <div className={styles.employeesGrid}>
               {employees.map((employee) => (
@@ -424,7 +425,7 @@ function ReviewerDashboard() {
                   buttonText="Enter Scores →"
                   onClick={() => navigate(`/reviewer/scoring/${employee._id}`)}
                 >
-                  {employee.manager && <p><strong>Manager:</strong> {employee.manager}</p>}
+                  {employee.manager && <p><strong>Supervisor:</strong> {employee.manager}</p>}
                 </TeamMemberCard>
               ))}
             </div>
