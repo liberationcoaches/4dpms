@@ -90,3 +90,48 @@ export const resendOTPSchema = z.object({
 
 export type ResendOTPInput = z.infer<typeof resendOTPSchema>;
 
+/**
+ * Sign up (Boss only - create organization). No role selection.
+ */
+export const signUpBossSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name cannot exceed 100 characters').trim(),
+  email: z.string().email('Invalid email format').toLowerCase().trim(),
+  mobile: z.string().regex(/^[0-9]{10}$/, 'Mobile number must be exactly 10 digits').trim(),
+  designation: z.string().max(100).trim().optional(),
+  companyName: z.string().max(200).trim().optional(),
+  industry: z.enum(['Technology', 'Healthcare', 'Finance', 'Education', 'Manufacturing', 'Retail', 'Consulting', 'Other']).optional(),
+});
+
+export type SignUpBossInput = z.infer<typeof signUpBossSchema>;
+
+/**
+ * Create invite (CSA / Boss / Manager). Role comes from invite, not from sign-up.
+ */
+export const createInviteSchema = z.object({
+  role: z.enum(['manager', 'employee'], { errorMap: () => ({ message: 'Invalid role' }) }),
+  organizationId: z.string().min(1, 'Organization is required'),
+  teamId: z.string().optional(),
+}).refine((data) => {
+  if (data.role === 'employee') return !!data.teamId;
+  return true;
+}, { message: 'Team is required for Member invite', path: ['teamId'] });
+
+export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+
+/**
+ * Sign up with invite. No role selection – role comes from invite.
+ */
+export const signupWithInviteSchema = z.object({
+  inviteToken: z.string().min(1).optional(),
+  inviteCode: z.string().min(1).optional(),
+  name: z.string().min(1, 'Name is required').max(100).trim(),
+  email: z.string().email('Invalid email format').toLowerCase().trim(),
+  mobile: z.string().regex(/^[0-9]{10}$/, 'Mobile number must be exactly 10 digits').trim(),
+  designation: z.string().max(100).trim().optional(),
+}).refine((data) => !!data.inviteToken || !!data.inviteCode, {
+  message: 'Invite link or code is required',
+  path: ['inviteToken'],
+});
+
+export type SignupWithInviteInput = z.infer<typeof signupWithInviteSchema>;
+

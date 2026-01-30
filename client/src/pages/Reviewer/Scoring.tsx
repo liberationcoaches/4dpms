@@ -371,7 +371,7 @@ function Scoring() {
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        alert('Scores submitted successfully!');
+        alert('Scores submitted.');
         navigate('/reviewer/dashboard');
       } else {
         alert(data.message || 'Failed to submit scores');
@@ -399,7 +399,7 @@ function Scoring() {
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        alert('Review locked successfully!');
+        alert('Review locked.');
         navigate('/reviewer/dashboard');
       } else {
         alert(data.message || 'Failed to lock review');

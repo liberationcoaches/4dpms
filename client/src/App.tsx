@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home/Home';
 import SignUp from './pages/Auth/SignUp/SignUp';
+import Join from './pages/Auth/Join/Join';
 import Login from './pages/Auth/Login/Login';
 import OTPVerify from './pages/Auth/OTPVerify/OTPVerify';
 import TeamCode from './pages/Auth/TeamCode/TeamCode';
@@ -33,6 +34,8 @@ function App() {
         <Route index element={<Home />} />
       </Route>
       <Route path="/auth/signup" element={<SignUp />} />
+      <Route path="/auth/join" element={<Join />} />
+      <Route path="/auth/join/:token" element={<Join />} />
       <Route path="/auth/login" element={<Login />} />
       <Route path="/auth/team-code" element={<TeamCode />} />
       <Route path="/auth/otp-verify" element={<OTPVerify />} />

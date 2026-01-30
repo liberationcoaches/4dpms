@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
-import { sendInvitationNotification, sendKRANotification } from './notificationController';
+import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA } from './notificationController';
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 import { z } from 'zod';
@@ -155,6 +155,9 @@ export async function createManager(
 
     // Send invitation notification
     await sendInvitationNotification(manager, boss.name);
+    if (boss.organizationId) {
+      await sendNewMemberNotificationToCSA(boss.organizationId, manager.name, 'manager');
+    }
 
     res.status(201).json({
       status: 'success',

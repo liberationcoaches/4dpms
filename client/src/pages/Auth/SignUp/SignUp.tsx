@@ -57,13 +57,6 @@ function SignUp({ onSubmit }: SignUpProps) {
       newErrors.mobile = 'Invalid mobile number (10 digits required)';
     }
 
-    // Validate codes based on signup type
-    if (formData.signupType === 'manager' && !formData.orgCode?.trim()) {
-      newErrors.orgCode = 'Organization code is required for Supervisors';
-    } else if (formData.signupType === 'employee' && !formData.teamCode?.trim()) {
-      newErrors.teamCode = 'Team code is required for Members';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -98,10 +91,9 @@ function SignUp({ onSubmit }: SignUpProps) {
       const cleanedFormData = {
         ...formData,
         mobile: normalizedMobile,
-        // Remove orgCode if it's empty (for boss)
-        ...(formData.signupType !== 'manager' && { orgCode: undefined }),
-        // Remove teamCode if it's empty (for boss/manager)
-        ...(formData.signupType !== 'employee' && { teamCode: undefined }),
+        signupType: 'boss' as const,
+        orgCode: undefined,
+        teamCode: undefined,
       };
 
       // Merge organization profile data with signup data
@@ -237,35 +229,6 @@ function SignUp({ onSubmit }: SignUpProps) {
           )}
 
           <form onSubmit={handleSubmit} className={styles.form} noValidate>
-            {/* Signup Type Selection */}
-            <div className={styles.inputGroup}>
-              <label htmlFor="signupType" className={styles.label}>
-                I am
-              </label>
-              <div className={styles.selectWrapper}>
-                <select
-                  id="signupType"
-                  className={`${styles.select} ${errors.signupType ? styles.inputError : ''}`}
-                  value={formData.signupType}
-                  onChange={(e) => {
-                    setFormData((prev) => ({ ...prev, signupType: e.target.value as 'boss' | 'manager' | 'employee' }));
-                    setErrors({});
-                  }}
-                  aria-invalid={!!errors.signupType}
-                  aria-describedby={errors.signupType ? 'signupType-error' : undefined}
-                >
-                  <option value="boss">Admin (Organization Owner)</option>
-                  <option value="manager">Supervisor</option>
-                  <option value="employee">Member</option>
-                </select>
-                <span className={styles.selectArrow}>▼</span>
-              </div>
-              {errors.signupType && (
-                <span id="signupType-error" className={styles.errorText} role="alert">
-                  {errors.signupType}
-                </span>
-              )}
-            </div>
             <div className={styles.inputGroup}>
               <label htmlFor="name" className={styles.label}>
                 Your name
@@ -349,63 +312,18 @@ function SignUp({ onSubmit }: SignUpProps) {
               )}
             </div>
 
-            {/* Organization Code (for Supervisors) */}
-            {formData.signupType === 'manager' && (
-              <div className={styles.inputGroup}>
-                <label htmlFor="orgCode" className={styles.label}>
-                  Organization Code
-                </label>
-                <input
-                  id="orgCode"
-                  type="text"
-                  className={`${styles.input} ${errors.orgCode ? styles.inputError : ''}`}
-                  value={formData.orgCode || ''}
-                  onChange={(e) => handleInputChange('orgCode', e.target.value.toUpperCase())}
-                  placeholder="Enter organization code from your Admin"
-                  aria-invalid={!!errors.orgCode}
-                  aria-describedby={errors.orgCode ? 'orgCode-error' : undefined}
-                />
-                {errors.orgCode && (
-                  <span id="orgCode-error" className={styles.errorText} role="alert">
-                    {errors.orgCode}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Team Code (for Members) */}
-            {formData.signupType === 'employee' && (
-              <div className={styles.inputGroup}>
-                <label htmlFor="teamCode" className={styles.label}>
-                  Team Code
-                </label>
-                <input
-                  id="teamCode"
-                  type="text"
-                  className={`${styles.input} ${errors.teamCode ? styles.inputError : ''}`}
-                  value={formData.teamCode || ''}
-                  onChange={(e) => handleInputChange('teamCode', e.target.value.toUpperCase())}
-                  placeholder="Enter team code from your Supervisor"
-                  aria-invalid={!!errors.teamCode}
-                  aria-describedby={errors.teamCode ? 'teamCode-error' : undefined}
-                />
-                {errors.teamCode && (
-                  <span id="teamCode-error" className={styles.errorText} role="alert">
-                    {errors.teamCode}
-                  </span>
-                )}
-              </div>
-            )}
-
             <button
               type="submit"
               className={styles.primaryButton}
               disabled={isSubmitting}
               aria-busy={isSubmitting}
             >
-              {isSubmitting ? 'Signing up...' : 'Signup'}
+              {isSubmitting ? 'Signing up...' : 'Create organization'}
             </button>
 
+            <p className={styles.linkRow}>
+              Have an invite? <Link to="/auth/join" className={styles.link}>Join with invite</Link>
+            </p>
             <Link to="/auth/login" className={styles.link}>
               Already signed up? Enter access code
             </Link>

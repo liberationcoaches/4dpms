@@ -187,7 +187,7 @@ function EmployeeDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setProfileSuccessMessage('Profile updated successfully!');
+        setProfileSuccessMessage('Profile saved.');
         setUser(profile);
         setTimeout(() => setProfileSuccessMessage(''), 3000);
       } else {
@@ -305,7 +305,7 @@ function EmployeeDashboard() {
               fetchPerformanceData();
               setShowProofDialog({ kraIndex: -1, isOpen: false });
               setProofInput({ type: 'drive_link', value: '' });
-              alert('Proof added successfully!');
+              alert('Proof added.');
             } else {
               alert(updateData.message || 'Failed to add proof');
             }

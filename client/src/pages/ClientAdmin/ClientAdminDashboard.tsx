@@ -51,7 +51,7 @@ function ClientAdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateBossForm, setShowCreateBossForm] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bosses' | 'users' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bosses' | 'users' | 'roles' | 'settings'>('dashboard');
   const [user, setUser] = useState<{ name: string; email: string; mobile?: string } | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
   const [profile, setProfile] = useState<{ name: string; email: string; mobile: string }>({
@@ -95,6 +95,12 @@ function ClientAdminDashboard() {
   const [weightsSuccessMessage, setWeightsSuccessMessage] = useState('');
   const [expandedCard, setExpandedCard] = useState<'managers' | 'employees' | 'departments' | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteRole, setInviteRole] = useState<'manager' | 'employee' | null>(null);
+  const [inviteTeamId, setInviteTeamId] = useState('');
+  const [teamsForInvite, setTeamsForInvite] = useState<{ _id: string; name: string; code: string; managerName?: string }[]>([]);
+  const [createdInvite, setCreatedInvite] = useState<{ link: string; code: string } | null>(null);
+  const [isCreatingInvite, setIsCreatingInvite] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -210,6 +216,67 @@ function ClientAdminDashboard() {
     }
   };
 
+  const fetchTeamsForInvite = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/client-admin/teams-for-invite?userId=${userId}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.data) {
+        setTeamsForInvite(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch teams:', error);
+    }
+  };
+
+  const handleCreateInvite = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!organization?._id) return;
+    if (inviteRole === 'employee' && !inviteTeamId) {
+      alert('Select a team for Member invite.');
+      return;
+    }
+    setIsCreatingInvite(true);
+    setCreatedInvite(null);
+    try {
+      const userId = localStorage.getItem('userId');
+      const body: { role: string; organizationId: string; teamId?: string } = {
+        role: inviteRole!,
+        organizationId: organization._id,
+      };
+      if (inviteRole === 'employee') body.teamId = inviteTeamId;
+      const res = await fetch(`/api/invites?userId=${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success' && data.data) {
+        const baseUrl = window.location.origin;
+        const rawLink = data.data.link || '';
+        const link = rawLink.startsWith('http') ? rawLink : (rawLink ? `${baseUrl}${rawLink}` : `${baseUrl}/join`);
+        setCreatedInvite({
+          link,
+          code: data.data.code || '',
+        });
+      } else {
+        alert(data.message || 'Failed to create invite');
+      }
+    } catch (error) {
+      alert('Network error');
+    } finally {
+      setIsCreatingInvite(false);
+    }
+  };
+
+  const openInviteModal = (role: 'manager' | 'employee') => {
+    setInviteRole(role);
+    setInviteTeamId('');
+    setCreatedInvite(null);
+    if (role === 'employee') fetchTeamsForInvite();
+    setShowInviteModal(true);
+  };
+
   const handleCreateBoss = async (e: FormEvent) => {
     e.preventDefault();
     try {
@@ -229,7 +296,7 @@ function ClientAdminDashboard() {
         setNewBoss({ name: '', email: '', mobile: '' });
         fetchBosses();
         fetchOrganizationUsers();
-        alert('Admin created successfully!');
+        alert('Admin added.');
       } else {
         alert(data.message || 'Failed to create Admin');
       }
@@ -328,7 +395,7 @@ function ClientAdminDashboard() {
           setNewKRA({});
           setEditingKRAIndex(null);
           fetchBossKRAs(selectedBoss._id);
-          alert('KRA updated successfully!');
+          alert('KRA updated.');
         } else {
           alert(data.message || 'Failed to update KRA');
         }
@@ -360,10 +427,10 @@ function ClientAdminDashboard() {
           fetchBossKRAs(selectedBoss._id);
           alert(
             kraType === 'functional'
-              ? 'KRA added successfully!'
+              ? 'KRA added.'
               : kraType === 'organizational'
-                ? 'Core Value added successfully!'
-                : 'Area of Concern added successfully!'
+                ? 'Core value added.'
+                : 'Area of concern added.'
           );
         } else {
           alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
@@ -443,7 +510,7 @@ function ClientAdminDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setProfileSuccessMessage('Profile updated successfully!');
+        setProfileSuccessMessage('Profile saved.');
         setUser(profile);
         setTimeout(() => setProfileSuccessMessage(''), 3000);
       } else {
@@ -509,7 +576,7 @@ function ClientAdminDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setWeightsSuccessMessage('Dimension weights saved successfully! These weights will apply to all users in your organization.');
+        setWeightsSuccessMessage('Weights saved. Applied org-wide.');
         setTimeout(() => setWeightsSuccessMessage(''), 5000);
       } else {
         setWeightsErrors(data.message || 'Failed to save dimension weights');
@@ -571,7 +638,7 @@ function ClientAdminDashboard() {
             fetchBossKRAs(bossId);
             setShowProofDialog({ bossId: '', kraIndex: -1, isOpen: false });
             setProofInput({ type: 'drive_link', value: '' });
-            alert('Proof added successfully!');
+            alert('Proof added.');
           } else {
             alert(updateData.message || 'Failed to add proof');
           }
@@ -691,7 +758,7 @@ function ClientAdminDashboard() {
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         fetchBossKRAs(boss._id);
-        alert('KRA deleted successfully!');
+        alert('KRA deleted.');
       } else {
         alert(data.message || 'Failed to delete KRA');
       }
@@ -724,7 +791,7 @@ function ClientAdminDashboard() {
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         fetchBossKRAs(boss._id);
-        alert('KRA scores have been finalized and locked!');
+        alert('Scores finalized & locked.');
       } else {
         alert(data.message || 'Failed to lock KRA scores');
       }
@@ -863,6 +930,16 @@ function ClientAdminDashboard() {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
                 <span>All Users</span>
+              </button>
+
+              <button
+                className={`${baseStyles.menuItem} ${activeTab === 'roles' ? baseStyles.menuItemActive : ''}`}
+                onClick={() => { setActiveTab('roles'); setShowMenu(false); }}
+              >
+                <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>Roles & Invites</span>
               </button>
             </div>
 
@@ -1815,6 +1892,68 @@ function ClientAdminDashboard() {
             </div>
           )}
 
+          {activeTab === 'roles' && (
+            <div className={styles.tabContent}>
+              <h1>Roles & Invites</h1>
+              <p className={styles.weightsDescription} style={{ marginBottom: '1.5rem' }}>
+                Invite Supervisors or Members with a link or code. They sign up without choosing a role.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+                <button
+                  type="button"
+                  className={baseStyles.submitButton}
+                  onClick={() => openInviteModal('manager')}
+                >
+                  Invite Supervisor
+                </button>
+                <button
+                  type="button"
+                  className={baseStyles.submitButton}
+                  onClick={() => openInviteModal('employee')}
+                >
+                  Invite Member
+                </button>
+              </div>
+              {organizationUsers && (
+                <div className={styles.usersSection}>
+                  <div className={styles.userCategory}>
+                    <h2>Admins ({organizationUsers.bosses.length})</h2>
+                    <div className={styles.userList}>
+                      {organizationUsers.bosses.map((boss) => (
+                        <div key={boss._id} className={styles.userCard}>
+                          <h3>{boss.name}</h3>
+                          <p>{boss.email}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={styles.userCategory}>
+                    <h2>Supervisors ({organizationUsers.managers.length})</h2>
+                    <div className={styles.userList}>
+                      {organizationUsers.managers.map((manager) => (
+                        <div key={manager._id} className={styles.userCard}>
+                          <h3>{manager.name}</h3>
+                          <p>{manager.email}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={styles.userCategory}>
+                    <h2>Members ({organizationUsers.employees.length})</h2>
+                    <div className={styles.userList}>
+                      {organizationUsers.employees.map((employee) => (
+                        <div key={employee._id} className={styles.userCard}>
+                          <h3>{employee.name}</h3>
+                          <p>{employee.email}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'settings' && (
             <div className={baseStyles.tabContent}>
               <h1 className={baseStyles.pageTitle}>Profile & Settings</h1>
@@ -1882,9 +2021,7 @@ function ClientAdminDashboard() {
               <div className={styles.dimensionWeightsSection}>
                 <h2 className={baseStyles.pageTitle} style={{ marginTop: '2rem', marginBottom: '1rem' }}>Performance Dimension Weights</h2>
                 <p className={styles.weightsDescription}>
-                  Configure the weight distribution for performance evaluation dimensions across your organization. 
-                  These weights will apply to all Admins, Supervisors, and Members. The first three dimensions are mandatory, 
-                  while "Developing Others" is optional. Total must equal 100%.
+                  Set dimension weights (%). First three required; Developing Others optional. Total = 100%. Applies org-wide.
                 </p>
 
                 <form onSubmit={handleSaveWeights} className={styles.weightsForm}>
@@ -2026,6 +2163,100 @@ function ClientAdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && inviteRole && (
+        <div className={styles.modalOverlay} onClick={() => { setShowInviteModal(false); setInviteRole(null); setCreatedInvite(null); }}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className={styles.modalHeader}>
+              <h2>Invite {inviteRole === 'manager' ? 'Supervisor' : 'Member'}</h2>
+              <button
+                className={styles.closeButton}
+                onClick={() => { setShowInviteModal(false); setInviteRole(null); setCreatedInvite(null); }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {!createdInvite ? (
+                <form onSubmit={handleCreateInvite}>
+                  {inviteRole === 'employee' && (
+                    <div className={baseStyles.formGroup} style={{ marginBottom: '1rem' }}>
+                      <label htmlFor="inviteTeam">Team *</label>
+                      <select
+                        id="inviteTeam"
+                        className={baseStyles.input}
+                        value={inviteTeamId}
+                        onChange={(e) => setInviteTeamId(e.target.value)}
+                        required={inviteRole === 'employee'}
+                      >
+                        <option value="">Select team</option>
+                        {teamsForInvite.map((t) => (
+                          <option key={t._id} value={t._id}>
+                            {t.name} {t.managerName ? `(${t.managerName})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                    <button type="submit" className={baseStyles.submitButton} disabled={isCreatingInvite}>
+                      {isCreatingInvite ? 'Creating...' : 'Create invite'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowInviteModal(false); setInviteRole(null); }}
+                      style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd', padding: '0.5rem 1rem', borderRadius: '4px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div>
+                  <p style={{ marginBottom: '0.75rem' }}>Share this link or code. They sign up without choosing a role.</p>
+                  <div className={baseStyles.formGroup} style={{ marginBottom: '0.75rem' }}>
+                    <label>Link</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input type="text" readOnly className={baseStyles.input} value={createdInvite.link} style={{ flex: 1 }} />
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(createdInvite.link); alert('Link copied.'); }}
+                        className={baseStyles.submitButton}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div className={baseStyles.formGroup} style={{ marginBottom: '1rem' }}>
+                    <label>Code</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input type="text" readOnly className={baseStyles.input} value={createdInvite.code} style={{ flex: 1, fontFamily: 'monospace' }} />
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(createdInvite.code); alert('Code copied.'); }}
+                        className={baseStyles.submitButton}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setShowInviteModal(false); setInviteRole(null); setCreatedInvite(null); }}
+                    className={baseStyles.submitButton}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KRA Modal */}
       {showKRAModal && selectedBoss && (

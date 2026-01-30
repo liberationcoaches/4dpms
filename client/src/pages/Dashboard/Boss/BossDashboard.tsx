@@ -226,7 +226,7 @@ function BossDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setProfileSuccessMessage('Profile updated successfully!');
+        setProfileSuccessMessage('Profile saved.');
         setUser({ name: profile.name, email: profile.email });
         setTimeout(() => setProfileSuccessMessage(''), 3000);
       } else {
@@ -338,10 +338,10 @@ function BossDashboard() {
         fetchManagerKRAs(selectedManager._id);
         alert(
           kraType === 'functional'
-            ? 'KRA added successfully!'
+            ? 'KRA added.'
             : kraType === 'organizational'
-              ? 'Core Value added successfully!'
-              : 'Area of Concern added successfully!'
+              ? 'Core value added.'
+              : 'Area of concern added.'
         );
       } else {
         alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
@@ -367,7 +367,7 @@ function BossDashboard() {
         setNewManager({ name: '', email: '', mobile: '', designation: '' });
         fetchManagers();
         fetchAnalytics();
-        alert('Supervisor created successfully!');
+        alert('Supervisor added.');
       } else {
         alert(data.message || 'Failed to create manager');
       }
@@ -421,7 +421,7 @@ function BossDashboard() {
                 fetchMyKRAs();
                 setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false });
                 setProofInput({ type: 'drive_link', value: '' });
-                alert('Proof added successfully!');
+                alert('Proof added.');
               } else {
                 alert(updateData.message || 'Failed to add proof');
               }
@@ -480,7 +480,7 @@ function BossDashboard() {
             fetchManagerKRAs(managerId);
             setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false });
             setProofInput({ type: 'drive_link', value: '' });
-            alert('Proof added successfully!');
+            alert('Proof added.');
           } else {
             alert(updateData.message || 'Failed to add proof');
           }
@@ -498,7 +498,7 @@ function BossDashboard() {
     if (!file) return;
 
     if (!file.type.match(/^image\/(jpeg|jpg|png)$/i) && file.type !== 'application/pdf') {
-      alert('Only JPG, PNG, or PDF files are allowed');
+      alert('Only JPG, PNG, or PDF files are allowed'); 
       return;
     }
 

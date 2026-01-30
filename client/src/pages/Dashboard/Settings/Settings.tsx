@@ -128,7 +128,7 @@ function Settings() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccessMessage('Profile updated successfully!');
+        setSuccessMessage('Profile saved.');
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
         setErrors({ email: data.message || 'Failed to update profile' });
@@ -192,7 +192,7 @@ function Settings() {
       const data = await response.json();
 
       if (response.ok) {
-        setWeightsSuccessMessage('Dimension weights saved successfully!');
+        setWeightsSuccessMessage('Weights saved.');
         setTimeout(() => setWeightsSuccessMessage(''), 3000);
       } else {
         setWeightsErrors(data.message || 'Failed to save dimension weights');

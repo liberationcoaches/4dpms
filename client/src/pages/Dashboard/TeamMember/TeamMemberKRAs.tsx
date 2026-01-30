@@ -324,7 +324,7 @@ function TeamMemberKRAs() {
       const data = await response.json();
       if (response.ok) {
         setShowAddKRA(false);
-        showNotification('KRA added successfully!');
+        showNotification('KRA added.');
         // Refresh member data from server to get the complete structure
         await fetchMemberData();
       } else {
@@ -536,7 +536,7 @@ function TeamMemberKRAs() {
         setMember({ ...member, organizationalDimensions: updated });
         setNewOrganizational({ coreValue: '' });
         setShowAddOrganizational(false);
-        showNotification('Organizational Dimension added successfully!');
+        showNotification('Organizational dimension added.');
       } else {
         showNotification(data.message || 'Failed to add Organizational Dimension', 'error');
       }
@@ -626,7 +626,7 @@ function TeamMemberKRAs() {
         setMember({ ...member, selfDevelopments: updated });
         setNewSelfDevelopment({ areaOfConcern: '' });
         setShowAddSelfDevelopment(false);
-        showNotification('Self Development added successfully!');
+        showNotification('Self development added.');
       } else {
         showNotification(data.message || 'Failed to add Self Development', 'error');
       }
@@ -716,7 +716,7 @@ function TeamMemberKRAs() {
         setMember({ ...member, developingOthers: updated });
         setNewDevelopingOthers({ person: '' });
         setShowAddDevelopingOthers(false);
-        showNotification('Developing Others added successfully!');
+        showNotification('Developing others added.');
       } else {
         showNotification(data.message || 'Failed to add Developing Others', 'error');
       }
@@ -789,7 +789,7 @@ function TeamMemberKRAs() {
 
   // Submit handler - saves all changes and shows notification, then navigates to dashboard
   const handleSubmit = async () => {
-    showNotification('All changes saved successfully!');
+    showNotification('All changes saved.');
     // Navigate to dashboard home after a short delay to show the notification
     setTimeout(() => {
       navigate('/dashboard');

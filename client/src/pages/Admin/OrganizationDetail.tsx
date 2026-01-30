@@ -124,7 +124,7 @@ function OrganizationDetail() {
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        alert('Reviewer assigned successfully! The reviewer will receive a notification.');
+          alert('Reviewer assigned. They\'ll be notified.');
         setShowAssignForm(false);
         setSelectedReviewerId('');
         fetchOrganization();
@@ -153,7 +153,7 @@ function OrganizationDetail() {
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        alert('Reviewer removed successfully');
+        alert('Reviewer removed.');
         fetchOrganization();
       } else {
         alert(data.message || 'Failed to remove reviewer');

@@ -63,7 +63,7 @@ const SetPassword = () => {
 
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: 'Password set successfully! Redirecting to login...' });
+        setMessage({ type: 'success', text: 'Password set. Redirecting...' });
         setTimeout(() => navigate('/auth/login'), 2000);
       } else {
         setMessage({ type: 'error', text: data.message || 'Failed to set password' });

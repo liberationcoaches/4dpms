@@ -21,6 +21,7 @@ app.get('/api/health', (_req, res) => {
 
 // Routes
 import authRoutes from './routes/authRoutes';
+import inviteRoutes from './routes/inviteRoutes';
 import userRoutes from './routes/userRoutes';
 import teamRoutes from './routes/teamRoutes';
 import notificationRoutes from './routes/notificationRoutes';
@@ -34,6 +35,7 @@ import employeeRoutes from './routes/employeeRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 
 app.use('/api/auth', authRoutes);
+app.use('/api/invites', inviteRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/notifications', notificationRoutes);

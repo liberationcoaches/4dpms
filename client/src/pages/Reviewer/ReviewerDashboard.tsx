@@ -161,7 +161,7 @@ function ReviewerDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setProfileSuccessMessage('Profile updated successfully!');
+        setProfileSuccessMessage('Profile saved.');
         setUser(profile);
         setTimeout(() => setProfileSuccessMessage(''), 3000);
       } else {

@@ -95,7 +95,7 @@ function ReviewCycles() {
         setShowConfigForm(false);
         setConfig({ frequency: 'quarterly', startDate: '', ...emptyQuarterConfig });
         fetchReviewCycle();
-        alert('Review cycle configured successfully!');
+        alert('Review cycle set.');
       } else {
         alert(data.message || 'Failed to configure review cycle');
       }
@@ -169,7 +169,7 @@ function ReviewCycles() {
       if (res.ok && data.status === 'success') {
         setReviewCycle(data.data);
         setShowEditQuarters(false);
-        alert('Quarterly dates and facilitators updated.');
+        alert('Dates & facilitators updated.');
       } else {
         alert(data.message || 'Failed to update');
       }

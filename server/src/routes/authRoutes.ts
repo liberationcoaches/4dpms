@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   signUp,
+  signupWithInvite,
   verifyOTP,
   verifySingleOTPEndpoint,
   resendOTP,
@@ -13,6 +14,7 @@ import { joinTeamByCode } from '../controllers/teamController';
 const router = Router();
 
 router.post('/signup', signUp);
+router.post('/signup-with-invite', signupWithInvite);
 router.post('/login', login);
 router.post('/verify-otp', verifyOTP);
 router.post('/verify-otp/mobile', verifySingleOTPEndpoint);

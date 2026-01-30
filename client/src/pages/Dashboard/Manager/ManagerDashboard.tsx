@@ -253,10 +253,10 @@ function ManagerDashboard() {
         }
         alert(
           kraType === 'functional'
-            ? 'KRA added successfully!'
+            ? 'KRA added.'
             : kraType === 'organizational'
-              ? 'Core Value added successfully!'
-              : 'Area of Concern added successfully!'
+              ? 'Core value added.'
+              : 'Area of concern added.'
         );
       } else {
         alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
@@ -282,7 +282,7 @@ function ManagerDashboard() {
         setNewEmployee({ name: '', email: '', mobile: '', designation: '' });
         fetchEmployees();
         fetchTeamPerformance();
-        alert('Member created successfully!');
+        alert('Member added.');
       } else {
         alert(data.message || 'Failed to create employee');
       }
@@ -344,7 +344,7 @@ function ManagerDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setProfileSuccessMessage('Profile updated successfully!');
+        setProfileSuccessMessage('Profile saved.');
         setUser(profile);
         setTimeout(() => setProfileSuccessMessage(''), 3000);
       } else {
@@ -427,7 +427,7 @@ function ManagerDashboard() {
                 fetchMyKRAs();
                 setShowProofDialog({ employeeId: '', kraIndex: -1, isOpen: false });
                 setProofInput({ type: 'drive_link', value: '' });
-                alert('Proof added successfully!');
+                alert('Proof added.');
               } else {
                 alert(updateData.message || 'Failed to add proof');
               }
@@ -486,7 +486,7 @@ function ManagerDashboard() {
             fetchEmployeeKRAs(employeeId, memberIndex);
             setShowProofDialog({ employeeId: '', kraIndex: -1, isOpen: false });
             setProofInput({ type: 'drive_link', value: '' });
-            alert('Proof added successfully!');
+            alert('Proof added.');
           } else {
             alert(updateData.message || 'Failed to add proof');
           }

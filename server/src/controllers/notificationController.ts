@@ -6,6 +6,55 @@ import { Organization } from '../models/Organization';
 import mongoose from 'mongoose';
 
 /**
+ * Notify CSA (Client Admin) when someone new is added to the organization
+ */
+export async function sendNewMemberNotificationToCSA(
+  organizationId: mongoose.Types.ObjectId,
+  newMemberName: string,
+  newMemberRole: 'boss' | 'manager' | 'employee'
+): Promise<void> {
+  try {
+    const org = await Organization.findById(organizationId).select('clientAdminId').lean();
+    if (!org?.clientAdminId) return;
+
+    const roleLabel = newMemberRole === 'boss' ? 'Admin' : newMemberRole === 'manager' ? 'Supervisor' : 'Member';
+    const notification = new Notification({
+      userId: org.clientAdminId,
+      type: 'info',
+      title: 'New member added',
+      message: `${newMemberName} was added as ${roleLabel}.`,
+      isRead: false,
+      metadata: { type: 'new_member', role: newMemberRole, memberName: newMemberName },
+    });
+    await notification.save();
+  } catch (error) {
+    console.error('Failed to send new member notification to CSA:', error);
+  }
+}
+
+/**
+ * Notify Supervisor when someone new is added to their team
+ */
+export async function sendNewMemberNotificationToSupervisor(
+  supervisorUserId: mongoose.Types.ObjectId,
+  newMemberName: string
+): Promise<void> {
+  try {
+    const notification = new Notification({
+      userId: supervisorUserId,
+      type: 'info',
+      title: 'New member on your team',
+      message: `${newMemberName} was added to your team.`,
+      isRead: false,
+      metadata: { type: 'new_team_member', memberName: newMemberName },
+    });
+    await notification.save();
+  } catch (error) {
+    console.error('Failed to send new member notification to Supervisor:', error);
+  }
+}
+
+/**
  * Send invitation notification to a newly created user
  */
 export async function sendInvitationNotification(

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { Team } from '../models/Team';
-import { sendInvitationNotification, sendKRANotification } from './notificationController';
+import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA, sendNewMemberNotificationToSupervisor } from './notificationController';
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 import { z } from 'zod';
@@ -193,6 +193,10 @@ export async function createEmployee(
 
     // Send invitation notification
     await sendInvitationNotification(employee, manager.name);
+    if (manager.organizationId) {
+      await sendNewMemberNotificationToCSA(manager.organizationId, employee.name, 'employee');
+    }
+    await sendNewMemberNotificationToSupervisor(manager._id, employee.name);
 
     res.status(201).json({
       status: 'success',

@@ -212,7 +212,7 @@ function AdminDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        setProfileSuccessMessage('Profile updated successfully!');
+        setProfileSuccessMessage('Profile saved.');
         setUser(profile);
         setTimeout(() => setProfileSuccessMessage(''), 3000);
       } else {
@@ -295,7 +295,7 @@ function AdminDashboard() {
         setNewReviewer({ name: '', email: '', mobile: '' });
         fetchReviewers();
         fetchAnalytics();
-        alert('Reviewer created successfully!');
+        alert('Reviewer added.');
       } else {
         alert(data.message || 'Failed to create reviewer');
       }
@@ -323,7 +323,7 @@ function AdminDashboard() {
         fetchClientAdmins();
         fetchOrganizations(); // Refresh organizations so the detail page shows the client admin
         fetchAnalytics();
-        alert('Client admin created successfully!');
+        alert('Client admin added.');
       } else {
         alert(data.message || 'Failed to create client admin');
       }
@@ -361,9 +361,9 @@ function AdminDashboard() {
         fetchAnalytics();
         const orgCode = data.data?.orgCode || data.data?.code;
         if (orgCode) {
-          alert(`Organization created successfully!\n\nOrganization Code: ${orgCode}\n\nShare this code with managers so they can join your organization.`);
+          alert(`Org created. Code: ${orgCode} — share with managers to join.`);
         } else {
-          alert('Organization created successfully!');
+          alert('Org created.');
         }
       } else {
         alert(data.message || 'Failed to create organization');

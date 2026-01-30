@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { z } from 'zod';
 import { generateAndSaveOTP } from '../services/authService';
+import { sendNewMemberNotificationToCSA, sendNewMemberNotificationToSupervisor } from './notificationController';
 
 const addMemberSchema = z.object({
   name: z.string().min(1).max(200),
@@ -398,6 +399,15 @@ export async function joinTeamByCode(
     }
 
     await team.save();
+
+    // Notify CSA and Supervisor when new member joins team
+    const manager = await User.findById(team.createdBy).select('organizationId').lean();
+    if (manager?.organizationId) {
+      await sendNewMemberNotificationToCSA(manager.organizationId, validated.name, 'employee');
+    }
+    if (team.createdBy) {
+      await sendNewMemberNotificationToSupervisor(team.createdBy, validated.name);
+    }
 
     // Generate OTP for mobile
     const otp = await generateAndSaveOTP(validated.mobile, 'mobile');

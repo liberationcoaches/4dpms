@@ -66,7 +66,7 @@ function MidCycleNotes() {
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        alert('Mid-cycle note added successfully!');
+        alert('Note added.');
         setNote('');
         setSelectedEmployee('');
       } else {

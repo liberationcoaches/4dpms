@@ -211,7 +211,9 @@
 
 .linkContainer {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
   margin-top: var(--spacing-md);
 }
 

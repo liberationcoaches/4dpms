@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { createUser, generateAndSaveOTP, verifyUserOTPs, verifySingleOTP } from '../services/authService';
+import { createUserFromInvite } from '../services/inviteService';
 import {
   signUpSchema,
+  signupWithInviteSchema,
   otpVerificationSchema,
   singleOTPVerificationSchema,
   resendOTPSchema,
@@ -33,6 +35,33 @@ export async function signUp(req: Request, res: Response, next: NextFunction): P
         orgCode: orgCode || undefined,
         teamCode: teamCode || undefined,
         // Remove this in production:
+        mobileOTP: process.env.NODE_ENV === 'development' ? mobileOTP : undefined,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Sign up with invite. No role selection – role from invite.
+ * POST /api/auth/signup-with-invite
+ */
+export async function signupWithInvite(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const validatedData = signupWithInviteSchema.parse(req.body);
+    const { user, teamCode } = await createUserFromInvite(validatedData);
+    const mobileOTP = await generateAndSaveOTP(user.mobile, 'mobile');
+
+    res.status(201).json({
+      status: 'success',
+      message: 'User created. OTP sent to mobile.',
+      data: {
+        userId: user._id.toString(),
+        email: user.email,
+        mobile: user.mobile,
+        role: user.role,
+        teamCode: teamCode || undefined,
         mobileOTP: process.env.NODE_ENV === 'development' ? mobileOTP : undefined,
       },
     });

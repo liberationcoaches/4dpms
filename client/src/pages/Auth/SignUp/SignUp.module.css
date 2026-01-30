@@ -251,6 +251,13 @@
   box-shadow: 0 12px 30px rgba(10, 102, 194, 0.25);
 }
 
+.linkRow {
+  text-align: center;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-14);
+  color: var(--color-main-black-60);
+}
+
 .link {
   text-align: center;
   color: var(--color-main-black-60);

@@ -177,6 +177,13 @@ function Login() {
               <button
                 type="button"
                 className={styles.linkButton}
+                onClick={() => navigate('/auth/join')}
+              >
+                Have an invite? Join here
+              </button>
+              <button
+                type="button"
+                className={styles.linkButton}
                 onClick={() => navigate('/auth/signup')}
               >
                 Don't have an account? Sign up

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
-import { sendInvitationNotification, sendKRANotification } from './notificationController';
+import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA } from './notificationController';
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 import { z } from 'zod';
@@ -158,6 +158,7 @@ export async function createBoss(
 
     // Send invitation notification
     await sendInvitationNotification(boss, clientAdmin.name);
+    await sendNewMemberNotificationToCSA(clientAdmin.organizationId, boss.name, 'boss');
 
     res.status(201).json({
       status: 'success',
@@ -338,6 +339,48 @@ export async function getOrganizationUsers(
         employees,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get teams in organization (for Invite Member dropdown). Client Admin only.
+ */
+export async function getTeamsForInvite(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    if (!clientAdminId) {
+      res.status(400).json({ status: 'error', message: 'User ID is required' });
+      return;
+    }
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin' || !clientAdmin.organizationId) {
+      res.status(403).json({ status: 'error', message: 'Access denied' });
+      return;
+    }
+    const managers = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'manager',
+    }).select('_id name');
+    const managerIds = managers.map((m) => m._id);
+    const teams = await Team.find({ createdBy: { $in: managerIds } })
+      .select('_id name code createdBy')
+      .lean();
+    const teamsWithManager = teams.map((t) => {
+      const manager = managers.find((m) => m._id.toString() === (t.createdBy as any)?.toString());
+      return {
+        _id: t._id,
+        name: t.name,
+        code: t.code,
+        managerName: manager?.name,
+      };
+    });
+    res.status(200).json({ status: 'success', data: teamsWithManager });
   } catch (error) {
     next(error);
   }

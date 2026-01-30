@@ -4,6 +4,7 @@ import {
   getBosses,
   getOrganization,
   getOrganizationUsers,
+  getTeamsForInvite,
   addBossFunctionalKRA,
   updateBossFunctionalKRA,
   deleteBossFunctionalKRA,
@@ -23,6 +24,7 @@ router.post('/bosses', createBoss);
 router.get('/bosses', getBosses);
 router.get('/organization', getOrganization);
 router.get('/users', getOrganizationUsers);
+router.get('/teams-for-invite', getTeamsForInvite);
 router.post('/bosses/:bossId/kras/functional', addBossFunctionalKRA);
 router.put('/bosses/:bossId/kras/functional/:kraIndex', updateBossFunctionalKRA);
 router.delete('/bosses/:bossId/kras/functional/:kraIndex', deleteBossFunctionalKRA);
