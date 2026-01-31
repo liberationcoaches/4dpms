@@ -1,0 +1,179 @@
+.authContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 2vw, 3rem);
+  max-width: 1200px;
+}
+
+.formCard {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: clamp(2.5rem, 2vw, 3rem);
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  position: relative;
+  z-index: 1;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto 1.5rem;
+}
+
+.logoImage {
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+
+.logoText {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.greeting {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.25rem;
+  text-align: center;
+}
+
+.subGreeting {
+  color: #555;
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.inviteInfo {
+  background: #f0f7ff;
+  border: 1px solid #c5d9f0;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.label {
+  display: block;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.inputError {
+  border-color: #d32f2f;
+}
+
+.errorText {
+  color: #d32f2f;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.submitButton {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.submitButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.linkToSignup {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.linkToSignup a {
+  color: #2196f3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.linkToSignup a:hover {
+  text-decoration: underline;
+}
+
+.accentOne,
+.accentTwo {
+  position: absolute;
+  filter: blur(40px);
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.accentOne {
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(33, 150, 243, 0.28), transparent 60%);
+  top: 10%;
+  left: 10%;
+}
+
+.accentTwo {
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(126, 87, 194, 0.28), transparent 60%);
+  bottom: 10%;
+  right: 10%;
+}

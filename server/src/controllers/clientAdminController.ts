@@ -319,17 +319,17 @@ export async function getOrganizationUsers(
     const bosses = await User.find({
       organizationId: clientAdmin.organizationId,
       role: 'boss',
-    }).select('name email mobile role createdAt');
+    }).select('name email mobile role createdAt isActive isMobileVerified');
 
     const managers = await User.find({
       organizationId: clientAdmin.organizationId,
       role: 'manager',
-    }).select('name email mobile role createdAt');
+    }).select('name email mobile role createdAt isActive isMobileVerified');
 
     const employees = await User.find({
       organizationId: clientAdmin.organizationId,
       role: 'employee',
-    }).select('name email mobile role createdAt');
+    }).select('name email mobile role createdAt isActive isMobileVerified');
 
     res.status(200).json({
       status: 'success',
@@ -381,6 +381,92 @@ export async function getTeamsForInvite(
       };
     });
     res.status(200).json({ status: 'success', data: teamsWithManager });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Bulk upload users from CSV. CSV format: name,email,mobile (header row optional)
+ * Creates Admins (bosses) in the organization. Client Admin only.
+ */
+export async function bulkUploadUsers(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+    const { csv } = req.body as { csv?: string };
+
+    if (!clientAdminId) {
+      res.status(400).json({ status: 'error', message: 'User ID is required' });
+      return;
+    }
+    if (!csv || typeof csv !== 'string') {
+      res.status(400).json({ status: 'error', message: 'CSV content is required' });
+      return;
+    }
+
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin' || !clientAdmin.organizationId) {
+      res.status(403).json({ status: 'error', message: 'Access denied' });
+      return;
+    }
+
+    const lines = csv.trim().split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length === 0) {
+      res.status(400).json({ status: 'error', message: 'CSV is empty' });
+      return;
+    }
+
+    const rows: { name: string; email: string; mobile: string }[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const parts = lines[i].split(',').map((p) => p.trim());
+      if (parts.length < 3) continue;
+      const [name, email, mobile] = parts;
+      if (!name || !email || !mobile) continue;
+      if (i === 0 && (name.toLowerCase() === 'name' || email.toLowerCase() === 'email')) continue;
+      const cleanMobile = mobile.replace(/\D/g, '');
+      if (cleanMobile.length !== 10) continue;
+      rows.push({ name, email: email.toLowerCase(), mobile: cleanMobile });
+    }
+
+    let created = 0;
+    const org = await Organization.findById(clientAdmin.organizationId);
+    if (!org) {
+      res.status(400).json({ status: 'error', message: 'Organization not found' });
+      return;
+    }
+
+    for (const row of rows) {
+      const existing = await User.findOne({ $or: [{ email: row.email }, { mobile: row.mobile }] });
+      if (existing) continue;
+
+      const boss = new User({
+        name: row.name,
+        email: row.email,
+        mobile: row.mobile,
+        role: 'boss',
+        hierarchyLevel: 1,
+        organizationId: clientAdmin.organizationId,
+        isMobileVerified: false,
+        isActive: true,
+      });
+      await boss.save();
+      if (!org.bossId) {
+        org.bossId = boss._id;
+        await org.save();
+      }
+      await sendNewMemberNotificationToCSA(clientAdmin.organizationId, boss.name, 'boss');
+      created++;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `${created} user(s) added.`,
+      data: { created, total: rows.length },
+    });
   } catch (error) {
     next(error);
   }

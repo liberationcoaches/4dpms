@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ClientAdminDashboard.module.css';
@@ -101,6 +101,30 @@ function ClientAdminDashboard() {
   const [teamsForInvite, setTeamsForInvite] = useState<{ _id: string; name: string; code: string; managerName?: string }[]>([]);
   const [createdInvite, setCreatedInvite] = useState<{ link: string; code: string } | null>(null);
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+  const [rolesFilterTab, setRolesFilterTab] = useState<'all' | 'boss' | 'manager' | 'employee'>('all');
+  const [rolesSearchQuery, setRolesSearchQuery] = useState('');
+  const [rolesSortBy, setRolesSortBy] = useState<'date' | 'name'>('date');
+  const [addUserDropdownOpen, setAddUserDropdownOpen] = useState(false);
+  const [inviteDropdownOpen, setInviteDropdownOpen] = useState(false);
+  const [showAddManualModal, setShowAddManualModal] = useState(false);
+  const [showAddCSVModal, setShowAddCSVModal] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false);
+  const addUserDropdownRef = useRef<HTMLDivElement>(null);
+  const inviteDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addUserDropdownRef.current && !addUserDropdownRef.current.contains(e.target as Node)) {
+        setAddUserDropdownOpen(false);
+      }
+      if (inviteDropdownRef.current && !inviteDropdownRef.current.contains(e.target as Node)) {
+        setInviteDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -277,6 +301,38 @@ function ClientAdminDashboard() {
     setShowInviteModal(true);
   };
 
+  const handleCSVUpload = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!csvFile) {
+      alert('Select a CSV file.');
+      return;
+    }
+    setIsUploadingCSV(true);
+    try {
+      const csvText = await csvFile.text();
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/client-admin/users/bulk-upload?userId=${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: csvText }),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setShowAddCSVModal(false);
+        setCsvFile(null);
+        fetchBosses();
+        fetchOrganizationUsers();
+        alert(data.message || 'Users added.');
+      } else {
+        alert(data.message || 'Upload failed');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setIsUploadingCSV(false);
+    }
+  };
+
   const handleCreateBoss = async (e: FormEvent) => {
     e.preventDefault();
     try {
@@ -293,6 +349,7 @@ function ClientAdminDashboard() {
       const data = await res.json();
       if (res.ok) {
         setShowCreateBossForm(false);
+        setShowAddManualModal(false);
         setNewBoss({ name: '', email: '', mobile: '' });
         fetchBosses();
         fetchOrganizationUsers();
@@ -531,6 +588,32 @@ function ClientAdminDashboard() {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const rolesDisplayUsers = useMemo(() => {
+    if (!organizationUsers) return [];
+    const all = [
+      ...organizationUsers.bosses.map((u: any) => ({ ...u, roleLabel: 'Admin', roleKey: 'boss' })),
+      ...organizationUsers.managers.map((u: any) => ({ ...u, roleLabel: 'Supervisor', roleKey: 'manager' })),
+      ...organizationUsers.employees.map((u: any) => ({ ...u, roleLabel: 'Member', roleKey: 'employee' })),
+    ];
+    let filtered = all;
+    if (rolesFilterTab !== 'all') {
+      filtered = all.filter((u) => u.roleKey === rolesFilterTab);
+    }
+    if (rolesSearchQuery.trim()) {
+      const q = rolesSearchQuery.toLowerCase();
+      filtered = filtered.filter((u) =>
+        u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.mobile?.includes(q)
+      );
+    }
+    const sorted = [...filtered].sort((a, b) => {
+      if (rolesSortBy === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+    return sorted;
+  }, [organizationUsers, rolesFilterTab, rolesSearchQuery, rolesSortBy]);
 
   const handleWeightChange = (dimension: keyof typeof dimensionWeights, value: number) => {
     const numValue = Math.round(Math.max(0, Math.min(100, value)));
@@ -1894,62 +1977,148 @@ function ClientAdminDashboard() {
 
           {activeTab === 'roles' && (
             <div className={styles.tabContent}>
-              <h1>Roles & Invites</h1>
-              <p className={styles.weightsDescription} style={{ marginBottom: '1.5rem' }}>
-                Invite Supervisors or Members with a link or code. They sign up without choosing a role.
-              </p>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+              <h1 className={baseStyles.pageTitle} style={{ marginBottom: '1rem' }}>Roles & Permissions</h1>
+
+              <div className={styles.rolesFilterTabs}>
                 <button
                   type="button"
-                  className={baseStyles.submitButton}
-                  onClick={() => openInviteModal('manager')}
+                  className={`${styles.rolesFilterTab} ${rolesFilterTab === 'all' ? styles.rolesFilterTabActive : ''}`}
+                  onClick={() => setRolesFilterTab('all')}
                 >
-                  Invite Supervisor
+                  All users
                 </button>
                 <button
                   type="button"
-                  className={baseStyles.submitButton}
-                  onClick={() => openInviteModal('employee')}
+                  className={`${styles.rolesFilterTab} ${rolesFilterTab === 'boss' ? styles.rolesFilterTabActive : ''}`}
+                  onClick={() => setRolesFilterTab('boss')}
                 >
-                  Invite Member
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.rolesFilterTab} ${rolesFilterTab === 'manager' ? styles.rolesFilterTabActive : ''}`}
+                  onClick={() => setRolesFilterTab('manager')}
+                >
+                  Supervisor
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.rolesFilterTab} ${rolesFilterTab === 'employee' ? styles.rolesFilterTabActive : ''}`}
+                  onClick={() => setRolesFilterTab('employee')}
+                >
+                  Member
                 </button>
               </div>
-              {organizationUsers && (
-                <div className={styles.usersSection}>
-                  <div className={styles.userCategory}>
-                    <h2>Admins ({organizationUsers.bosses.length})</h2>
-                    <div className={styles.userList}>
-                      {organizationUsers.bosses.map((boss) => (
-                        <div key={boss._id} className={styles.userCard}>
-                          <h3>{boss.name}</h3>
-                          <p>{boss.email}</p>
-                        </div>
-                      ))}
-                    </div>
+
+              <div className={styles.rolesToolbar}>
+                <input
+                  type="text"
+                  className={styles.rolesSearch}
+                  placeholder="Search users"
+                  value={rolesSearchQuery}
+                  onChange={(e) => setRolesSearchQuery(e.target.value)}
+                />
+                <select
+                  className={styles.rolesSort}
+                  value={rolesSortBy}
+                  onChange={(e) => setRolesSortBy(e.target.value as 'date' | 'name')}
+                >
+                  <option value="date">Sort by date</option>
+                  <option value="name">Sort by name</option>
+                </select>
+                <div className={styles.rolesActions}>
+                  <div className={styles.rolesAddDropdown} ref={inviteDropdownRef}>
+                    <button type="button" className={styles.rolesInviteBtn} onClick={() => setInviteDropdownOpen(!inviteDropdownOpen)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                      Invite new user
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    {inviteDropdownOpen && (
+                      <div className={styles.rolesAddMenu}>
+                        <button type="button" className={styles.rolesAddMenuItem} onClick={() => { setInviteDropdownOpen(false); openInviteModal('manager'); }}>Invite Supervisor</button>
+                        <button type="button" className={styles.rolesAddMenuItem} onClick={() => { setInviteDropdownOpen(false); openInviteModal('employee'); }}>Invite Member</button>
+                      </div>
+                    )}
                   </div>
-                  <div className={styles.userCategory}>
-                    <h2>Supervisors ({organizationUsers.managers.length})</h2>
-                    <div className={styles.userList}>
-                      {organizationUsers.managers.map((manager) => (
-                        <div key={manager._id} className={styles.userCard}>
-                          <h3>{manager.name}</h3>
-                          <p>{manager.email}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className={styles.userCategory}>
-                    <h2>Members ({organizationUsers.employees.length})</h2>
-                    <div className={styles.userList}>
-                      {organizationUsers.employees.map((employee) => (
-                        <div key={employee._id} className={styles.userCard}>
-                          <h3>{employee.name}</h3>
-                          <p>{employee.email}</p>
-                        </div>
-                      ))}
-                    </div>
+                  <div className={styles.rolesAddDropdown} ref={addUserDropdownRef}>
+                    <button
+                      type="button"
+                      className={styles.rolesAddBtn}
+                      onClick={() => setAddUserDropdownOpen(!addUserDropdownOpen)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                      Add user
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    {addUserDropdownOpen && (
+                      <div className={styles.rolesAddMenu}>
+                        <button type="button" className={styles.rolesAddMenuItem} onClick={() => { setAddUserDropdownOpen(false); setShowAddManualModal(true); }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          Add manually
+                        </button>
+                        <button type="button" className={styles.rolesAddMenuItem} onClick={() => { setAddUserDropdownOpen(false); setShowAddCSVModal(true); }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                          Upload CSV (bulk)
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table className={styles.rolesTable}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 48 }}><input type="checkbox" aria-label="Select all" /></th>
+                      <th>Name</th>
+                      <th>Status</th>
+                      <th>Permissions</th>
+                      <th>Date added</th>
+                      <th></th>
+                      <th style={{ width: 40 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rolesDisplayUsers.map((u: any) => {
+                      const isNew = u.createdAt && (Date.now() - new Date(u.createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
+                      const status = !u.isMobileVerified ? 'Pending' : u.isActive !== false ? 'Active' : 'Inactive';
+                      const statusClass = status === 'Active' ? styles.rolesStatusActive : status === 'Pending' ? styles.rolesStatusPending : styles.rolesStatusInactive;
+                      const dateStr = u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+                      return (
+                        <tr key={u._id}>
+                          <td><input type="checkbox" aria-label={`Select ${u.name}`} /></td>
+                          <td>
+                            <div className={styles.rolesUserCell}>
+                              <div className={styles.rolesAvatar}>{getInitials(u.name || '')}</div>
+                              <div className={styles.rolesUserInfo}>
+                                <div className={styles.rolesUserName}>
+                                  {u.name || '-'}
+                                  {isNew && <span className={styles.rolesNewBadge}>New</span>}
+                                </div>
+                                <span className={styles.rolesUserEmail}>{u.email || '-'}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td><span className={`${styles.rolesStatusBadge} ${statusClass}`}>{status}</span></td>
+                          <td className={styles.rolesPermission}>{u.roleLabel}</td>
+                          <td style={{ fontSize: '0.9rem', color: 'var(--color-main-grey-60)' }}>{dateStr}</td>
+                          <td><a href="#" className={styles.rolesViewProfile} onClick={(e) => { e.preventDefault(); }}>View profile</a></td>
+                          <td>
+                            <button type="button" className={styles.rolesKebab} aria-label="More options">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {rolesDisplayUsers.length === 0 && (
+                <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-main-grey-60)' }}>
+                  No users found. Invite or add users to get started.
+                </p>
               )}
             </div>
           )}
@@ -2253,6 +2422,68 @@ function ClientAdminDashboard() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Manually Modal */}
+      {showAddManualModal && (
+        <div className={styles.modalOverlay} onClick={() => { setShowAddManualModal(false); setNewBoss({ name: '', email: '', mobile: '' }); }}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className={styles.modalHeader}>
+              <h2>Add Admin manually</h2>
+              <button className={styles.closeButton} onClick={() => { setShowAddManualModal(false); setNewBoss({ name: '', email: '', mobile: '' }); }} aria-label="Close">×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--color-main-grey-70)' }}>
+                Add a new Administrator to your organization.
+              </p>
+              <form onSubmit={handleCreateBoss}>
+                <div className={baseStyles.formGroup} style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="addBossName">Name *</label>
+                  <input id="addBossName" type="text" className={baseStyles.input} value={newBoss.name} onChange={(e) => setNewBoss((p) => ({ ...p, name: e.target.value }))} required />
+                </div>
+                <div className={baseStyles.formGroup} style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="addBossEmail">Email *</label>
+                  <input id="addBossEmail" type="email" className={baseStyles.input} value={newBoss.email} onChange={(e) => setNewBoss((p) => ({ ...p, email: e.target.value }))} required />
+                </div>
+                <div className={baseStyles.formGroup} style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="addBossMobile">Mobile *</label>
+                  <input id="addBossMobile" type="tel" className={baseStyles.input} value={newBoss.mobile} onChange={(e) => setNewBoss((p) => ({ ...p, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))} maxLength={10} placeholder="10 digits" required />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                  <button type="submit" className={baseStyles.submitButton}>Add Admin</button>
+                  <button type="button" onClick={() => { setShowAddManualModal(false); setNewBoss({ name: '', email: '', mobile: '' }); }} style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd', padding: '0.5rem 1rem', borderRadius: '4px' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User CSV Modal */}
+      {showAddCSVModal && (
+        <div className={styles.modalOverlay} onClick={() => { setShowAddCSVModal(false); setCsvFile(null); }}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className={styles.modalHeader}>
+              <h2>Upload CSV (bulk add)</h2>
+              <button className={styles.closeButton} onClick={() => { setShowAddCSVModal(false); setCsvFile(null); }} aria-label="Close">×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--color-main-grey-70)' }}>
+                Upload a CSV file with columns: name, email, mobile. Add Admins in bulk.
+              </p>
+              <form onSubmit={handleCSVUpload}>
+                <div className={baseStyles.formGroup} style={{ marginBottom: '1rem' }}>
+                  <label>CSV file</label>
+                  <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                  <button type="submit" className={baseStyles.submitButton} disabled={!csvFile || isUploadingCSV}>{isUploadingCSV ? 'Uploading...' : 'Upload'}</button>
+                  <button type="button" onClick={() => { setShowAddCSVModal(false); setCsvFile(null); }} style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd', padding: '0.5rem 1rem', borderRadius: '4px' }}>Cancel</button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
