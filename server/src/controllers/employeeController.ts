@@ -1,10 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
+import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import { ReviewCycle } from '../models/ReviewCycle';
+import {
+  calculateMemberScores,
+  calculateMemberScoresByPeriod,
+  DEFAULT_DIMENSION_WEIGHTS,
+} from '../utils/calculations';
 
 /**
  * Get employee performance data
+ * Uses proper dimension weights from organization for score calculation
  */
 export async function getEmployeePerformance(
   req: Request,
@@ -32,6 +39,15 @@ export async function getEmployeePerformance(
       return;
     }
 
+    // Get organization dimension weights
+    let dimensionWeights = DEFAULT_DIMENSION_WEIGHTS;
+    if (employee.organizationId) {
+      const organization = await Organization.findById(employee.organizationId);
+      if (organization?.dimensionWeights) {
+        dimensionWeights = organization.dimensionWeights;
+      }
+    }
+
     // Get team member details
     const team = await Team.findOne({
       'membersDetails.mobile': employee.mobile,
@@ -50,64 +66,69 @@ export async function getEmployeePerformance(
       });
     }
 
-    // Calculate current score from latest period
+    // Calculate scores using proper dimension weights
     let currentScore = 0;
-    let historicalScores: Array<{ period: number; score: number; date: string }> = [];
+    let dimensionScores = {
+      functional: 0,
+      organizational: 0,
+      selfDevelopment: 0,
+      developingOthers: 0,
+    };
+    let historicalScores: Array<{ 
+      period: number; 
+      score: number; 
+      fourDIndex: number;
+      dimensions: typeof dimensionScores;
+      date: string;
+    }> = [];
 
     if (memberDetails) {
-      // Calculate average scores for each period
-      for (let period = 1; period <= 4; period++) {
-        const periodScores: number[] = [];
+      // Calculate overall average score (4D Index)
+      const overallScores = calculateMemberScores(
+        {
+          functionalKRAs: memberDetails.functionalKRAs,
+          organizationalKRAs: memberDetails.organizationalKRAs,
+          selfDevelopmentKRAs: memberDetails.selfDevelopmentKRAs,
+          developingOthersKRAs: memberDetails.developingOthersKRAs,
+        },
+        dimensionWeights,
+        'average',
+        true // Include pilot scores
+      );
 
-        // Functional KRAs
-        memberDetails.functionalKRAs?.forEach((kra) => {
-          const score = kra[`r${period}Score`] || 0;
-          const weight = kra[`r${period}Weight`] || 0;
-          if (score > 0 && weight > 0) {
-            periodScores.push((score * weight) / 100);
-          }
-        });
+      currentScore = overallScores.fourDIndex;
+      dimensionScores = {
+        functional: overallScores.functional,
+        organizational: overallScores.organizational,
+        selfDevelopment: overallScores.selfDevelopment,
+        developingOthers: overallScores.developingOthers,
+      };
 
-        // Organizational KRAs
-        memberDetails.organizationalKRAs?.forEach((kra) => {
-          const score = kra[`r${period}Score`] || 0;
-          if (score > 0) {
-            periodScores.push(score);
-          }
-        });
+      // Calculate historical scores per period
+      const periodScores = calculateMemberScoresByPeriod(
+        {
+          functionalKRAs: memberDetails.functionalKRAs,
+          organizationalKRAs: memberDetails.organizationalKRAs,
+          selfDevelopmentKRAs: memberDetails.selfDevelopmentKRAs,
+          developingOthersKRAs: memberDetails.developingOthersKRAs,
+        },
+        dimensionWeights
+      );
 
-        // Self Development KRAs
-        memberDetails.selfDevelopmentKRAs?.forEach((kra) => {
-          const score = kra[`r${period}Score`] || 0;
-          if (score > 0) {
-            periodScores.push(score);
-          }
-        });
-
-        // Developing Others KRAs
-        memberDetails.developingOthersKRAs?.forEach((kra) => {
-          const score = kra[`r${period}Score`] || 0;
-          if (score > 0) {
-            periodScores.push(score);
-          }
-        });
-
-        if (periodScores.length > 0) {
-          const avgScore = periodScores.reduce((a, b) => a + b, 0) / periodScores.length;
-          historicalScores.push({
-            period,
-            score: Math.round(avgScore * 100) / 100,
-            date: reviewCycle?.startDate 
-              ? new Date(reviewCycle.startDate).toISOString() 
-              : new Date().toISOString(),
-          });
-
-          // Current score is from the latest period with data
-          if (avgScore > 0) {
-            currentScore = Math.round(avgScore * 100) / 100;
-          }
-        }
-      }
+      historicalScores = periodScores.map(({ period, scores }) => ({
+        period,
+        score: scores.fourDIndex, // Legacy field for backward compatibility
+        fourDIndex: scores.fourDIndex,
+        dimensions: {
+          functional: scores.functional,
+          organizational: scores.organizational,
+          selfDevelopment: scores.selfDevelopment,
+          developingOthers: scores.developingOthers,
+        },
+        date: reviewCycle?.startDate 
+          ? new Date(reviewCycle.startDate).toISOString() 
+          : new Date().toISOString(),
+      }));
     }
 
     // Get next review date
@@ -121,7 +142,9 @@ export async function getEmployeePerformance(
           name: employee.name,
           email: employee.email,
         },
-        currentScore,
+        currentScore, // 4D Index (0-5 scale)
+        dimensionScores, // Individual dimension scores
+        dimensionWeights, // So employee knows how their score is weighted
         historicalScores,
         nextReviewDate,
         currentPeriod: reviewCycle?.currentReviewPeriod || 1,

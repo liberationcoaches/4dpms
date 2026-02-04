@@ -5,6 +5,7 @@ import { Team } from '../models/Team';
 import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA } from './notificationController';
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
+import { calculateMemberScores, DEFAULT_DIMENSION_WEIGHTS } from '../utils/calculations';
 import { z } from 'zod';
 
 // KPI Schema
@@ -272,6 +273,7 @@ export async function getBossOrganization(
 
 /**
  * Get boss analytics (all managers and their teams)
+ * Uses proper dimension weights from organization for score calculation
  */
 export async function getBossAnalytics(
   req: Request,
@@ -299,6 +301,15 @@ export async function getBossAnalytics(
       return;
     }
 
+    // Get organization dimension weights
+    let dimensionWeights = DEFAULT_DIMENSION_WEIGHTS;
+    if (boss.organizationId) {
+      const organization = await Organization.findById(boss.organizationId);
+      if (organization?.dimensionWeights) {
+        dimensionWeights = organization.dimensionWeights;
+      }
+    }
+
     // Get all managers
     const managers = await User.find({
       bossId: boss._id,
@@ -312,12 +323,15 @@ export async function getBossAnalytics(
       role: 'employee',
     });
 
-    // Get team data for performance metrics
-    const team = await Team.findOne({
-      members: { $in: employees.map((e) => e._id) },
+    // Get all teams that have these employees
+    const teams = await Team.find({
+      $or: [
+        { members: { $in: employees.map((e) => e._id) } },
+        { 'membersDetails.mobile': { $in: employees.map((e) => e.mobile) } },
+      ],
     });
 
-    // Calculate department-wise performance
+    // Calculate department-wise performance using proper dimension weights
     const departmentStats = await Promise.all(
       managers.map(async (manager) => {
         const deptEmployees = await User.find({
@@ -328,45 +342,36 @@ export async function getBossAnalytics(
         let deptTotalScore = 0;
         let deptScoreCount = 0;
 
-        deptEmployees.forEach((emp) => {
-          const memberDetails = team?.membersDetails.find(
-            (m) => m.mobile === emp.mobile
-          );
+        for (const emp of deptEmployees) {
+          // Find member details across all teams
+          let memberDetails = null;
+          for (const team of teams) {
+            memberDetails = team.membersDetails.find(
+              (m) => m.mobile === emp.mobile
+            );
+            if (memberDetails) break;
+          }
 
           if (memberDetails) {
-            let periodScores: number[] = [];
-            const latestPeriod = 4;
+            // Calculate 4D Index using proper dimension weights
+            const scores = calculateMemberScores(
+              {
+                functionalKRAs: memberDetails.functionalKRAs,
+                organizationalKRAs: memberDetails.organizationalKRAs,
+                selfDevelopmentKRAs: memberDetails.selfDevelopmentKRAs,
+                developingOthersKRAs: memberDetails.developingOthersKRAs,
+              },
+              dimensionWeights,
+              'average',
+              true // Include pilot
+            );
 
-            memberDetails.functionalKRAs?.forEach((kra) => {
-              const score = kra[`r${latestPeriod}Score`] || 0;
-              const weight = kra[`r${latestPeriod}Weight`] || 0;
-              if (score > 0 && weight > 0) {
-                periodScores.push((score * weight) / 100);
-              }
-            });
-
-            memberDetails.organizationalKRAs?.forEach((kra) => {
-              const score = kra[`r${latestPeriod}Score`] || 0;
-              if (score > 0) periodScores.push(score);
-            });
-
-            memberDetails.selfDevelopmentKRAs?.forEach((kra) => {
-              const score = kra[`r${latestPeriod}Score`] || 0;
-              if (score > 0) periodScores.push(score);
-            });
-
-            memberDetails.developingOthersKRAs?.forEach((kra) => {
-              const score = kra[`r${latestPeriod}Score`] || 0;
-              if (score > 0) periodScores.push(score);
-            });
-
-            if (periodScores.length > 0) {
-              const avgScore = periodScores.reduce((a, b) => a + b, 0) / periodScores.length;
-              deptTotalScore += avgScore;
+            if (scores.fourDIndex > 0) {
+              deptTotalScore += scores.fourDIndex;
               deptScoreCount++;
             }
           }
-        });
+        }
 
         const avgDeptScore = deptScoreCount > 0 
           ? Math.round((deptTotalScore / deptScoreCount) * 100) / 100 
@@ -376,15 +381,23 @@ export async function getBossAnalytics(
           managerId: manager._id.toString(),
           managerName: manager.name,
           employeeCount: deptEmployees.length,
-          averageScore: avgDeptScore,
+          averageScore: avgDeptScore, // Now this is the proper 4D Index
         };
       })
     );
 
-    // Calculate org-wide average
-    const orgTotalScore = departmentStats.reduce((sum, dept) => sum + dept.averageScore, 0);
-    const orgAverageScore = departmentStats.length > 0
-      ? Math.round((orgTotalScore / departmentStats.length) * 100) / 100
+    // Calculate org-wide average (weighted by employee count)
+    let totalWeightedScore = 0;
+    let totalEmployeesWithScores = 0;
+    departmentStats.forEach((dept) => {
+      if (dept.averageScore > 0) {
+        totalWeightedScore += dept.averageScore * dept.employeeCount;
+        totalEmployeesWithScores += dept.employeeCount;
+      }
+    });
+    
+    const orgAverageScore = totalEmployeesWithScores > 0
+      ? Math.round((totalWeightedScore / totalEmployeesWithScores) * 100) / 100
       : 0;
 
     res.status(200).json({
@@ -404,6 +417,7 @@ export async function getBossAnalytics(
         departments: managers.length,
         departmentStats,
         orgAverageScore,
+        dimensionWeights, // Include so boss can see how scores are calculated
       },
     });
   } catch (error) {

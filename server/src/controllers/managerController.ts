@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
+import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA, sendNewMemberNotificationToSupervisor } from './notificationController';
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
+import { calculateMemberScores, DEFAULT_DIMENSION_WEIGHTS } from '../utils/calculations';
 import { z } from 'zod';
 
 const kpiSchema = z.object({
@@ -262,6 +264,7 @@ export async function getEmployees(
 
 /**
  * Get team performance summary (Manager view)
+ * Uses proper dimension weights from organization for score calculation
  */
 export async function getTeamPerformance(
   req: Request,
@@ -289,6 +292,15 @@ export async function getTeamPerformance(
       return;
     }
 
+    // Get organization dimension weights
+    let dimensionWeights = DEFAULT_DIMENSION_WEIGHTS;
+    if (manager.organizationId) {
+      const organization = await Organization.findById(manager.organizationId);
+      if (organization?.dimensionWeights) {
+        dimensionWeights = organization.dimensionWeights;
+      }
+    }
+
     // Get all employees under this manager
     const employees = await User.find({
       managerId: manager._id,
@@ -300,76 +312,94 @@ export async function getTeamPerformance(
       members: { $in: employees.map((e) => e._id) },
     });
 
-    // Calculate performance metrics
-    const employeeScores: Array<{ _id: string; name: string; score: number }> = [];
+    // Calculate performance metrics using proper dimension weights
+    const employeeScores: Array<{ 
+      _id: string; 
+      name: string; 
+      score: number;  // 4D Index
+      dimensions: {
+        functional: number;
+        organizational: number;
+        selfDevelopment: number;
+        developingOthers: number;
+      };
+    }> = [];
     let totalScore = 0;
     let scoreCount = 0;
 
-    employees.forEach((emp) => {
+    for (const emp of employees) {
       const memberDetails = team?.membersDetails.find(
         (m) => m.mobile === emp.mobile
       );
 
       if (memberDetails) {
-        // Calculate average score from latest period
-        let periodScores: number[] = [];
-        const latestPeriod = 4; // Get latest period with data
+        // Calculate 4D Index using proper dimension weights
+        const scores = calculateMemberScores(
+          {
+            functionalKRAs: memberDetails.functionalKRAs,
+            organizationalKRAs: memberDetails.organizationalKRAs,
+            selfDevelopmentKRAs: memberDetails.selfDevelopmentKRAs,
+            developingOthersKRAs: memberDetails.developingOthersKRAs,
+          },
+          dimensionWeights,
+          'average',
+          true // Include pilot
+        );
 
-        memberDetails.functionalKRAs?.forEach((kra) => {
-          const score = kra[`r${latestPeriod}Score`] || 0;
-          const weight = kra[`r${latestPeriod}Weight`] || 0;
-          if (score > 0 && weight > 0) {
-            periodScores.push((score * weight) / 100);
-          }
-        });
-
-        memberDetails.organizationalKRAs?.forEach((kra) => {
-          const score = kra[`r${latestPeriod}Score`] || 0;
-          if (score > 0) periodScores.push(score);
-        });
-
-        memberDetails.selfDevelopmentKRAs?.forEach((kra) => {
-          const score = kra[`r${latestPeriod}Score`] || 0;
-          if (score > 0) periodScores.push(score);
-        });
-
-        memberDetails.developingOthersKRAs?.forEach((kra) => {
-          const score = kra[`r${latestPeriod}Score`] || 0;
-          if (score > 0) periodScores.push(score);
-        });
-
-        if (periodScores.length > 0) {
-          const avgScore = periodScores.reduce((a, b) => a + b, 0) / periodScores.length;
-          const roundedScore = Math.round(avgScore * 100) / 100;
+        if (scores.fourDIndex > 0) {
           employeeScores.push({
             _id: emp._id.toString(),
             name: emp.name,
-            score: roundedScore,
+            score: scores.fourDIndex,
+            dimensions: {
+              functional: scores.functional,
+              organizational: scores.organizational,
+              selfDevelopment: scores.selfDevelopment,
+              developingOthers: scores.developingOthers,
+            },
           });
-          totalScore += roundedScore;
+          totalScore += scores.fourDIndex;
           scoreCount++;
         }
       }
-    });
+    }
 
     const averageScore = scoreCount > 0 ? Math.round((totalScore / scoreCount) * 100) / 100 : 0;
 
-    // Sort by score
+    // Sort by score (4D Index)
     const sortedScores = [...employeeScores].sort((a, b) => b.score - a.score);
-    const topPerformers = sortedScores.slice(0, 3);
-    const needsImprovement = sortedScores.slice(-3).reverse();
+    const topPerformers = sortedScores.slice(0, 3).map(s => ({
+      _id: s._id,
+      name: s.name,
+      score: s.score,
+    }));
+    const needsImprovement = sortedScores.slice(-3).reverse().map(s => ({
+      _id: s._id,
+      name: s.name,
+      score: s.score,
+    }));
 
     res.status(200).json({
       status: 'success',
       data: {
         teamSize: employees.length,
-        employees: employees.map((emp) => ({
-          _id: emp._id,
-          name: emp.name,
-          email: emp.email,
-          mobile: emp.mobile,
-          score: employeeScores.find((s) => s._id === emp._id.toString())?.score || 0,
-        })),
+        dimensionWeights, // So manager knows how scores are weighted
+        employees: employees.map((emp) => {
+          const empScore = employeeScores.find((s) => s._id === emp._id.toString());
+          return {
+            _id: emp._id,
+            name: emp.name,
+            email: emp.email,
+            mobile: emp.mobile,
+            score: empScore?.score || 0,
+            dimensions: empScore?.dimensions || {
+              functional: 0,
+              organizational: 0,
+              selfDevelopment: 0,
+              developingOthers: 0,
+            },
+          };
+        }),
         performanceMetrics: {
           averageScore,
           topPerformers,

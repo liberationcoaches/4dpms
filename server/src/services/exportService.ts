@@ -1,5 +1,6 @@
 /**
  * Export Service - Generates Excel files for performance data
+ * Uses proper dimension weights for score calculation
  */
 
 import * as XLSX from 'xlsx';
@@ -10,7 +11,15 @@ import type PdfPrinterType from 'pdfmake/src/printer.js';
 const require = createRequire(import.meta.url);
 const PdfPrinter = require('pdfmake/src/printer') as typeof PdfPrinterType;
 import { User } from '../models/User';
-import { Team } from '../models/Team';
+import { Organization } from '../models/Organization';
+import { Team, IDimensionWeights } from '../models/Team';
+import {
+  calculateMemberScores,
+  calculateHikePercent,
+  calculateSalaryHike,
+  DEFAULT_DIMENSION_WEIGHTS,
+  DEFAULT_HIKE_SLABS,
+} from '../utils/calculations';
 
 interface DimensionScores {
   functional: number;
@@ -27,38 +36,29 @@ interface EmployeeExportData {
   r2Scores: DimensionScores;
   r3Scores: DimensionScores;
   r4Scores: DimensionScores;
+  r1FourDIndex: number;  // Weighted 4D Index for R1
+  r2FourDIndex: number;  // Weighted 4D Index for R2
+  r3FourDIndex: number;  // Weighted 4D Index for R3
+  r4FourDIndex: number;  // Weighted 4D Index for R4
   total: number;
-  average: number;
-}
-
-/**
- * Calculate dimension score for a specific review period
- */
-function calculateDimensionScoreForPeriod(
-  kras: any[],
-  period: 'r1' | 'r2' | 'r3' | 'r4'
-): number {
-  if (!kras || kras.length === 0) return 0;
-
-  const scores: number[] = [];
-  for (const kra of kras) {
-    const score = kra[`${period}Score`];
-    if (score !== undefined && score !== null && !isNaN(score) && score >= 0) {
-      scores.push(score);
-    }
-  }
-
-  if (scores.length === 0) return 0;
-  const average = scores.reduce((a, b) => a + b, 0) / scores.length;
-  return Math.round(average * 10) / 10; // Round to 1 decimal place
+  average: number;       // Average 4D Index across periods
+  grossSalary: number;
+  netSalary: number;
+  hikePercent: number;
+  hikeAmount: number;
 }
 
 /**
  * Get all users in organization with their performance data
+ * Uses proper dimension weights for 4D Index calculation
  */
 export async function getOrganizationExportData(
   organizationId: string
 ): Promise<EmployeeExportData[]> {
+  // Get organization and its dimension weights
+  const organization = await Organization.findById(organizationId);
+  const dimensionWeights: IDimensionWeights = organization?.dimensionWeights || DEFAULT_DIMENSION_WEIGHTS;
+
   // Get all users in organization
   const allUsers = await User.find({
     organizationId,
@@ -73,158 +73,101 @@ export async function getOrganizationExportData(
     $or: [
       { createdBy: { $in: userIds } },
       { members: { $in: userIds } },
+      { 'membersDetails.mobile': { $in: allUsers.map((u) => u.mobile) } },
     ],
   });
 
   // Process each user
   for (const user of allUsers) {
-    // Find team for this user - check teamId first, then createdBy, then members
+    // Find team for this user - check membersDetails by mobile first
     let userTeam;
-    if (user.teamId) {
-      userTeam = teams.find((t) => t._id.toString() === user.teamId?.toString());
+    let memberDetails;
+    
+    for (const team of teams) {
+      memberDetails = team.membersDetails.find((m: any) => m.mobile === user.mobile);
+      if (memberDetails) {
+        userTeam = team;
+        break;
+      }
     }
+    
+    // Fallback: check by teamId or membership
     if (!userTeam) {
-      userTeam = teams.find(
-        (t) =>
-          t.createdBy?.toString() === user._id.toString() ||
-          t.members.some((m) => m.toString() === user._id.toString())
-      );
+      if (user.teamId) {
+        userTeam = teams.find((t) => t._id.toString() === user.teamId?.toString());
+      }
+      if (!userTeam) {
+        userTeam = teams.find(
+          (t) =>
+            t.createdBy?.toString() === user._id.toString() ||
+            t.members.some((m) => m.toString() === user._id.toString())
+        );
+      }
+      if (userTeam) {
+        memberDetails = userTeam.membersDetails.find((m: any) => m.mobile === user.mobile);
+      }
     }
 
-    if (!userTeam) continue;
+    if (!userTeam || !memberDetails) continue;
 
-    // Find member details
-    const memberDetails = userTeam.membersDetails.find(
-      (m: any) => m.mobile === user.mobile
-    );
+    // Calculate dimension scores for each period using proper weighted calculation
+    const memberKRAs = {
+      functionalKRAs: memberDetails.functionalKRAs,
+      organizationalKRAs: memberDetails.organizationalKRAs,
+      selfDevelopmentKRAs: memberDetails.selfDevelopmentKRAs,
+      developingOthersKRAs: memberDetails.developingOthersKRAs,
+    };
 
-    if (!memberDetails) continue;
+    const r1Result = calculateMemberScores(memberKRAs, dimensionWeights, 1, true);
+    const r2Result = calculateMemberScores(memberKRAs, dimensionWeights, 2, true);
+    const r3Result = calculateMemberScores(memberKRAs, dimensionWeights, 3, true);
+    const r4Result = calculateMemberScores(memberKRAs, dimensionWeights, 4, true);
+    const avgResult = calculateMemberScores(memberKRAs, dimensionWeights, 'average', true);
 
-    // Calculate dimension scores for each period
     const r1Scores: DimensionScores = {
-      functional: calculateDimensionScoreForPeriod(
-        memberDetails.functionalKRAs || [],
-        'r1'
-      ),
-      organizational: calculateDimensionScoreForPeriod(
-        memberDetails.organizationalKRAs || [],
-        'r1'
-      ),
-      selfDevelopment: calculateDimensionScoreForPeriod(
-        memberDetails.selfDevelopmentKRAs || [],
-        'r1'
-      ),
-      developingOthers: calculateDimensionScoreForPeriod(
-        memberDetails.developingOthersKRAs || [],
-        'r1'
-      ),
+      functional: r1Result.functional,
+      organizational: r1Result.organizational,
+      selfDevelopment: r1Result.selfDevelopment,
+      developingOthers: r1Result.developingOthers,
     };
 
     const r2Scores: DimensionScores = {
-      functional: calculateDimensionScoreForPeriod(
-        memberDetails.functionalKRAs || [],
-        'r2'
-      ),
-      organizational: calculateDimensionScoreForPeriod(
-        memberDetails.organizationalKRAs || [],
-        'r2'
-      ),
-      selfDevelopment: calculateDimensionScoreForPeriod(
-        memberDetails.selfDevelopmentKRAs || [],
-        'r2'
-      ),
-      developingOthers: calculateDimensionScoreForPeriod(
-        memberDetails.developingOthersKRAs || [],
-        'r2'
-      ),
+      functional: r2Result.functional,
+      organizational: r2Result.organizational,
+      selfDevelopment: r2Result.selfDevelopment,
+      developingOthers: r2Result.developingOthers,
     };
 
     const r3Scores: DimensionScores = {
-      functional: calculateDimensionScoreForPeriod(
-        memberDetails.functionalKRAs || [],
-        'r3'
-      ),
-      organizational: calculateDimensionScoreForPeriod(
-        memberDetails.organizationalKRAs || [],
-        'r3'
-      ),
-      selfDevelopment: calculateDimensionScoreForPeriod(
-        memberDetails.selfDevelopmentKRAs || [],
-        'r3'
-      ),
-      developingOthers: calculateDimensionScoreForPeriod(
-        memberDetails.developingOthersKRAs || [],
-        'r3'
-      ),
+      functional: r3Result.functional,
+      organizational: r3Result.organizational,
+      selfDevelopment: r3Result.selfDevelopment,
+      developingOthers: r3Result.developingOthers,
     };
 
     const r4Scores: DimensionScores = {
-      functional: calculateDimensionScoreForPeriod(
-        memberDetails.functionalKRAs || [],
-        'r4'
-      ),
-      organizational: calculateDimensionScoreForPeriod(
-        memberDetails.organizationalKRAs || [],
-        'r4'
-      ),
-      selfDevelopment: calculateDimensionScoreForPeriod(
-        memberDetails.selfDevelopmentKRAs || [],
-        'r4'
-      ),
-      developingOthers: calculateDimensionScoreForPeriod(
-        memberDetails.developingOthersKRAs || [],
-        'r4'
-      ),
+      functional: r4Result.functional,
+      organizational: r4Result.organizational,
+      selfDevelopment: r4Result.selfDevelopment,
+      developingOthers: r4Result.developingOthers,
     };
 
-    // Calculate average score for each review period (average of 4 dimensions)
-    const r1Average = (r1Scores.functional + r1Scores.organizational + r1Scores.selfDevelopment + r1Scores.developingOthers) / 4;
-    const r2Average = (r2Scores.functional + r2Scores.organizational + r2Scores.selfDevelopment + r2Scores.developingOthers) / 4;
-    const r3Average = (r3Scores.functional + r3Scores.organizational + r3Scores.selfDevelopment + r3Scores.developingOthers) / 4;
-    const r4Average = (r4Scores.functional + r4Scores.organizational + r4Scores.selfDevelopment + r4Scores.developingOthers) / 4;
+    // Calculate total (sum of 4D Indexes across all periods)
+    const total = Math.round(
+      (r1Result.fourDIndex + r2Result.fourDIndex + r3Result.fourDIndex + r4Result.fourDIndex) * 10
+    ) / 10;
 
-    // Collect period averages that have data
-    const periodAverages: number[] = [];
-    if (r1Scores.functional > 0 || r1Scores.organizational > 0 || r1Scores.selfDevelopment > 0 || r1Scores.developingOthers > 0) {
-      periodAverages.push(r1Average);
-    }
-    if (r2Scores.functional > 0 || r2Scores.organizational > 0 || r2Scores.selfDevelopment > 0 || r2Scores.developingOthers > 0) {
-      periodAverages.push(r2Average);
-    }
-    if (r3Scores.functional > 0 || r3Scores.organizational > 0 || r3Scores.selfDevelopment > 0 || r3Scores.developingOthers > 0) {
-      periodAverages.push(r3Average);
-    }
-    if (r4Scores.functional > 0 || r4Scores.organizational > 0 || r4Scores.selfDevelopment > 0 || r4Scores.developingOthers > 0) {
-      periodAverages.push(r4Average);
-    }
+    // Average 4D Index across all periods
+    const average = avgResult.fourDIndex;
 
-    // Calculate total (sum of all dimension scores across all periods)
-    const total =
-      r1Scores.functional +
-      r1Scores.organizational +
-      r1Scores.selfDevelopment +
-      r1Scores.developingOthers +
-      r2Scores.functional +
-      r2Scores.organizational +
-      r2Scores.selfDevelopment +
-      r2Scores.developingOthers +
-      r3Scores.functional +
-      r3Scores.organizational +
-      r3Scores.selfDevelopment +
-      r3Scores.developingOthers +
-      r4Scores.functional +
-      r4Scores.organizational +
-      r4Scores.selfDevelopment +
-      r4Scores.developingOthers;
-
-    // Calculate average as the average of the 4 review period averages
-    const average = periodAverages.length > 0 
-      ? Math.round((periodAverages.reduce((a, b) => a + b, 0) / periodAverages.length) * 10) / 10 
-      : 0;
+    // Calculate salary hike based on 4D Index
+    // For now, use placeholder salary - in production this would come from User model
+    const grossSalary = 0; // Would come from user data
+    const hikePercent = calculateHikePercent(average, DEFAULT_HIKE_SLABS);
+    const salaryDetails = calculateSalaryHike(grossSalary, average, DEFAULT_HIKE_SLABS);
 
     // Get designation (capitalize role)
-    const designation =
-      user.role.charAt(0).toUpperCase() + user.role.slice(1);
+    const designation = user.role.charAt(0).toUpperCase() + user.role.slice(1);
 
     exportData.push({
       department: userTeam.name || '',
@@ -234,8 +177,16 @@ export async function getOrganizationExportData(
       r2Scores,
       r3Scores,
       r4Scores,
+      r1FourDIndex: r1Result.fourDIndex,
+      r2FourDIndex: r2Result.fourDIndex,
+      r3FourDIndex: r3Result.fourDIndex,
+      r4FourDIndex: r4Result.fourDIndex,
       total,
       average,
+      grossSalary,
+      netSalary: salaryDetails.newSalary,
+      hikePercent,
+      hikeAmount: salaryDetails.hikeAmount,
     });
   }
 
@@ -347,11 +298,11 @@ export function generateExcelFile(data: EmployeeExportData[]): Buffer {
       formatScore(employee.r4Scores.selfDevelopment),
       formatScore(employee.r4Scores.developingOthers),
       formatScore(employee.total),
-      formatScore(employee.average),
-      '', // Gross salary
-      '', // Net Salary
-      '', // Hike Percentage
-      '', // Hike in Amount
+      formatScore(employee.average), // 4D Index
+      employee.grossSalary > 0 ? employee.grossSalary : '', // Gross salary
+      employee.netSalary > 0 ? employee.netSalary : '', // Net Salary
+      employee.hikePercent > 0 ? `${employee.hikePercent}%` : '', // Hike Percentage
+      employee.hikeAmount > 0 ? employee.hikeAmount : '', // Hike in Amount
     ];
     worksheetData.push(row);
   }
@@ -485,11 +436,11 @@ export function generatePDFFile(data: EmployeeExportData[]): Promise<Buffer> {
           { text: formatScore(employee.r4Scores.selfDevelopment), style: 'tableCell', alignment: 'center' },
           { text: formatScore(employee.r4Scores.developingOthers), style: 'tableCell', alignment: 'center' },
           { text: formatScore(employee.total), style: 'tableCell', alignment: 'center' },
-          { text: formatScore(employee.average), style: 'tableCell', alignment: 'center' },
-          { text: '', style: 'tableCell' }, // Gross salary
-          { text: '', style: 'tableCell' }, // Net Salary
-          { text: '', style: 'tableCell' }, // Hike Percentage
-          { text: '', style: 'tableCell' }, // Hike in Amount
+          { text: formatScore(employee.average), style: 'tableCell', alignment: 'center' }, // 4D Index
+          { text: employee.grossSalary > 0 ? employee.grossSalary.toString() : '', style: 'tableCell', alignment: 'right' },
+          { text: employee.netSalary > 0 ? employee.netSalary.toString() : '', style: 'tableCell', alignment: 'right' },
+          { text: employee.hikePercent > 0 ? `${employee.hikePercent}%` : '', style: 'tableCell', alignment: 'center' },
+          { text: employee.hikeAmount > 0 ? employee.hikeAmount.toString() : '', style: 'tableCell', alignment: 'right' },
         ]);
       }
 
