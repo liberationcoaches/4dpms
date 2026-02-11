@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { Team } from '../models/Team';
+import { Feedback } from '../models/Feedback';
 import mongoose from 'mongoose';
 
 /**
@@ -85,19 +86,29 @@ export async function addMidCycleNote(
       return;
     }
 
-    // TODO: Add midCycleNotes field to Team schema or create separate Feedback model
-    // For now, we'll store in a metadata field or extend the schema
-    // This is a placeholder implementation
+    // Store the mid-cycle note in Feedback collection
+    const feedback = new Feedback({
+      employeeId: employee._id,
+      addedBy: manager._id,
+      organizationId: employee.organizationId,
+      type: 'mid_cycle_note',
+      content: note,
+      reviewPeriod: reviewPeriod || 1,
+      isPrivate: true, // Mid-cycle notes are typically supervisor-only
+    });
+
+    await feedback.save();
 
     res.status(200).json({
       status: 'success',
       message: 'Mid-cycle note added successfully',
       data: {
+        _id: feedback._id,
         employeeId: employee._id,
         managerId: manager._id,
         note,
         reviewPeriod: reviewPeriod || 1,
-        createdAt: new Date(),
+        createdAt: feedback.createdAt,
       },
     });
   } catch (error) {
@@ -162,14 +173,31 @@ export async function getEmployeeFeedback(
       return;
     }
 
-    // TODO: Fetch actual feedback/notes from database
-    // For now, return placeholder
+    // Build query based on user role
+    const query: any = { employeeId: employee._id };
+    
+    // Employees can only see non-private feedback
+    if (user.role === 'employee') {
+      query.isPrivate = false;
+    }
+
+    // Fetch feedback from database
+    const feedbackList = await Feedback.find(query)
+      .sort({ createdAt: -1 })
+      .populate('addedBy', 'name role')
+      .lean();
+
+    // Separate mid-cycle notes from general feedback
+    const midCycleNotes = feedbackList.filter(f => f.type === 'mid_cycle_note');
+    const generalFeedback = feedbackList.filter(f => f.type !== 'mid_cycle_note');
+
     res.status(200).json({
       status: 'success',
       data: {
         employeeId: employee._id,
-        feedback: [],
-        notes: [],
+        feedback: generalFeedback,
+        notes: midCycleNotes,
+        total: feedbackList.length,
       },
     });
   } catch (error) {
@@ -234,17 +262,33 @@ export async function addFeedback(
       return;
     }
 
-    // TODO: Store feedback in database
+    // Validate feedback type
+    const validTypes = ['general', 'positive', 'constructive', 'goal'];
+    const feedbackType = validTypes.includes(type) ? type : 'general';
+
+    // Store feedback in database
+    const feedback = new Feedback({
+      employeeId: employee._id,
+      addedBy: user._id,
+      organizationId: employee.organizationId,
+      type: feedbackType,
+      content: comment,
+      isPrivate: false, // General feedback is visible to employee
+    });
+
+    await feedback.save();
+
     res.status(200).json({
       status: 'success',
       message: 'Feedback added successfully',
       data: {
+        _id: feedback._id,
         employeeId: employee._id,
         comment,
-        type: type || 'general',
+        type: feedbackType,
         addedBy: user._id,
         addedByName: user.name,
-        createdAt: new Date(),
+        createdAt: feedback.createdAt,
       },
     });
   } catch (error) {

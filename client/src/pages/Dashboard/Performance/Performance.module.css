@@ -16,3 +16,152 @@
   color: var(--color-main-grey-60);
 }
 
+.scoreCard {
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  color: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.scoreLabel {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  margin-bottom: 0.5rem;
+}
+
+.scoreValue {
+  font-size: 4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.scoreSubtext {
+  font-size: 1rem;
+  opacity: 0.8;
+  margin-top: 0.5rem;
+}
+
+.dimensionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dimensionCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dimensionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.dimensionName {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.875rem;
+}
+
+.dimensionWeight {
+  font-size: 0.75rem;
+  color: #999;
+  background: #f0f0f0;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+}
+
+.dimensionScore {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2196F3;
+}
+
+.progressBar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.functional { background: #2196F3; }
+.organizational { background: #4CAF50; }
+.selfDevelopment { background: #ff9800; }
+.developingOthers { background: #9c27b0; }
+
+.historySection {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.historyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.historyItem {
+  text-align: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.historyPeriod {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.historyScore {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.noData {
+  text-align: center;
+  padding: 3rem;
+  color: #999;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.chartContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+

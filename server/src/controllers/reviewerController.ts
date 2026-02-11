@@ -3,6 +3,7 @@ import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import { ReviewCycle } from '../models/ReviewCycle';
+import { ReviewLock } from '../models/ReviewLock';
 import mongoose from 'mongoose';
 
 /**
@@ -519,16 +520,17 @@ export async function submitScores(
         const kra = member.organizationalKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
         
-        if (periodPrefix === 'r1') {
+        // Use reviewPeriod (1-4) to set the correct period fields
+        if (reviewPeriod === 1) {
           kra.r1Score = kraScore.score || 0;
           kra.r1CriticalIncident = kraScore.criticalIncident || '';
-        } else if (periodPrefix === 'r2') {
+        } else if (reviewPeriod === 2) {
           kra.r2Score = kraScore.score || 0;
           kra.r2CriticalIncident = kraScore.criticalIncident || '';
-        } else if (periodPrefix === 'r3') {
+        } else if (reviewPeriod === 3) {
           kra.r3Score = kraScore.score || 0;
           kra.r3CriticalIncident = kraScore.criticalIncident || '';
-        } else if (periodPrefix === 'r4') {
+        } else if (reviewPeriod === 4) {
           kra.r4Score = kraScore.score || 0;
           kra.r4CriticalIncident = kraScore.criticalIncident || '';
         }
@@ -552,16 +554,17 @@ export async function submitScores(
         const kra = member.selfDevelopmentKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
         
-        if (periodPrefix === 'r1') {
+        // Use reviewPeriod (1-4) to set the correct period fields
+        if (reviewPeriod === 1) {
           kra.r1Score = kraScore.score || 0;
           kra.r1Reason = kraScore.reason || '';
-        } else if (periodPrefix === 'r2') {
+        } else if (reviewPeriod === 2) {
           kra.r2Score = kraScore.score || 0;
           kra.r2Reason = kraScore.reason || '';
-        } else if (periodPrefix === 'r3') {
+        } else if (reviewPeriod === 3) {
           kra.r3Score = kraScore.score || 0;
           kra.r3Reason = kraScore.reason || '';
-        } else if (periodPrefix === 'r4') {
+        } else if (reviewPeriod === 4) {
           kra.r4Score = kraScore.score || 0;
           kra.r4Reason = kraScore.reason || '';
         }
@@ -585,16 +588,17 @@ export async function submitScores(
         const kra = member.developingOthersKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
         
-        if (periodPrefix === 'r1') {
+        // Use reviewPeriod (1-4) to set the correct period fields
+        if (reviewPeriod === 1) {
           kra.r1Score = kraScore.score || 0;
           kra.r1Reason = kraScore.reason || '';
-        } else if (periodPrefix === 'r2') {
+        } else if (reviewPeriod === 2) {
           kra.r2Score = kraScore.score || 0;
           kra.r2Reason = kraScore.reason || '';
-        } else if (periodPrefix === 'r3') {
+        } else if (reviewPeriod === 3) {
           kra.r3Score = kraScore.score || 0;
           kra.r3Reason = kraScore.reason || '';
-        } else if (periodPrefix === 'r4') {
+        } else if (reviewPeriod === 4) {
           kra.r4Score = kraScore.score || 0;
           kra.r4Reason = kraScore.reason || '';
         }
@@ -683,17 +687,99 @@ export async function lockReview(
       return;
     }
 
-    // TODO: Add locked field to Team schema or create separate ReviewLock model
-    // For now, we'll just return success with timestamp
-    const lockTimestamp = new Date();
+    // Validate review period
+    if (!reviewPeriod || ![1, 2, 3, 4].includes(reviewPeriod)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Valid review period (1-4) is required',
+      });
+      return;
+    }
+
+    // Check if already locked
+    const existingLock = await ReviewLock.findOne({
+      employeeId: employee._id,
+      reviewPeriod,
+    });
+
+    if (existingLock) {
+      res.status(400).json({
+        status: 'error',
+        message: `Review period R${reviewPeriod} is already locked for this employee`,
+        data: {
+          lockedAt: existingLock.lockedAt,
+          lockedBy: existingLock.lockedBy,
+        },
+      });
+      return;
+    }
+
+    // Lock all KRA scores for this period in the team member details
+    const member = team.membersDetails[memberIndex];
+    
+    // Lock functional KRAs
+    if (member.functionalKRAs) {
+      member.functionalKRAs.forEach((kra) => {
+        kra.isScoreLocked = true;
+        kra.scoreLockedAt = new Date();
+        kra.scoreLockedBy = new mongoose.Types.ObjectId(reviewerId);
+      });
+    }
+    
+    // Lock organizational KRAs
+    if (member.organizationalKRAs) {
+      member.organizationalKRAs.forEach((kra) => {
+        kra.isScoreLocked = true;
+        kra.scoreLockedAt = new Date();
+        kra.scoreLockedBy = new mongoose.Types.ObjectId(reviewerId);
+      });
+    }
+    
+    // Lock self development KRAs
+    if (member.selfDevelopmentKRAs) {
+      member.selfDevelopmentKRAs.forEach((kra) => {
+        kra.isScoreLocked = true;
+        kra.scoreLockedAt = new Date();
+        kra.scoreLockedBy = new mongoose.Types.ObjectId(reviewerId);
+      });
+    }
+    
+    // Lock developing others KRAs
+    if (member.developingOthersKRAs) {
+      member.developingOthersKRAs.forEach((kra) => {
+        kra.isScoreLocked = true;
+        kra.scoreLockedAt = new Date();
+        kra.scoreLockedBy = new mongoose.Types.ObjectId(reviewerId);
+      });
+    }
+
+    // Save the team with locked KRAs
+    await team.save();
+
+    // Create the review lock record
+    const reviewLock = new ReviewLock({
+      employeeId: employee._id,
+      organizationId: employee.organizationId,
+      teamId: team._id,
+      reviewPeriod,
+      lockedBy: reviewer._id,
+      lockedAt: new Date(),
+      functionalLocked: true,
+      organizationalLocked: true,
+      selfDevelopmentLocked: true,
+      developingOthersLocked: true,
+    });
+
+    await reviewLock.save();
 
     res.status(200).json({
       status: 'success',
       message: 'Review locked successfully',
       data: {
+        _id: reviewLock._id,
         employeeId: employee._id,
         reviewPeriod,
-        lockedAt: lockTimestamp,
+        lockedAt: reviewLock.lockedAt,
         lockedBy: reviewerId,
       },
     });

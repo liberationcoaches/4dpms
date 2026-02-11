@@ -753,6 +753,78 @@
   font-size: var(--font-size-12);
 }
 
+/* Lock Button Styles */
+.lockButton {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s;
+}
+
+.lockButton:hover {
+  background: #f57c00;
+}
+
+.lockButton:disabled {
+  background: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.lockedBadge {
+  background: #4CAF50;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kraActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.deleteButton {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s;
+}
+
+.deleteButton:hover {
+  background: #d32f2f;
+}
+
+.deleteButton:disabled {
+  background: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .reviewFields {
     grid-template-columns: 1fr;
@@ -779,6 +851,16 @@
   .weightsInfo {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .kraActions {
+    flex-direction: column;
+  }
+
+  .lockButton,
+  .deleteButton {
+    width: 100%;
+    justify-content: center;
   }
 }
 

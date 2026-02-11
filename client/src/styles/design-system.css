@@ -114,6 +114,12 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Standard Gradients - Use these for consistency */
+  --gradient-primary: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  --gradient-primary-light: linear-gradient(135deg, var(--color-accent-blue-20), var(--color-accent-blue-40));
+  --gradient-success: linear-gradient(135deg, var(--color-green-60), var(--color-green-80));
+  --gradient-background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 50%, #f5faff 100%);
 }
 
 /* Font Face Declarations */

@@ -95,11 +95,37 @@ function ManagerDashboard() {
     organizational: false,
     selfDevelopment: false,
   });
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
+  const [dimensionWeights, setDimensionWeights] = useState<{
+    functional: number;
+    organizational: number;
+    selfDevelopment: number;
+    developingOthers: number;
+  } | null>(null);
   const [showAllKRAs, setShowAllKRAs] = useState<{ [key: string]: boolean }>({
     functional: false,
     organizational: false,
     selfDevelopment: false,
   });
+
+  // Edit/Delete employee state
+  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editEmployeeForm, setEditEmployeeForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    designation: '',
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showNotificationMessage = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -113,6 +139,7 @@ function ManagerDashboard() {
     fetchTeamPerformance();
     fetchNotificationCount();
     fetchMyKRAs();
+    fetchDimensionWeights();
   }, [navigate]);
 
   const fetchUserProfile = async () => {
@@ -292,6 +319,107 @@ function ManagerDashboard() {
     }
   };
 
+  // Edit employee handlers
+  const openEditEmployeeModal = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditEmployeeForm({
+      name: employee.name || '',
+      email: employee.email || '',
+      mobile: employee.mobile || '',
+      designation: employee.designation || employee.role || '',
+    });
+    setShowEditEmployeeModal(true);
+  };
+
+  const closeEditEmployeeModal = () => {
+    setShowEditEmployeeModal(false);
+    setEditingEmployee(null);
+    setEditEmployeeForm({ name: '', email: '', mobile: '', designation: '' });
+  };
+
+  const handleEditEmployeeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmployee) return;
+
+    setIsSubmittingEdit(true);
+    const userId = localStorage.getItem('userId');
+
+    try {
+      // Find employee index
+      const employeeIndex = employees.findIndex(emp => emp._id === editingEmployee._id);
+      if (employeeIndex === -1) {
+        showNotificationMessage('Employee not found', 'error');
+        return;
+      }
+
+      const response = await fetch(`/api/manager/employees/${employeeIndex}?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editEmployeeForm),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotificationMessage('Employee updated successfully');
+        closeEditEmployeeModal();
+        fetchEmployees();
+      } else {
+        showNotificationMessage(data.message || 'Failed to update employee', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      showNotificationMessage('Network error. Please try again.', 'error');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  // Delete employee handlers
+  const openDeleteConfirm = (employee: Employee) => {
+    setDeletingEmployee(employee);
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeletingEmployee(null);
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!deletingEmployee) return;
+
+    setIsSubmittingEdit(true);
+    const userId = localStorage.getItem('userId');
+
+    try {
+      // Find employee index
+      const employeeIndex = employees.findIndex(emp => emp._id === deletingEmployee._id);
+      if (employeeIndex === -1) {
+        showNotificationMessage('Employee not found', 'error');
+        return;
+      }
+
+      const response = await fetch(`/api/manager/employees/${employeeIndex}?userId=${userId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotificationMessage('Employee removed successfully');
+        closeDeleteConfirm();
+        fetchEmployees();
+        fetchTeamPerformance();
+      } else {
+        showNotificationMessage(data.message || 'Failed to remove employee', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      showNotificationMessage('Network error. Please try again.', 'error');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
   const handleProfileChange = (field: keyof UserProfile, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
     if (profileErrors[field]) {
@@ -360,6 +488,47 @@ function ManagerDashboard() {
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
+  };
+
+  const handleDownloadReport = async () => {
+    try {
+      setIsDownloadingReport(true);
+      const userId = localStorage.getItem('userId');
+      const response = await fetch(`/api/user/my-report?userId=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `My_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download report:', error);
+    } finally {
+      setIsDownloadingReport(false);
+    }
+  };
+
+  const fetchDimensionWeights = async () => {
+    try {
+      const organizationId = localStorage.getItem('organizationId');
+      const response = await fetch(`/api/team/dimension-weights?organizationId=${organizationId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data?.weights) {
+          setDimensionWeights(data.data.weights);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch dimension weights:', error);
+    }
   };
 
   const handleNotificationClick = () => {
@@ -576,6 +745,34 @@ function ManagerDashboard() {
         </div>
 
         <div className={baseStyles.headerRight}>
+          {/* Download My Report */}
+          <button
+            onClick={handleDownloadReport}
+            disabled={isDownloadingReport}
+            aria-label="Download My Report"
+            title="Download My Report as PDF"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-main-grey-40)',
+              background: 'var(--color-core-white)',
+              cursor: isDownloadingReport ? 'not-allowed' : 'pointer',
+              opacity: isDownloadingReport ? 0.6 : 1,
+              fontSize: '14px',
+              color: 'var(--color-primary-main-blue)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            {isDownloadingReport ? 'Downloading...' : 'My Report'}
+          </button>
+
           {/* Notifications */}
           <div className={baseStyles.notificationContainer}>
             <button
@@ -760,6 +957,34 @@ function ManagerDashboard() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Dimension Weights Section */}
+              {dimensionWeights && (
+                <div className={styles.dimensionWeightsSection}>
+                  <h3>Performance Dimension Weights</h3>
+                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                    Organization-defined weights for each performance dimension
+                  </p>
+                  <div className={styles.weightsGrid}>
+                    <div className={styles.weightCard}>
+                      <span className={styles.weightLabel}>Functional</span>
+                      <span className={styles.weightValue}>{dimensionWeights.functional}%</span>
+                    </div>
+                    <div className={styles.weightCard}>
+                      <span className={styles.weightLabel}>Organizational</span>
+                      <span className={styles.weightValue}>{dimensionWeights.organizational}%</span>
+                    </div>
+                    <div className={styles.weightCard}>
+                      <span className={styles.weightLabel}>Self Development</span>
+                      <span className={styles.weightValue}>{dimensionWeights.selfDevelopment}%</span>
+                    </div>
+                    <div className={styles.weightCard}>
+                      <span className={styles.weightLabel}>Developing Others</span>
+                      <span className={styles.weightValue}>{dimensionWeights.developingOthers}%</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1124,7 +1349,9 @@ function ManagerDashboard() {
                         pattern="[0-9]{10}"
                         className={baseStyles.input}
                         value={newEmployee.mobile}
-                        onChange={(e) => setNewEmployee({ ...newEmployee, mobile: e.target.value })}
+                        onChange={(e) => setNewEmployee({ ...newEmployee, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        maxLength={10}
+                        placeholder="10 digits"
                         required
                       />
                     </div>
@@ -1227,6 +1454,26 @@ function ManagerDashboard() {
                             >
                               {showKRAsView === employee._id ? 'Hide Dimensions' : 'View Dimensions'}
                             </button>
+                            <div className={styles.editDeleteActions}>
+                              <button
+                                className={styles.editButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditEmployeeModal(employee);
+                                }}
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                className={styles.deleteButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDeleteConfirm(employee);
+                                }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
                           </div>
                           {showKRAsView === employee._id && employeeKRAs[employee._id] && (
                             <div className={styles.krasView}>
@@ -1771,6 +2018,273 @@ function ManagerDashboard() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '1rem 1.5rem',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            zIndex: 1001,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            background: notification.type === 'success' ? '#4CAF50' : '#f44336',
+            color: 'white',
+          }}
+        >
+          <span style={{ fontWeight: 'bold' }}>
+            {notification.type === 'success' ? '✓' : '✕'}
+          </span>
+          <span>{notification.message}</span>
+        </div>
+      )}
+
+      {/* Edit Employee Modal */}
+      {showEditEmployeeModal && editingEmployee && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={closeEditEmployeeModal}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '450px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.5rem',
+                borderBottom: '1px solid #eee',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.125rem', color: '#333' }}>Edit Team Member</h3>
+              <button
+                onClick={closeEditEmployeeModal}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#999',
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleEditEmployeeSubmit} style={{ padding: '1.5rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={editEmployeeForm.name}
+                  onChange={(e) => setEditEmployeeForm({ ...editEmployeeForm, name: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={editEmployeeForm.email}
+                  onChange={(e) => setEditEmployeeForm({ ...editEmployeeForm, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Mobile
+                </label>
+                <input
+                  type="tel"
+                  value={editEmployeeForm.mobile}
+                  onChange={(e) => setEditEmployeeForm({ ...editEmployeeForm, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  maxLength={10}
+                  placeholder="10 digits"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Designation/Role
+                </label>
+                <input
+                  type="text"
+                  value={editEmployeeForm.designation}
+                  onChange={(e) => setEditEmployeeForm({ ...editEmployeeForm, designation: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={closeEditEmployeeModal}
+                  disabled={isSubmittingEdit}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '1px solid #ddd',
+                    background: 'white',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: '#666',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && deletingEmployee && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={closeDeleteConfirm}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              width: '100%',
+              maxWidth: '400px',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: '#333' }}>Remove Team Member?</h3>
+            <p style={{ margin: '0 0 1.5rem 0', color: '#666', fontSize: '0.875rem', lineHeight: 1.5 }}>
+              Are you sure you want to remove <strong>{deletingEmployee.name}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                onClick={closeDeleteConfirm}
+                disabled={isSubmittingEdit}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '1px solid #ddd',
+                  background: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#666',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEmployee}
+                disabled={isSubmittingEdit}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: '#f44336',
+                  color: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                }}
+              >
+                {isSubmittingEdit ? 'Removing...' : 'Remove Member'}
+              </button>
+            </div>
           </div>
         </div>
       )}

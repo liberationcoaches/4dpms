@@ -74,7 +74,7 @@
 .accentTwo {
   width: 320px;
   height: 320px;
-  background: radial-gradient(circle, rgba(126, 87, 194, 0.28), transparent 60%);
+  background: radial-gradient(circle, rgba(25, 118, 210, 0.28), transparent 60%);
   bottom: 6%;
   right: 12%;
 }
@@ -186,7 +186,7 @@
 .primaryButton {
   width: 100%;
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
   color: var(--color-core-white);
   border: none;
   border-radius: var(--radius-md);

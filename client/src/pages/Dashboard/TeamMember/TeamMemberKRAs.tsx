@@ -796,6 +796,151 @@ function TeamMemberKRAs() {
     }, 1000);
   };
 
+  // Lock handlers for each dimension
+  const handleLockKRA = async (kraIndex: number) => {
+    if (!memberId) return;
+
+    const parts = memberId.split('-');
+    let memberIndex = parseInt(parts[parts.length - 1]);
+    if (isNaN(memberIndex) && parts.length > 1) {
+      memberIndex = parseInt(parts[parts.length - 2]);
+    }
+    if (isNaN(memberIndex)) return;
+
+    const userId = localStorage.getItem('userId') || '';
+    const reviewPeriod = reviewCycle?.currentReviewPeriod || 1;
+
+    try {
+      const response = await fetch(
+        `/api/team/members/${memberIndex}/kras/${kraIndex}/lock?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewPeriod }),
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotification('KRA score locked successfully');
+        await fetchMemberData();
+      } else {
+        showNotification(data.message || 'Failed to lock KRA', 'error');
+      }
+    } catch (error) {
+      console.error('Error locking KRA:', error);
+      showNotification('Network error. Please try again.', 'error');
+    }
+  };
+
+  const handleLockOrganizational = async (dimensionIndex: number) => {
+    if (!memberId) return;
+
+    const parts = memberId.split('-');
+    let memberIndex = parseInt(parts[parts.length - 1]);
+    if (isNaN(memberIndex) && parts.length > 1) {
+      memberIndex = parseInt(parts[parts.length - 2]);
+    }
+    if (isNaN(memberIndex)) return;
+
+    const userId = localStorage.getItem('userId') || '';
+    const reviewPeriod = reviewCycle?.currentReviewPeriod || 1;
+
+    try {
+      const response = await fetch(
+        `/api/team/members/${memberIndex}/organizational/${dimensionIndex}/lock?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewPeriod }),
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotification('Organizational score locked successfully');
+        await fetchMemberData();
+      } else {
+        showNotification(data.message || 'Failed to lock Organizational score', 'error');
+      }
+    } catch (error) {
+      console.error('Error locking Organizational score:', error);
+      showNotification('Network error. Please try again.', 'error');
+    }
+  };
+
+  const handleLockSelfDevelopment = async (developmentIndex: number) => {
+    if (!memberId) return;
+
+    const parts = memberId.split('-');
+    let memberIndex = parseInt(parts[parts.length - 1]);
+    if (isNaN(memberIndex) && parts.length > 1) {
+      memberIndex = parseInt(parts[parts.length - 2]);
+    }
+    if (isNaN(memberIndex)) return;
+
+    const userId = localStorage.getItem('userId') || '';
+    const reviewPeriod = reviewCycle?.currentReviewPeriod || 1;
+
+    try {
+      const response = await fetch(
+        `/api/team/members/${memberIndex}/self-development/${developmentIndex}/lock?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewPeriod }),
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotification('Self Development score locked successfully');
+        await fetchMemberData();
+      } else {
+        showNotification(data.message || 'Failed to lock Self Development score', 'error');
+      }
+    } catch (error) {
+      console.error('Error locking Self Development score:', error);
+      showNotification('Network error. Please try again.', 'error');
+    }
+  };
+
+  const handleLockDevelopingOthers = async (developingIndex: number) => {
+    if (!memberId) return;
+
+    const parts = memberId.split('-');
+    let memberIndex = parseInt(parts[parts.length - 1]);
+    if (isNaN(memberIndex) && parts.length > 1) {
+      memberIndex = parseInt(parts[parts.length - 2]);
+    }
+    if (isNaN(memberIndex)) return;
+
+    const userId = localStorage.getItem('userId') || '';
+    const reviewPeriod = reviewCycle?.currentReviewPeriod || 1;
+
+    try {
+      const response = await fetch(
+        `/api/team/members/${memberIndex}/developing-others/${developingIndex}/lock?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewPeriod }),
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotification('Developing Others score locked successfully');
+        await fetchMemberData();
+      } else {
+        showNotification(data.message || 'Failed to lock Developing Others score', 'error');
+      }
+    } catch (error) {
+      console.error('Error locking Developing Others score:', error);
+      showNotification('Network error. Please try again.', 'error');
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* Notification Toast */}
@@ -1219,6 +1364,22 @@ function TeamMemberKRAs() {
                     })}
                   </div>
                 </div>
+
+                {/* Lock KRA Button */}
+                <div className={styles.kraActions}>
+                  <button
+                    className={styles.lockButton}
+                    onClick={() => {
+                      const kraIndex = member.kras?.findIndex((k) => k._id === kra._id) ?? -1;
+                      if (kraIndex !== -1) {
+                        handleLockKRA(kraIndex);
+                      }
+                    }}
+                    title={`Lock score for R${reviewCycle?.currentReviewPeriod || 1}`}
+                  >
+                    🔒 Lock R{reviewCycle?.currentReviewPeriod || 1} Score
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -1396,6 +1557,22 @@ function TeamMemberKRAs() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Lock Organizational Button */}
+                    <div className={styles.kraActions}>
+                      <button
+                        className={styles.lockButton}
+                        onClick={() => {
+                          const dimensionIndex = member.organizationalDimensions?.findIndex((d) => d._id === dimension._id) ?? -1;
+                          if (dimensionIndex !== -1) {
+                            handleLockOrganizational(dimensionIndex);
+                          }
+                        }}
+                        title={`Lock score for R${reviewCycle?.currentReviewPeriod || 1}`}
+                      >
+                        🔒 Lock R{reviewCycle?.currentReviewPeriod || 1} Score
+                      </button>
                     </div>
                   </div>
                 ))
@@ -1591,6 +1768,22 @@ function TeamMemberKRAs() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Lock Self Development Button */}
+                    <div className={styles.kraActions}>
+                      <button
+                        className={styles.lockButton}
+                        onClick={() => {
+                          const developmentIndex = member.selfDevelopments?.findIndex((d) => d._id === development._id) ?? -1;
+                          if (developmentIndex !== -1) {
+                            handleLockSelfDevelopment(developmentIndex);
+                          }
+                        }}
+                        title={`Lock score for R${reviewCycle?.currentReviewPeriod || 1}`}
+                      >
+                        🔒 Lock R{reviewCycle?.currentReviewPeriod || 1} Score
+                      </button>
                     </div>
                   </div>
                 ))
@@ -1791,6 +1984,22 @@ function TeamMemberKRAs() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Lock Developing Others Button */}
+                    <div className={styles.kraActions}>
+                      <button
+                        className={styles.lockButton}
+                        onClick={() => {
+                          const developingIndex = member.developingOthers?.findIndex((d) => d._id === developing._id) ?? -1;
+                          if (developingIndex !== -1) {
+                            handleLockDevelopingOthers(developingIndex);
+                          }
+                        }}
+                        title={`Lock score for R${reviewCycle?.currentReviewPeriod || 1}`}
+                      >
+                        🔒 Lock R{reviewCycle?.currentReviewPeriod || 1} Score
+                      </button>
                     </div>
                   </div>
                 ))

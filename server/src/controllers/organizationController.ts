@@ -46,85 +46,27 @@ export async function createOrganization(
     // Generate unique organization code
     const orgCode = await generateOrgCode();
 
-    // Create organization (bossId will be set below)
+    // Create organization
     const organization = new Organization({
       name: name.trim(),
       code: orgCode,
       type: industry,
       employeeSize: size.toString(),
-      bossId: null as any, // Will be set if bossEmail is provided or placeholder created
+      // bossId is optional now - will be assigned when a boss joins via org code or invite
     });
 
-    // If boss email is provided, find or create boss
+    // If boss email is provided and user already exists, link them
     if (bossEmail) {
-      let boss = await User.findOne({ email: bossEmail.toLowerCase().trim() });
-      if (!boss) {
-        // Generate a unique placeholder mobile number
-        // Use timestamp + random to ensure uniqueness
-        let placeholderMobile = '';
-        let exists = true;
-        while (exists) {
-          // Generate a 10-digit number: 9 + timestamp last 8 digits + random 1 digit
-          const timestamp = Date.now().toString().slice(-8);
-          const random = Math.floor(Math.random() * 10);
-          placeholderMobile = `9${timestamp}${random}`;
-          const existingUser = await User.findOne({ mobile: placeholderMobile });
-          exists = !!existingUser;
-        }
-
-        // Create a placeholder boss user
-        boss = new User({
-          name: 'Pending Boss Name', // Will be updated during first login/set-password
-          email: bossEmail.toLowerCase().trim(),
-          mobile: placeholderMobile, // Unique placeholder, will be updated when boss signs up
-          role: 'boss',
-          hierarchyLevel: 1,
-          organizationId: organization._id,
-          isMobileVerified: false,
-          isActive: false, // Inactive until password is set
-        });
-        await boss.save();
-        // Send invitation notification
-        await sendInvitationNotification(boss, 'Platform Admin');
-      } else {
-        organization.bossId = boss._id;
-        // Update boss user if they already exist
-        boss.role = 'boss';
-        boss.hierarchyLevel = 1;
-        boss.organizationId = organization._id;
-        await boss.save();
+      const existingBoss = await User.findOne({ email: bossEmail.toLowerCase().trim() });
+      if (existingBoss) {
+        // Link existing user as boss
+        existingBoss.role = 'boss';
+        existingBoss.hierarchyLevel = 1;
+        existingBoss.organizationId = organization._id;
+        await existingBoss.save();
+        organization.bossId = existingBoss._id;
       }
-      organization.bossId = boss._id;
-    }
-
-    // If no boss email provided, we still need to set a placeholder bossId
-    // But the model requires bossId, so we need to handle this
-    // For now, if no bossEmail, we'll create a temporary placeholder
-    if (!bossEmail) {
-      // Create a temporary placeholder boss user if none provided
-      let placeholderMobile = '';
-      let exists = true;
-      while (exists) {
-        const timestamp = Date.now().toString().slice(-8);
-        const random = Math.floor(Math.random() * 10);
-        placeholderMobile = `9${timestamp}${random}`;
-        const existingUser = await User.findOne({ mobile: placeholderMobile });
-        exists = !!existingUser;
-      }
-      
-      const placeholderBoss = new User({
-        name: 'Pending Boss Assignment',
-        email: `placeholder-${Date.now()}@temp.org`,
-        mobile: placeholderMobile,
-        role: 'boss',
-        hierarchyLevel: 1,
-        organizationId: organization._id,
-        isEmailVerified: false,
-        isMobileVerified: false,
-        isActive: false,
-      });
-      await placeholderBoss.save();
-      organization.bossId = placeholderBoss._id;
+      // If user doesn't exist, don't create a placeholder - they can join via org code
     }
 
     await organization.save();
@@ -443,7 +385,7 @@ export async function createClientAdmin(
       hierarchyLevel: 0.5,
       organizationId: organization._id,
       isMobileVerified: false,
-      isActive: true,
+      isActive: false, // Users start as Pending, activated on first login
     });
 
     await clientAdmin.save();
@@ -748,6 +690,94 @@ export async function updateOrganizationDimensionWeights(
       });
       return;
     }
+    next(error);
+  }
+}
+
+/**
+ * Resolve an organization code
+ * GET /api/organizations/resolve?code=XXX
+ * Returns organization info if code is valid
+ */
+export async function resolveOrgCode(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { code } = req.query;
+
+    if (!code || typeof code !== 'string') {
+      res.status(400).json({
+        status: 'error',
+        message: 'Organization code is required',
+      });
+      return;
+    }
+
+    const organization = await Organization.findOne({ code: code.toUpperCase() });
+    if (!organization) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Organization not found with this code',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        type: 'org_code',
+        organizationId: organization._id,
+        organizationName: organization.name,
+        code: organization.code,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete an organization (Platform Admin only)
+ * DELETE /api/organizations/:id
+ */
+export async function deleteOrganization(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid organization ID',
+      });
+      return;
+    }
+
+    const organization = await Organization.findById(id);
+    if (!organization) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Organization not found',
+      });
+      return;
+    }
+
+    // Delete all users associated with this organization
+    await User.deleteMany({ organizationId: id });
+
+    // Delete the organization
+    await Organization.findByIdAndDelete(id);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Organization and all associated users deleted successfully',
+    });
+  } catch (error) {
     next(error);
   }
 }

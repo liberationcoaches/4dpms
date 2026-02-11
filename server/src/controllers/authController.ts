@@ -71,6 +71,100 @@ export async function signupWithInvite(req: Request, res: Response, next: NextFu
 }
 
 /**
+ * Sign up with organization code. User selects their role.
+ * POST /api/auth/signup-with-org
+ */
+export async function signupWithOrg(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { name, email, mobile, role, organizationId, designation } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !mobile || !role || !organizationId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Name, email, mobile, role, and organizationId are required',
+      });
+      return;
+    }
+
+    // Validate role
+    const validRoles = ['boss', 'manager', 'employee'];
+    if (!validRoles.includes(role)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid role. Must be boss, manager, or employee',
+      });
+      return;
+    }
+
+    // Check if organization exists
+    const { Organization } = await import('../models/Organization');
+    const organization = await Organization.findById(organizationId);
+    if (!organization) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Organization not found',
+      });
+      return;
+    }
+
+    // Check if email already exists
+    const { User } = await import('../models/User');
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedMobile = mobile.trim().replace(/\D/g, '');
+
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) {
+      res.status(400).json({
+        status: 'error',
+        message: 'A user with this email already exists',
+      });
+      return;
+    }
+
+    const existingMobile = await User.findOne({ mobile: normalizedMobile });
+    if (existingMobile) {
+      res.status(400).json({
+        status: 'error',
+        message: 'A user with this mobile number already exists',
+      });
+      return;
+    }
+
+    // Create user
+    const user = new User({
+      name: name.trim(),
+      email: normalizedEmail,
+      mobile: normalizedMobile,
+      role,
+      designation: designation?.trim() || undefined,
+      organizationId: organization._id,
+      isActive: false,
+      isMobileVerified: false,
+    });
+
+    await user.save();
+
+    // Generate OTP for mobile
+    const mobileOTP = await generateAndSaveOTP(normalizedMobile, 'mobile');
+
+    res.status(201).json({
+      status: 'success',
+      message: 'User created. OTP sent to mobile.',
+      data: {
+        userId: user._id.toString(),
+        email: user.email,
+        mobile: user.mobile,
+        role: user.role,
+        mobileOTP: process.env.NODE_ENV === 'development' ? mobileOTP : undefined,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Verify both OTPs and activate user
  * POST /api/auth/verify-otp
  */
@@ -251,6 +345,11 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
       if (user.role === 'platform_admin') {
         // Platform admin can login without access code
+        // Activate on first login
+        if (!user.isActive) {
+          user.isActive = true;
+          await user.save();
+        }
         res.status(200).json({
           status: 'success',
           message: 'Login successful',
@@ -328,6 +427,12 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
         });
         return;
       }
+    }
+
+    // Activate user on first successful login (Pending -> Active)
+    if (!user.isActive) {
+      user.isActive = true;
+      await user.save();
     }
 
     // Login successful

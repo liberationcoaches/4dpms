@@ -3,6 +3,7 @@ import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import { ReviewCycle } from '../models/ReviewCycle';
+import { ActionPlan } from '../models/ActionPlan';
 import {
   calculateMemberScores,
   calculateMemberScoresByPeriod,
@@ -170,7 +171,7 @@ export async function acknowledgeReview(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { actionPlan } = req.body;
+    const { actionPlan, notes } = req.body;
     const employeeId = req.query.userId as string;
 
     if (!employeeId) {
@@ -191,16 +192,56 @@ export async function acknowledgeReview(
       return;
     }
 
-    // TODO: Store action plan in database (could add to User model or create separate ActionPlan model)
-    // For now, just return success
+    // Get current review period
+    let currentPeriod = 1;
+    if (employee.organizationId) {
+      const reviewCycle = await ReviewCycle.findOne({
+        organizationId: employee.organizationId,
+        isActive: true,
+      }).select('currentReviewPeriod').lean();
+      currentPeriod = reviewCycle?.currentReviewPeriod ?? 1;
+    }
+
+    // Parse action plan items
+    let actionPlanItems: Array<{ description: string; targetDate?: Date; status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }> = [];
+    
+    if (Array.isArray(actionPlan)) {
+      // If actionPlan is an array of items
+      actionPlanItems = actionPlan.map((item: any) => ({
+        description: typeof item === 'string' ? item : (item.description || item.text || ''),
+        targetDate: item.targetDate ? new Date(item.targetDate) : undefined,
+        status: 'pending' as const,
+      })).filter(item => item.description.trim() !== '');
+    } else if (typeof actionPlan === 'string' && actionPlan.trim()) {
+      // If actionPlan is a single string, split by newlines or create single item
+      const items = actionPlan.split('\n').filter((line: string) => line.trim() !== '');
+      actionPlanItems = items.map((item: string) => ({
+        description: item.trim(),
+        status: 'pending' as const,
+      }));
+    }
+
+    // Store action plan in database
+    const savedActionPlan = new ActionPlan({
+      employeeId: employee._id,
+      organizationId: employee.organizationId,
+      reviewPeriod: currentPeriod,
+      items: actionPlanItems,
+      acknowledgedAt: new Date(),
+      notes: notes || undefined,
+    });
+
+    await savedActionPlan.save();
 
     res.status(200).json({
       status: 'success',
       message: 'Review acknowledged and action plan saved',
       data: {
+        _id: savedActionPlan._id,
         employeeId: employee._id,
-        actionPlan,
-        acknowledgedAt: new Date(),
+        reviewPeriod: currentPeriod,
+        actionPlan: savedActionPlan.items,
+        acknowledgedAt: savedActionPlan.acknowledgedAt,
       },
     });
   } catch (error) {

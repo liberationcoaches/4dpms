@@ -33,6 +33,7 @@ import reviewCycleRoutes from './routes/reviewCycleRoutes';
 import reviewerRoutes from './routes/reviewerRoutes';
 import employeeRoutes from './routes/employeeRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
+import enquiryRoutes from './routes/enquiryRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
@@ -47,6 +48,7 @@ app.use('/api/review-cycles', reviewCycleRoutes);
 app.use('/api/reviewer', reviewerRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/enquiry', enquiryRoutes);
 
 // Error handler
 app.use(errorHandler);

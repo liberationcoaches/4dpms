@@ -556,8 +556,8 @@ function Scoring() {
                             −
                           </button>
                           <div className={styles.weightDisplay}>
-                            <span className={styles.weightValue}>{weight.toString().padStart(3, '0')}</span>
-                            <span className={styles.weightUnit}> %</span>
+                            <span className={styles.weightValue}>{weight}</span>
+                            <span className={styles.weightUnit}>%</span>
                           </div>
                           <button
                             type="button"

@@ -49,6 +49,169 @@ interface EmployeeExportData {
 }
 
 /**
+ * Get personal performance data for a single user
+ * Used for "Download My Report" feature
+ */
+export async function getPersonalExportData(
+  userId: string
+): Promise<EmployeeExportData | null> {
+  const user = await User.findById(userId);
+  if (!user) return null;
+
+  // Get organization and its dimension weights
+  const organization = user.organizationId 
+    ? await Organization.findById(user.organizationId) 
+    : null;
+  const dimensionWeights: IDimensionWeights = organization?.dimensionWeights || DEFAULT_DIMENSION_WEIGHTS;
+
+  // Get all teams this user might be in
+  const teams = await Team.find({
+    $or: [
+      { createdBy: user._id },
+      { members: user._id },
+      { 'membersDetails.mobile': user.mobile },
+    ],
+  });
+
+  // Find team and member details for this user
+  let userTeam;
+  let memberDetails;
+  
+  for (const team of teams) {
+    memberDetails = team.membersDetails.find((m: any) => m.mobile === user.mobile);
+    if (memberDetails) {
+      userTeam = team;
+      break;
+    }
+  }
+  
+  // Fallback: check by teamId or membership
+  if (!userTeam) {
+    if (user.teamId) {
+      userTeam = teams.find((t) => t._id.toString() === user.teamId?.toString());
+    }
+    if (!userTeam) {
+      userTeam = teams.find(
+        (t) =>
+          t.createdBy?.toString() === user._id.toString() ||
+          t.members.some((m) => m.toString() === user._id.toString())
+      );
+    }
+    if (userTeam) {
+      memberDetails = userTeam.membersDetails.find((m: any) => m.mobile === user.mobile);
+    }
+  }
+
+  if (!userTeam || !memberDetails) {
+    // Return empty data for user without team
+    const emptyScores: DimensionScores = {
+      functional: 0,
+      organizational: 0,
+      selfDevelopment: 0,
+      developingOthers: 0,
+    };
+
+    return {
+      department: '',
+      name: user.name,
+      designation: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+      r1Scores: emptyScores,
+      r2Scores: emptyScores,
+      r3Scores: emptyScores,
+      r4Scores: emptyScores,
+      r1FourDIndex: 0,
+      r2FourDIndex: 0,
+      r3FourDIndex: 0,
+      r4FourDIndex: 0,
+      total: 0,
+      average: 0,
+      grossSalary: 0,
+      netSalary: 0,
+      hikePercent: 0,
+      hikeAmount: 0,
+    };
+  }
+
+  // Calculate dimension scores for each period using proper weighted calculation
+  const memberKRAs = {
+    functionalKRAs: memberDetails.functionalKRAs,
+    organizationalKRAs: memberDetails.organizationalKRAs,
+    selfDevelopmentKRAs: memberDetails.selfDevelopmentKRAs,
+    developingOthersKRAs: memberDetails.developingOthersKRAs,
+  };
+
+  const r1Result = calculateMemberScores(memberKRAs, dimensionWeights, 1, true);
+  const r2Result = calculateMemberScores(memberKRAs, dimensionWeights, 2, true);
+  const r3Result = calculateMemberScores(memberKRAs, dimensionWeights, 3, true);
+  const r4Result = calculateMemberScores(memberKRAs, dimensionWeights, 4, true);
+  const avgResult = calculateMemberScores(memberKRAs, dimensionWeights, 'average', true);
+
+  const r1Scores: DimensionScores = {
+    functional: r1Result.functional,
+    organizational: r1Result.organizational,
+    selfDevelopment: r1Result.selfDevelopment,
+    developingOthers: r1Result.developingOthers,
+  };
+
+  const r2Scores: DimensionScores = {
+    functional: r2Result.functional,
+    organizational: r2Result.organizational,
+    selfDevelopment: r2Result.selfDevelopment,
+    developingOthers: r2Result.developingOthers,
+  };
+
+  const r3Scores: DimensionScores = {
+    functional: r3Result.functional,
+    organizational: r3Result.organizational,
+    selfDevelopment: r3Result.selfDevelopment,
+    developingOthers: r3Result.developingOthers,
+  };
+
+  const r4Scores: DimensionScores = {
+    functional: r4Result.functional,
+    organizational: r4Result.organizational,
+    selfDevelopment: r4Result.selfDevelopment,
+    developingOthers: r4Result.developingOthers,
+  };
+
+  // Calculate total (sum of 4D Indexes across all periods)
+  const total = Math.round(
+    (r1Result.fourDIndex + r2Result.fourDIndex + r3Result.fourDIndex + r4Result.fourDIndex) * 10
+  ) / 10;
+
+  // Average 4D Index across all periods
+  const average = avgResult.fourDIndex;
+
+  // Calculate salary hike based on 4D Index
+  const grossSalary = 0; // Would come from user data
+  const hikePercent = calculateHikePercent(average, DEFAULT_HIKE_SLABS);
+  const salaryDetails = calculateSalaryHike(grossSalary, average, DEFAULT_HIKE_SLABS);
+
+  // Get designation (capitalize role)
+  const designation = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+
+  return {
+    department: userTeam.name || '',
+    name: user.name,
+    designation,
+    r1Scores,
+    r2Scores,
+    r3Scores,
+    r4Scores,
+    r1FourDIndex: r1Result.fourDIndex,
+    r2FourDIndex: r2Result.fourDIndex,
+    r3FourDIndex: r3Result.fourDIndex,
+    r4FourDIndex: r4Result.fourDIndex,
+    total,
+    average,
+    grossSalary,
+    netSalary: salaryDetails.newSalary,
+    hikePercent,
+    hikeAmount: salaryDetails.hikeAmount,
+  };
+}
+
+/**
  * Get all users in organization with their performance data
  * Uses proper dimension weights for 4D Index calculation
  */

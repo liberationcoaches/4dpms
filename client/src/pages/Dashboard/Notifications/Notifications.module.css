@@ -22,7 +22,7 @@
 }
 
 .unreadBadge {
-  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
   color: white;
   padding: 0.25rem 0.75rem;
   border-radius: 12px;

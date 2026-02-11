@@ -77,6 +77,7 @@ function EmployeeDashboard() {
     organizational: false,
     selfDevelopment: false,
   });
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -125,6 +126,32 @@ function EmployeeDashboard() {
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
+  };
+
+  const handleDownloadReport = async () => {
+    try {
+      setIsDownloadingReport(true);
+      const userId = localStorage.getItem('userId');
+      const response = await fetch(`/api/user/my-report?userId=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `My_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download report:', error);
+    } finally {
+      setIsDownloadingReport(false);
+    }
   };
 
   const handleNotificationClick = () => {
@@ -400,6 +427,35 @@ function EmployeeDashboard() {
         </div>
 
         <div className={baseStyles.headerRight}>
+          {/* Download My Report */}
+          <button
+            className={baseStyles.downloadButton}
+            onClick={handleDownloadReport}
+            disabled={isDownloadingReport}
+            aria-label="Download My Report"
+            title="Download My Report as PDF"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-main-grey-40)',
+              background: 'var(--color-core-white)',
+              cursor: isDownloadingReport ? 'not-allowed' : 'pointer',
+              opacity: isDownloadingReport ? 0.6 : 1,
+              fontSize: '14px',
+              color: 'var(--color-primary-main-blue)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            {isDownloadingReport ? 'Downloading...' : 'My Report'}
+          </button>
+
           {/* Notifications */}
           <div className={baseStyles.notificationContainer}>
             <button
@@ -542,6 +598,14 @@ function EmployeeDashboard() {
         <div className={styles.infoCard}>
           <h3>Current Period</h3>
           <p className={styles.period}>Period {performanceData.currentPeriod}</p>
+        </div>
+
+        <div 
+          className={styles.feedbackCard}
+          onClick={() => navigate('/dashboard/employee/feedback')}
+        >
+          <h3>Feedback History</h3>
+          <p className={styles.feedbackLink}>View all feedback →</p>
         </div>
       </div>
 

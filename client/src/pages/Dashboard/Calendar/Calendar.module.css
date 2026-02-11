@@ -16,3 +16,129 @@
   color: var(--color-main-grey-60);
 }
 
+.reviewCycleCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cycleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cycleName {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.currentPeriodBadge {
+  background: #2196F3;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.periodsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.periodCard {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 4px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.periodCard.current {
+  border-left-color: #2196F3;
+  background: #e3f2fd;
+}
+
+.periodCard.completed {
+  border-left-color: #4CAF50;
+}
+
+.periodCard.upcoming {
+  border-left-color: #ff9800;
+}
+
+.periodName {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.periodDate {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.periodStatus {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.periodStatus.current {
+  color: #2196F3;
+}
+
+.periodStatus.completed {
+  color: #4CAF50;
+}
+
+.periodStatus.upcoming {
+  color: #ff9800;
+}
+
+.noData {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.nextReviewSection {
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.nextReviewTitle {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+  margin-bottom: 0.5rem;
+}
+
+.nextReviewDate {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.daysRemaining {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.9;
+}
+

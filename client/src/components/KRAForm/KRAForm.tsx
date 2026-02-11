@@ -280,8 +280,8 @@ function KRAForm({ initialData, onSubmit, onCancel, mode = 'add' }: KRAFormProps
             −
           </button>
           <div className={styles.weightDisplay}>
-            <span className={styles.weightValue}>{(formData.pilotWeight || 10).toString().padStart(3, '0')}</span>
-            <span className={styles.weightUnit}> %</span>
+            <span className={styles.weightValue}>{formData.pilotWeight || 10}</span>
+            <span className={styles.weightUnit}>%</span>
           </div>
           <button
             type="button"

@@ -95,7 +95,7 @@
   position: absolute;
   top: var(--spacing-md);
   right: var(--spacing-md);
-  background: linear-gradient(135deg, #42a5f5, #7e57c2);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
   color: var(--color-core-white);
   font-family: var(--font-inter);
   font-size: var(--font-size-14);

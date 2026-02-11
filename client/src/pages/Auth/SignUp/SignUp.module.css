@@ -76,7 +76,7 @@
 .accentTwo {
   width: 320px;
   height: 320px;
-  background: radial-gradient(circle, rgba(126, 87, 194, 0.28), transparent 60%);
+  background: radial-gradient(circle, rgba(25, 118, 210, 0.28), transparent 60%);
   bottom: 6%;
   right: 12%;
 }
@@ -102,7 +102,7 @@
   position: absolute;
   top: var(--spacing-md);
   right: var(--spacing-md);
-  background: linear-gradient(135deg, #42a5f5, #7e57c2);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
   color: var(--color-core-white);
   font-family: var(--font-inter);
   font-size: var(--font-size-14);
@@ -210,7 +210,7 @@
 .primaryButton {
   width: 100%;
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, #2196f3, #7e57c2);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
   color: var(--color-core-white);
   border: none;
   border-radius: var(--radius-md);
@@ -317,7 +317,7 @@
 .codeDisplay {
   margin-bottom: var(--spacing-lg);
   padding: var(--spacing-lg);
-  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  background: linear-gradient(135deg, #e3f2fd 0%, #e8f4fc 100%);
   border-radius: var(--radius-md);
   border: 2px solid var(--color-primary-main-blue);
 }

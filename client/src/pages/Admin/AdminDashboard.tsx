@@ -90,6 +90,19 @@ function AdminDashboard() {
     organizationId: '',
   });
 
+  // Edit/Delete organization state
+  const [showEditOrgModal, setShowEditOrgModal] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [editOrgForm, setEditOrgForm] = useState({
+    name: '',
+    industry: '',
+    size: '',
+    contact: '',
+  });
+  const [showDeleteOrgConfirm, setShowDeleteOrgConfirm] = useState(false);
+  const [deletingOrg, setDeletingOrg] = useState<Organization | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   useEffect(() => {
     const userId = localStorage.getItem('userId');
     if (!userId) {
@@ -406,6 +419,92 @@ function AdminDashboard() {
     fetchUsersByRole(role);
   };
 
+  // Organization Edit/Delete handlers
+  const showNotificationMessage = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const openEditOrgModal = (org: Organization, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOrg(org);
+    setEditOrgForm({
+      name: org.name,
+      industry: org.industry,
+      size: org.size?.toString() || '',
+      contact: org.contact || '',
+    });
+    setShowEditOrgModal(true);
+  };
+
+  const closeEditOrgModal = () => {
+    setShowEditOrgModal(false);
+    setEditingOrg(null);
+    setEditOrgForm({ name: '', industry: '', size: '', contact: '' });
+  };
+
+  const handleEditOrgSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrg) return;
+
+    try {
+      const res = await fetch(`/api/organizations/${editingOrg._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editOrgForm.name,
+          industry: editOrgForm.industry,
+          size: parseInt(editOrgForm.size) || 0,
+          contact: editOrgForm.contact,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        closeEditOrgModal();
+        fetchOrganizations();
+        showNotificationMessage('success', 'Organization updated successfully');
+      } else {
+        showNotificationMessage('error', data.message || 'Failed to update organization');
+      }
+    } catch (error) {
+      showNotificationMessage('error', 'Network error. Please try again.');
+    }
+  };
+
+  const openDeleteOrgConfirm = (org: Organization, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingOrg(org);
+    setShowDeleteOrgConfirm(true);
+  };
+
+  const closeDeleteOrgConfirm = () => {
+    setShowDeleteOrgConfirm(false);
+    setDeletingOrg(null);
+  };
+
+  const handleDeleteOrg = async () => {
+    if (!deletingOrg) return;
+
+    try {
+      const res = await fetch(`/api/organizations/${deletingOrg._id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        closeDeleteOrgConfirm();
+        fetchOrganizations();
+        fetchAnalytics();
+        showNotificationMessage('success', 'Organization deleted successfully');
+      } else {
+        showNotificationMessage('error', data.message || 'Failed to delete organization');
+      }
+    } catch (error) {
+      showNotificationMessage('error', 'Network error. Please try again.');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -682,7 +781,9 @@ function AdminDashboard() {
                       <input
                         type="tel"
                         value={newReviewer.mobile}
-                        onChange={(e) => setNewReviewer({ ...newReviewer, mobile: e.target.value })}
+                        onChange={(e) => setNewReviewer({ ...newReviewer, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        maxLength={10}
+                        placeholder="10 digits"
                         required
                       />
                     </div>
@@ -940,6 +1041,22 @@ function AdminDashboard() {
                           <p><strong>Admin:</strong> {org.bossId.name}</p>
                         )}
                       </div>
+                      <div className={styles.orgActions}>
+                        <button
+                          className={styles.editButton}
+                          onClick={(e) => openEditOrgModal(org, e)}
+                          title="Edit organization"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className={styles.deleteButton}
+                          onClick={(e) => openDeleteOrgConfirm(org, e)}
+                          title="Delete organization"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1023,7 +1140,9 @@ function AdminDashboard() {
                       <input
                         type="tel"
                         value={newReviewer.mobile}
-                        onChange={(e) => setNewReviewer({ ...newReviewer, mobile: e.target.value })}
+                        onChange={(e) => setNewReviewer({ ...newReviewer, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        maxLength={10}
+                        placeholder="10 digits"
                         required
                       />
                     </div>
@@ -1089,7 +1208,9 @@ function AdminDashboard() {
                       <input
                         type="tel"
                         value={newClientAdmin.mobile}
-                        onChange={(e) => setNewClientAdmin({ ...newClientAdmin, mobile: e.target.value })}
+                        onChange={(e) => setNewClientAdmin({ ...newClientAdmin, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        maxLength={10}
+                        placeholder="10 digits"
                         required
                       />
                     </div>
@@ -1327,6 +1448,100 @@ function AdminDashboard() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Edit Organization Modal */}
+      {showEditOrgModal && editingOrg && (
+        <div className={styles.modalOverlay} onClick={closeEditOrgModal}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Edit Organization</h2>
+              <button className={styles.closeButton} onClick={closeEditOrgModal}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <form onSubmit={handleEditOrgSubmit}>
+                <div className={styles.formGroup}>
+                  <label>Organization Name *</label>
+                  <input
+                    type="text"
+                    value={editOrgForm.name}
+                    onChange={(e) => setEditOrgForm({ ...editOrgForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Industry *</label>
+                  <select
+                    value={editOrgForm.industry}
+                    onChange={(e) => setEditOrgForm({ ...editOrgForm, industry: e.target.value })}
+                    required
+                  >
+                    <option value="Technology">Technology</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Education">Education</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Consulting">Consulting</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Size (Number of Members) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editOrgForm.size}
+                    onChange={(e) => setEditOrgForm({ ...editOrgForm, size: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Contact (Email/Phone)</label>
+                  <input
+                    type="text"
+                    value={editOrgForm.contact}
+                    onChange={(e) => setEditOrgForm({ ...editOrgForm, contact: e.target.value })}
+                  />
+                </div>
+                <div className={styles.modalActions}>
+                  <button type="button" className={styles.cancelButton} onClick={closeEditOrgModal}>
+                    Cancel
+                  </button>
+                  <button type="submit" className={styles.submitButton}>
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Organization Confirmation */}
+      {showDeleteOrgConfirm && deletingOrg && (
+        <div className={styles.modalOverlay} onClick={closeDeleteOrgConfirm}>
+          <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Organization</h3>
+            <p>Are you sure you want to delete <strong>{deletingOrg.name}</strong>?</p>
+            <p className={styles.warningText}>This will also delete all users associated with this organization. This action cannot be undone.</p>
+            <div className={styles.confirmActions}>
+              <button className={styles.cancelButton} onClick={closeDeleteOrgConfirm}>
+                Cancel
+              </button>
+              <button className={styles.deleteConfirmButton} onClick={handleDeleteOrg}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`${styles.notification} ${styles[notification.type]}`}>
+          {notification.message}
         </div>
       )}
     </div>

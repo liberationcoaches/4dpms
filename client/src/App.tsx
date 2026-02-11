@@ -25,6 +25,7 @@ import ReviewCycles from './pages/Dashboard/Boss/ReviewCycles';
 import ReviewerDashboard from './pages/Reviewer/ReviewerDashboard';
 import Scoring from './pages/Reviewer/Scoring';
 import EmployeeDashboard from './pages/Dashboard/Employee/EmployeeDashboard';
+import FeedbackHistory from './pages/Dashboard/Employee/FeedbackHistory';
 import MidCycleNotes from './pages/Dashboard/Manager/MidCycleNotes';
 
 function App() {
@@ -61,6 +62,7 @@ function App() {
       <Route path="/reviewer/dashboard" element={<ReviewerDashboard />} />
       <Route path="/reviewer/scoring/:employeeId" element={<Scoring />} />
       <Route path="/dashboard/employee" element={<EmployeeDashboard />} />
+      <Route path="/dashboard/employee/feedback" element={<FeedbackHistory />} />
       <Route path="/dashboard/manager/mid-cycle-notes" element={<MidCycleNotes />} />
     </Routes>
   );

@@ -144,7 +144,8 @@ export async function createBoss(
       hierarchyLevel: 1,
       organizationId: clientAdmin.organizationId,
       isMobileVerified: false,
-      isActive: true,
+      isActive: false, // Users start as Pending, activated on first login
+      createdBy: clientAdmin._id, // Track who created this user
     });
 
     await boss.save();
@@ -451,7 +452,8 @@ export async function bulkUploadUsers(
         hierarchyLevel: 1,
         organizationId: clientAdmin.organizationId,
         isMobileVerified: false,
-        isActive: true,
+        isActive: false, // Users start as Pending, activated on first login
+        createdBy: clientAdmin._id, // Track who created this user
       });
       await boss.save();
       if (!org.bossId) {
@@ -1601,6 +1603,143 @@ export async function getCSAAnalytics(
         },
         trends: trendData,
         departmentComparisons: departmentComparisons,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get organization hierarchy showing supervisors and their teams (Client Admin only)
+ * GET /api/client-admin/hierarchy
+ */
+export async function getOrganizationHierarchy(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const clientAdminId = req.query.userId as string;
+
+    if (!clientAdminId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    // Validate client admin
+    const clientAdmin = await User.findById(clientAdminId);
+    if (!clientAdmin || clientAdmin.role !== 'client_admin') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only client admins can view hierarchy',
+      });
+      return;
+    }
+
+    if (!clientAdmin.organizationId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Client admin must be associated with an organization',
+      });
+      return;
+    }
+
+    // Get all bosses (supervisors) in the organization
+    const bosses = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'boss',
+    }).select('_id name email mobile isActive createdBy createdAt').lean();
+
+    // Get all managers under each boss
+    const managers = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'manager',
+    }).select('_id name email mobile isActive bossId createdBy createdAt').lean();
+
+    // Get all employees under each manager
+    const employees = await User.find({
+      organizationId: clientAdmin.organizationId,
+      role: 'employee',
+    }).select('_id name email mobile isActive managerId bossId createdBy createdAt').lean();
+
+    // Get all teams
+    const allUserIds = [...bosses, ...managers].map(u => u._id);
+    const teams = await Team.find({
+      createdBy: { $in: allUserIds },
+    }).select('_id name code createdBy membersDetails').lean();
+
+    // Build hierarchy structure
+    const hierarchy = bosses.map(boss => {
+      // Find managers under this boss
+      const bossManagers = managers.filter(m => m.bossId?.toString() === boss._id.toString());
+      
+      // Build manager with their employees
+      const managersWithTeams = bossManagers.map(manager => {
+        // Find team for this manager
+        const managerTeam = teams.find(t => t.createdBy?.toString() === manager._id.toString());
+        
+        // Find employees under this manager
+        const managerEmployees = employees.filter(e => e.managerId?.toString() === manager._id.toString());
+        
+        return {
+          _id: manager._id,
+          name: manager.name,
+          email: manager.email,
+          mobile: manager.mobile,
+          isActive: manager.isActive,
+          createdAt: manager.createdAt,
+          team: managerTeam ? {
+            _id: managerTeam._id,
+            name: managerTeam.name,
+            code: managerTeam.code,
+            memberCount: managerTeam.membersDetails?.length || 0,
+          } : null,
+          employees: managerEmployees.map(emp => ({
+            _id: emp._id,
+            name: emp.name,
+            email: emp.email,
+            mobile: emp.mobile,
+            isActive: emp.isActive,
+            createdAt: emp.createdAt,
+          })),
+          employeeCount: managerEmployees.length,
+        };
+      });
+
+      // Find team for this boss (if any)
+      const bossTeam = teams.find(t => t.createdBy?.toString() === boss._id.toString());
+
+      return {
+        _id: boss._id,
+        name: boss.name,
+        email: boss.email,
+        mobile: boss.mobile,
+        isActive: boss.isActive,
+        createdAt: boss.createdAt,
+        team: bossTeam ? {
+          _id: bossTeam._id,
+          name: bossTeam.name,
+          code: bossTeam.code,
+        } : null,
+        managers: managersWithTeams,
+        managerCount: managersWithTeams.length,
+        totalEmployees: managersWithTeams.reduce((sum, m) => sum + m.employeeCount, 0),
+      };
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        hierarchy,
+        summary: {
+          totalBosses: bosses.length,
+          totalManagers: managers.length,
+          totalEmployees: employees.length,
+        },
       },
     });
   } catch (error) {

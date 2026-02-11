@@ -88,6 +88,37 @@
   margin: 0;
 }
 
+/* Feedback Card */
+.feedbackCard {
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feedbackCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.35);
+}
+
+.feedbackCard h3 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-medium);
+  color: white;
+}
+
+.feedbackLink {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
 /* Historical Section */
 .historical {
   margin-bottom: var(--spacing-xl);

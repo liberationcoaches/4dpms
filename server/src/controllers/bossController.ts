@@ -149,7 +149,8 @@ export async function createManager(
       organizationId: boss.organizationId,
       bossId: boss._id,
       isMobileVerified: false,
-      isActive: true,
+      isActive: false, // Users start as Pending, activated on first login
+      createdBy: boss._id, // Track who created this user
     });
 
     await manager.save();

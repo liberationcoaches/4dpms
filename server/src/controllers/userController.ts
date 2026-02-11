@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { z } from 'zod';
+import { getPersonalExportData, generatePDFFile } from '../services/exportService';
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).trim().optional(),
@@ -280,6 +281,62 @@ export async function updateProfile(
         mobile: user.mobile,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Download personal performance report as PDF
+ * GET /api/user/my-report
+ */
+export async function downloadPersonalReport(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+
+    if (!userId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID is required',
+      });
+      return;
+    }
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User not found',
+      });
+      return;
+    }
+
+    // Get personal export data
+    const exportData = await getPersonalExportData(userId);
+    if (!exportData) {
+      res.status(404).json({
+        status: 'error',
+        message: 'No performance data found',
+      });
+      return;
+    }
+
+    // Generate PDF with single user data
+    const buffer = await generatePDFFile([exportData]);
+
+    // Set response headers
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `My_Performance_Report_${dateStr}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    // Send file
+    res.send(buffer);
   } catch (error) {
     next(error);
   }

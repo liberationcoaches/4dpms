@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   signUp,
   signupWithInvite,
+  signupWithOrg,
   verifyOTP,
   verifySingleOTPEndpoint,
   resendOTP,
@@ -15,6 +16,7 @@ const router = Router();
 
 router.post('/signup', signUp);
 router.post('/signup-with-invite', signupWithInvite);
+router.post('/signup-with-org', signupWithOrg);
 router.post('/login', login);
 router.post('/verify-otp', verifyOTP);
 router.post('/verify-otp/mobile', verifySingleOTPEndpoint);

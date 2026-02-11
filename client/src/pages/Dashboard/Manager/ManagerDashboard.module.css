@@ -214,6 +214,48 @@
   gap: var(--spacing-lg);
 }
 
+/* Dimension Weights Display Section */
+.dimensionWeightsSection {
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-xl);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.dimensionWeightsSection h3 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+}
+
+.weightCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  background: var(--color-accent-blue-20);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--color-primary-main-blue);
+}
+
+.weightCard .weightLabel {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+}
+
+.weightCard .weightValue {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-main-blue);
+}
+
 .weightInputGroup {
   display: flex;
   flex-direction: column;
@@ -355,6 +397,49 @@
   font-style: italic;
 }
 
+/* Edit/Delete Actions */
+.editDeleteActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}
+
+.editButton,
+.deleteButton {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  transition: all 0.2s;
+}
+
+.editButton {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.editButton:hover {
+  background: #bbdefb;
+}
+
+.deleteButton {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.deleteButton:hover {
+  background: #ffcdd2;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .statsGrid,
@@ -362,5 +447,9 @@
   .weightsGrid,
   .krasGrid {
     grid-template-columns: 1fr;
+  }
+
+  .editDeleteActions {
+    flex-direction: column;
   }
 }

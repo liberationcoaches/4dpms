@@ -101,6 +101,32 @@ function BossDashboard() {
     organizational: false,
     selfDevelopment: false,
   });
+  
+  // Edit/Delete manager state
+  const [showEditManagerModal, setShowEditManagerModal] = useState(false);
+  const [editingManager, setEditingManager] = useState<Manager | null>(null);
+  const [editManagerForm, setEditManagerForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    designation: '',
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingManager, setDeletingManager] = useState<Manager | null>(null);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
+  const [dimensionWeights, setDimensionWeights] = useState<{
+    functional: number;
+    organizational: number;
+    selfDevelopment: number;
+    developingOthers: number;
+  } | null>(null);
+
+  const showNotificationMessage = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -115,7 +141,21 @@ function BossDashboard() {
     fetchOrganization();
     fetchAnalytics();
     fetchMyKRAs();
+    fetchDimensionWeights();
   }, [navigate]);
+
+  const fetchDimensionWeights = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await fetch(`/api/team/dimension-weights?userId=${userId}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.data) {
+        setDimensionWeights(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dimension weights:', error);
+    }
+  };
 
   const fetchUserProfile = async () => {
     const userId = localStorage.getItem('userId');
@@ -151,6 +191,32 @@ function BossDashboard() {
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
+  };
+
+  const handleDownloadReport = async () => {
+    try {
+      setIsDownloadingReport(true);
+      const userId = localStorage.getItem('userId');
+      const response = await fetch(`/api/user/my-report?userId=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `My_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download report:', error);
+    } finally {
+      setIsDownloadingReport(false);
+    }
   };
 
   const handleNotificationClick = () => {
@@ -377,6 +443,107 @@ function BossDashboard() {
     }
   };
 
+  // Edit manager handlers
+  const openEditManagerModal = (manager: Manager) => {
+    setEditingManager(manager);
+    setEditManagerForm({
+      name: manager.name || '',
+      email: manager.email || '',
+      mobile: manager.mobile || '',
+      designation: manager.role || '',
+    });
+    setShowEditManagerModal(true);
+  };
+
+  const closeEditManagerModal = () => {
+    setShowEditManagerModal(false);
+    setEditingManager(null);
+    setEditManagerForm({ name: '', email: '', mobile: '', designation: '' });
+  };
+
+  const handleEditManagerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingManager) return;
+
+    setIsSubmittingEdit(true);
+    const userId = localStorage.getItem('userId');
+
+    try {
+      // Find manager index
+      const managerIndex = managers.findIndex(m => m._id === editingManager._id);
+      if (managerIndex === -1) {
+        showNotificationMessage('Manager not found', 'error');
+        return;
+      }
+
+      const response = await fetch(`/api/boss/managers/${managerIndex}?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editManagerForm),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotificationMessage('Manager updated successfully');
+        closeEditManagerModal();
+        fetchManagers();
+      } else {
+        showNotificationMessage(data.message || 'Failed to update manager', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating manager:', error);
+      showNotificationMessage('Network error. Please try again.', 'error');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  // Delete manager handlers
+  const openDeleteConfirm = (manager: Manager) => {
+    setDeletingManager(manager);
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeletingManager(null);
+  };
+
+  const handleDeleteManager = async () => {
+    if (!deletingManager) return;
+
+    setIsSubmittingEdit(true);
+    const userId = localStorage.getItem('userId');
+
+    try {
+      // Find manager index
+      const managerIndex = managers.findIndex(m => m._id === deletingManager._id);
+      if (managerIndex === -1) {
+        showNotificationMessage('Manager not found', 'error');
+        return;
+      }
+
+      const response = await fetch(`/api/boss/managers/${managerIndex}?userId=${userId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotificationMessage('Manager removed successfully');
+        closeDeleteConfirm();
+        fetchManagers();
+        fetchAnalytics();
+      } else {
+        showNotificationMessage(data.message || 'Failed to remove manager', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting manager:', error);
+      showNotificationMessage('Network error. Please try again.', 'error');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
   const handleAddProof = async (managerId: string, kraIndex: number, proof: Proof) => {
     // Handle boss's own KRAs
     if (managerId === 'self') {
@@ -572,6 +739,34 @@ function BossDashboard() {
         </div>
 
         <div className={baseStyles.headerRight}>
+          {/* Download My Report */}
+          <button
+            onClick={handleDownloadReport}
+            disabled={isDownloadingReport}
+            aria-label="Download My Report"
+            title="Download My Report as PDF"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-main-grey-40)',
+              background: 'var(--color-core-white)',
+              cursor: isDownloadingReport ? 'not-allowed' : 'pointer',
+              opacity: isDownloadingReport ? 0.6 : 1,
+              fontSize: '14px',
+              color: 'var(--color-primary-main-blue)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            {isDownloadingReport ? 'Downloading...' : 'My Report'}
+          </button>
+
           {/* Notifications */}
           <div className={baseStyles.notificationContainer}>
             <button
@@ -732,6 +927,37 @@ function BossDashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Dimension Weights Card */}
+              {dimensionWeights && (
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  marginBottom: '24px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                }}>
+                  <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#333' }}>Performance Dimension Weights</h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'linear-gradient(135deg, #e3f2fd, #bbdefb)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1976d2' }}>{dimensionWeights.functional}%</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Functional</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#388e3c' }}>{dimensionWeights.organizational}%</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Organizational</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'linear-gradient(135deg, #fff3e0, #ffe0b2)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f57c00' }}>{dimensionWeights.selfDevelopment}%</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Self Development</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'linear-gradient(135deg, #fce4ec, #f8bbd9)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#c2185b' }}>{dimensionWeights.developingOthers}%</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Developing Others</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* My KRAs Section */}
               {myKRAs && (
@@ -1080,7 +1306,9 @@ function BossDashboard() {
                         pattern="[0-9]{10}"
                         className={baseStyles.input}
                         value={newManager.mobile}
-                        onChange={(e) => setNewManager({ ...newManager, mobile: e.target.value })}
+                        onChange={(e) => setNewManager({ ...newManager, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        maxLength={10}
+                        placeholder="10 digits"
                         required
                       />
                     </div>
@@ -1206,7 +1434,9 @@ function BossDashboard() {
                         pattern="[0-9]{10}"
                         className={baseStyles.input}
                         value={newManager.mobile}
-                        onChange={(e) => setNewManager({ ...newManager, mobile: e.target.value })}
+                        onChange={(e) => setNewManager({ ...newManager, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        maxLength={10}
+                        placeholder="10 digits"
                         required
                       />
                     </div>
@@ -1288,6 +1518,26 @@ function BossDashboard() {
                         >
                           {showKRAsView === manager._id ? 'Hide Dimensions' : 'View Dimensions'}
                         </button>
+                        <div className={styles.editDeleteActions}>
+                          <button
+                            className={styles.editButton}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditManagerModal(manager);
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className={styles.deleteButton}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteConfirm(manager);
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
                       {showKRAsView === manager._id && managerKRAs[manager._id] && (
                         <div className={styles.krasView}>
@@ -1505,8 +1755,10 @@ function BossDashboard() {
                       id="profile-mobile"
                       type="tel"
                       value={profile.mobile}
-                      onChange={(e) => handleProfileChange('mobile', e.target.value)}
+                      onChange={(e) => handleProfileChange('mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
                       className={`${baseStyles.input} ${profileErrors.mobile ? baseStyles.inputError : ''}`}
+                      maxLength={10}
+                      placeholder="10 digits"
                     />
                     {profileErrors.mobile && (
                       <span className={baseStyles.errorText}>{profileErrors.mobile}</span>
@@ -1915,6 +2167,273 @@ function BossDashboard() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '1rem 1.5rem',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            zIndex: 1001,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            background: notification.type === 'success' ? '#4CAF50' : '#f44336',
+            color: 'white',
+          }}
+        >
+          <span style={{ fontWeight: 'bold' }}>
+            {notification.type === 'success' ? '✓' : '✕'}
+          </span>
+          <span>{notification.message}</span>
+        </div>
+      )}
+
+      {/* Edit Manager Modal */}
+      {showEditManagerModal && editingManager && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={closeEditManagerModal}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '450px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.5rem',
+                borderBottom: '1px solid #eee',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.125rem', color: '#333' }}>Edit Supervisor</h3>
+              <button
+                onClick={closeEditManagerModal}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#999',
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleEditManagerSubmit} style={{ padding: '1.5rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={editManagerForm.name}
+                  onChange={(e) => setEditManagerForm({ ...editManagerForm, name: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={editManagerForm.email}
+                  onChange={(e) => setEditManagerForm({ ...editManagerForm, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Mobile
+                </label>
+                <input
+                  type="tel"
+                  value={editManagerForm.mobile}
+                  onChange={(e) => setEditManagerForm({ ...editManagerForm, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  maxLength={10}
+                  placeholder="10 digits"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#333' }}>
+                  Designation/Role
+                </label>
+                <input
+                  type="text"
+                  value={editManagerForm.designation}
+                  onChange={(e) => setEditManagerForm({ ...editManagerForm, designation: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={closeEditManagerModal}
+                  disabled={isSubmittingEdit}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '1px solid #ddd',
+                    background: 'white',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: '#666',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && deletingManager && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={closeDeleteConfirm}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              width: '100%',
+              maxWidth: '400px',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: '#333' }}>Remove Supervisor?</h3>
+            <p style={{ margin: '0 0 1.5rem 0', color: '#666', fontSize: '0.875rem', lineHeight: 1.5 }}>
+              Are you sure you want to remove <strong>{deletingManager.name}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                onClick={closeDeleteConfirm}
+                disabled={isSubmittingEdit}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '1px solid #ddd',
+                  background: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#666',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteManager}
+                disabled={isSubmittingEdit}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: '#f44336',
+                  color: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                }}
+              >
+                {isSubmittingEdit ? 'Removing...' : 'Remove Supervisor'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -18,6 +18,8 @@ export interface IUser extends Document {
   reviewerId?: mongoose.Types.ObjectId; // For employees being reviewed
   managerId?: mongoose.Types.ObjectId; // Direct manager
   bossId?: mongoose.Types.ObjectId; // Organization boss
+  createdBy?: mongoose.Types.ObjectId; // User who created this user (for hierarchy visibility)
+  designation?: string; // Job title/designation
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,7 +80,7 @@ const UserSchema = new Schema<IUser>(
     },
     isActive: {
       type: Boolean,
-      default: true,
+      default: false, // Users start as Pending, activated on first successful login
     },
     accessCode: {
       type: String,
@@ -123,6 +125,16 @@ const UserSchema = new Schema<IUser>(
       ref: 'User',
       required: false,
     },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    designation: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Designation cannot exceed 100 characters'],
+    },
   },
   {
     timestamps: true,
@@ -138,6 +150,7 @@ UserSchema.index({ organizationId: 1 });
 UserSchema.index({ managerId: 1 });
 UserSchema.index({ bossId: 1 });
 UserSchema.index({ reviewerId: 1 });
+UserSchema.index({ createdBy: 1 });
 
 export const User = mongoose.model<IUser>('User', UserSchema);
 

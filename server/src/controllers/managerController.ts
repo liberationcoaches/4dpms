@@ -136,7 +136,8 @@ export async function createEmployee(
       bossId: bossId,
       reviewerId: manager.reviewerId, // Inherit reviewer from organization
       isMobileVerified: false,
-      isActive: true,
+      isActive: false, // Users start as Pending, activated on first login
+      createdBy: manager._id, // Track who created this user
     });
 
     await employee.save();

@@ -13,7 +13,7 @@ export interface IOrganization extends Document {
   code: string; // Organization code (given to managers)
   type: string;
   employeeSize: string;
-  bossId: mongoose.Types.ObjectId; // The boss who created this organization
+  bossId?: mongoose.Types.ObjectId; // The boss who owns this organization (optional)
   reviewerId?: mongoose.Types.ObjectId; // Reviewer assigned to this organization
   managers: mongoose.Types.ObjectId[]; // Managers in this organization
   subscriptionStatus?: string; // Subscription status: 'active', 'trial', 'expired'
@@ -54,7 +54,7 @@ const OrganizationSchema = new Schema<IOrganization>(
     bossId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Boss ID is required'],
+      required: false, // Boss can be assigned later
       index: true,
     },
     reviewerId: {

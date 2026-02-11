@@ -31,10 +31,19 @@ function EnquiryOrSignUp() {
     setError('');
 
     try {
-      // TODO: Send enquiry to backend
-      // For now, just show thank you message
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API call
-      setShowThankYou(true);
+      const response = await fetch('/api/enquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status === 'success') {
+        setShowThankYou(true);
+      } else {
+        setError(data.message || 'Failed to submit enquiry. Please try again.');
+      }
     } catch (error) {
       console.error('Error submitting enquiry:', error);
       setError('Failed to submit enquiry. Please try again.');

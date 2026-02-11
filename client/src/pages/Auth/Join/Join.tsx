@@ -10,6 +10,8 @@ interface ResolvedInvite {
   teamName?: string;
   managerName?: string;
   token?: string;
+  codeType?: 'invite' | 'org';
+  organizationId?: string;
 }
 
 export default function Join() {
@@ -31,6 +33,7 @@ export default function Join() {
     email: '',
     designation: '',
     mobile: '',
+    role: '', // For org code signup
   });
   const [errors, setErrors] = useState<Partial<Record<keyof typeof formData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,28 +58,50 @@ export default function Join() {
     setResolveError(null);
     try {
       const isLikelyToken = tokenOrCode.length > 10;
-      const url = isLikelyToken
+      
+      // First, try as invite code/token
+      const inviteUrl = isLikelyToken
         ? `/api/invites/resolve?token=${encodeURIComponent(tokenOrCode)}`
         : `/api/invites/resolve?code=${encodeURIComponent(tokenOrCode.toUpperCase())}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (res.ok && data.status === 'success' && data.data?.valid) {
+      const inviteRes = await fetch(inviteUrl);
+      const inviteData = await inviteRes.json();
+      
+      if (inviteRes.ok && inviteData.status === 'success' && inviteData.data?.valid) {
         setResolved({
           valid: true,
-          role: data.data.role,
-          organizationName: data.data.organizationName,
-          teamName: data.data.teamName,
-          managerName: data.data.managerName,
-          token: data.data.token,
+          role: inviteData.data.role,
+          organizationName: inviteData.data.organizationName,
+          teamName: inviteData.data.teamName,
+          managerName: inviteData.data.managerName,
+          token: inviteData.data.token,
+          codeType: 'invite',
         });
-        if (data.data.token) setInviteToken(data.data.token);
-      } else {
-        setResolved(null);
-        setResolveError(data.message || 'Invalid or expired invite');
+        if (inviteData.data.token) setInviteToken(inviteData.data.token);
+        return;
       }
+      
+      // If not an invite code, try as organization code
+      const orgUrl = `/api/organizations/resolve?code=${encodeURIComponent(tokenOrCode.toUpperCase())}`;
+      const orgRes = await fetch(orgUrl);
+      const orgData = await orgRes.json();
+      
+      if (orgRes.ok && orgData.status === 'success' && orgData.data) {
+        setResolved({
+          valid: true,
+          organizationName: orgData.data.organizationName,
+          organizationId: orgData.data.organizationId,
+          codeType: 'org',
+        });
+        setInviteCode(tokenOrCode.toUpperCase());
+        return;
+      }
+      
+      // Neither worked
+      setResolved(null);
+      setResolveError('Invalid code. Please check and try again.');
     } catch {
       setResolved(null);
-      setResolveError('Could not load invite');
+      setResolveError('Could not verify code. Please try again.');
     } finally {
       setIsResolving(false);
     }
@@ -86,7 +111,7 @@ export default function Join() {
     e.preventDefault();
     const code = codeInput.trim().toUpperCase();
     if (!code) {
-      setResolveError('Enter invite code');
+      setResolveError('Enter your code');
       return;
     }
     setInviteCode(code);
@@ -101,6 +126,8 @@ export default function Join() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) next.email = 'Invalid email';
     if (!formData.mobile.trim()) next.mobile = 'Mobile is required';
     else if (!/^[0-9]{10}$/.test(formData.mobile.replace(/\D/g, ''))) next.mobile = 'Invalid mobile (10 digits)';
+    // For org code signup, role is required
+    if (resolved?.codeType === 'org' && !formData.role) next.role = 'Please select a role';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -108,15 +135,53 @@ export default function Join() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    const token = inviteToken;
-    const code = inviteCode;
-    if (!token && !code) {
-      setErrors({ email: 'Invite link or code is required' });
-      return;
-    }
+    
     setIsSubmitting(true);
     setErrors({});
+    
     try {
+      // Handle org code signup differently
+      if (resolved?.codeType === 'org') {
+        const body = {
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
+          mobile: formData.mobile.replace(/\D/g, ''),
+          role: formData.role,
+          organizationId: resolved.organizationId,
+        };
+        if (formData.designation.trim()) {
+          (body as Record<string, string>).designation = formData.designation.trim();
+        }
+
+        const res = await fetch('/api/auth/signup-with-org', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.data?.userId) {
+          localStorage.setItem('userId', data.data.userId);
+          if (data.data.mobileOTP) localStorage.setItem('dev_mobileOTP', data.data.mobileOTP);
+          navigate('/auth/otp-verify', {
+            state: { email: formData.email, mobile: formData.mobile.replace(/\D/g, '') },
+          });
+        } else {
+          setErrors({
+            email: data.message || data.errors?.[0]?.message || 'Sign up failed',
+          });
+        }
+        return;
+      }
+      
+      // Handle invite code signup
+      const token = inviteToken;
+      const code = inviteCode;
+      if (!token && !code) {
+        setErrors({ email: 'Invite link or code is required' });
+        return;
+      }
+      
       const body: Record<string, string> = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
@@ -152,6 +217,7 @@ export default function Join() {
   };
 
   const roleLabel = resolved?.role === 'manager' ? 'Supervisor' : resolved?.role === 'employee' ? 'Member' : resolved?.role || '';
+  const selectedRoleLabel = formData.role === 'boss' ? 'Client Admin' : formData.role === 'manager' ? 'Supervisor' : formData.role === 'employee' ? 'Member' : '';
 
   return (
     <div className={styles.authContainer}>
@@ -166,9 +232,9 @@ export default function Join() {
 
           {!resolved?.valid ? (
             <>
-              <h2 className={styles.greeting}>Join with invite</h2>
+              <h2 className={styles.greeting}>Join your organization</h2>
               <p className={styles.subGreeting}>
-                Enter the invite code you received. You won’t choose a role — it’s set by the invite.
+                Enter your organization code or invite code to join.
               </p>
               {resolveError && (
                 <div className={styles.errorText} style={{ marginBottom: '1rem' }}>
@@ -178,7 +244,7 @@ export default function Join() {
               <form onSubmit={handleContinueWithCode}>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="code">
-                    Invite code
+                    Organization / Invite Code
                   </label>
                   <input
                     id="code"
@@ -196,6 +262,82 @@ export default function Join() {
                 </button>
               </form>
             </>
+          ) : resolved.codeType === 'org' ? (
+            <>
+              <h2 className={styles.greeting}>Join {resolved.organizationName}</h2>
+              <p className={styles.subGreeting}>
+                Select your role and fill in your details to join this organization.
+              </p>
+              <form onSubmit={handleSubmit}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="role">Select Role *</label>
+                  <select
+                    id="role"
+                    className={`${styles.input} ${errors.role ? styles.inputError : ''}`}
+                    value={formData.role}
+                    onChange={(e) => setFormData((p) => ({ ...p, role: e.target.value }))}
+                    required
+                  >
+                    <option value="">-- Select your role --</option>
+                    <option value="boss">Client Admin (CSA)</option>
+                    <option value="manager">Supervisor</option>
+                    <option value="employee">Member</option>
+                  </select>
+                  {errors.role && <span className={styles.errorText}>{errors.role}</span>}
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="name">Name *</label>
+                  <input
+                    id="name"
+                    type="text"
+                    className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
+                    value={formData.name}
+                    onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                  {errors.name && <span className={styles.errorText}>{errors.name}</span>}
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="email">Email *</label>
+                  <input
+                    id="email"
+                    type="email"
+                    className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
+                    value={formData.email}
+                    onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
+                    required
+                  />
+                  {errors.email && <span className={styles.errorText}>{errors.email}</span>}
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="designation">Designation</label>
+                  <input
+                    id="designation"
+                    type="text"
+                    className={styles.input}
+                    value={formData.designation}
+                    onChange={(e) => setFormData((p) => ({ ...p, designation: e.target.value }))}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="mobile">Mobile *</label>
+                  <input
+                    id="mobile"
+                    type="tel"
+                    className={`${styles.input} ${errors.mobile ? styles.inputError : ''}`}
+                    value={formData.mobile}
+                    onChange={(e) => setFormData((p) => ({ ...p, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                    placeholder="10 digits"
+                    maxLength={10}
+                    required
+                  />
+                  {errors.mobile && <span className={styles.errorText}>{errors.mobile}</span>}
+                </div>
+                <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
+                  {isSubmitting ? 'Signing up...' : `Join as ${selectedRoleLabel || 'Member'}`}
+                </button>
+              </form>
+            </>
           ) : (
             <>
               <h2 className={styles.greeting}>Join as {roleLabel}</h2>
@@ -204,11 +346,11 @@ export default function Join() {
                   <span>{resolved.organizationName}</span>
                 )}
                 {resolved.teamName && (
-                  <span> · Team: {resolved.teamName}</span>
+                  <span> - Team: {resolved.teamName}</span>
                 )}
               </p>
               <div className={styles.inviteInfo}>
-                You’re joining as <strong>{roleLabel}</strong>. Fill in your details below. No role selection needed.
+                You're joining as <strong>{roleLabel}</strong>. Fill in your details below. No role selection needed.
               </div>
               <form onSubmit={handleSubmit}>
                 <div className={styles.formGroup}>

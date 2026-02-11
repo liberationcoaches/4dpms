@@ -543,7 +543,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary-main-blue), #7e57c2);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
   color: white;
   display: flex;
   align-items: center;
