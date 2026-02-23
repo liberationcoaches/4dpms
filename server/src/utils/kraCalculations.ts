@@ -105,13 +105,12 @@ export function calculateOrganizationalAverageScore(kra: IOrganizationalKRA): nu
 
 /**
  * Calculate Average Score for Self Development
- * Excel Formula: =AVERAGE(Pilot, R1, R2, R3, R4)
+ * Excel Formula: =IF(SUM(scores)=0, 0, AVERAGE(R1, R2, R3, R4)) - Pilot NOT included
+ * IMPORTANT: Verified against Excel files - Pilot is NOT included in yearly averages
  */
 export function calculateSelfDevelopmentAverageScore(kra: ISelfDevelopmentKRA): number | null {
   const scores: number[] = [];
-  if (kra.pilotScore !== undefined && kra.pilotScore !== null && !isNaN(kra.pilotScore) && kra.pilotScore !== 0) {
-    scores.push(kra.pilotScore);
-  }
+  // NOTE: Pilot score intentionally NOT included - verified against Excel files
   if (kra.r1Score !== undefined && kra.r1Score !== null && !isNaN(kra.r1Score) && kra.r1Score !== 0) {
     scores.push(kra.r1Score);
   }
@@ -130,13 +129,12 @@ export function calculateSelfDevelopmentAverageScore(kra: ISelfDevelopmentKRA): 
 
 /**
  * Calculate Average Score for Developing Others
- * Excel Formula: =AVERAGE(Pilot, R1, R2, R3, R4)
+ * Excel Formula: =IF(SUM(scores)=0, 0, AVERAGE(R1, R2, R3, R4)) - Pilot NOT included
+ * IMPORTANT: Verified against Excel files - Pilot is NOT included in yearly averages
  */
 export function calculateDevelopingOthersAverageScore(kra: IDevelopingOthersKRA): number | null {
   const scores: number[] = [];
-  if (kra.pilotScore !== undefined && kra.pilotScore !== null && !isNaN(kra.pilotScore) && kra.pilotScore !== 0) {
-    scores.push(kra.pilotScore);
-  }
+  // NOTE: Pilot score intentionally NOT included - verified against Excel files
   if (kra.r1Score !== undefined && kra.r1Score !== null && !isNaN(kra.r1Score) && kra.r1Score !== 0) {
     scores.push(kra.r1Score);
   }

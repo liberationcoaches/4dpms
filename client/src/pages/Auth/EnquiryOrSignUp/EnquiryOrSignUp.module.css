@@ -208,7 +208,7 @@
 
 .enquiryButton:hover:not(:disabled) {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 12px 30px rgba(126, 87, 194, 0.25);
+  box-shadow: 0 12px 30px rgba(33, 150, 243, 0.25);
 }
 
 .enquiryButton:disabled {

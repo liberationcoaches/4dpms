@@ -8,6 +8,7 @@ import {
   addEmployeeSelfDevelopmentKRA,
   getEmployeeKRAs,
   getMyKRAs,
+  finalizeEmployeeKRAs,
 } from '../controllers/managerController';
 
 const router = Router();
@@ -20,6 +21,7 @@ router.post('/employees/:employeeId/kras/functional', addEmployeeFunctionalKRA);
 router.post('/employees/:employeeId/kras/organizational', addEmployeeOrganizationalKRA);
 router.post('/employees/:employeeId/kras/self-development', addEmployeeSelfDevelopmentKRA);
 router.get('/employees/:employeeId/kras', getEmployeeKRAs);
+router.put('/employees/:employeeId/kras/finalize', finalizeEmployeeKRAs);
 router.get('/my-kras', getMyKRAs);
 
 export default router;

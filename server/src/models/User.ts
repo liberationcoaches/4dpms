@@ -20,6 +20,13 @@ export interface IUser extends Document {
   bossId?: mongoose.Types.ObjectId; // Organization boss
   createdBy?: mongoose.Types.ObjectId; // User who created this user (for hierarchy visibility)
   designation?: string; // Job title/designation
+  aboutMe?: string;
+  educationalQualification?: string;
+  skills?: string[];
+  clientele?: string[];
+  languages?: string[];
+  onboardingCompleted: boolean; // Whether user completed the onboarding wizard
+  onboardingStep: number; // Current step in onboarding (0-4)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -134,6 +141,38 @@ const UserSchema = new Schema<IUser>(
       type: String,
       trim: true,
       maxlength: [100, 'Designation cannot exceed 100 characters'],
+    },
+    aboutMe: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'About Me cannot exceed 1000 characters'],
+    },
+    educationalQualification: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Educational Qualification cannot exceed 500 characters'],
+    },
+    skills: {
+      type: [String],
+      default: [],
+    },
+    clientele: {
+      type: [String],
+      default: [],
+    },
+    languages: {
+      type: [String],
+      default: [],
+    },
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    onboardingStep: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 4, // 0=not started, 1=videos, 2=PYG, 3=team members, 4=KRAs
     },
   },
   {

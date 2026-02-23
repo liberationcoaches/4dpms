@@ -4,8 +4,7 @@ import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ClientAdminDashboard.module.css';
 import logo from '@/assets/logo.png';
 import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
-import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
-import { PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,   } from 'recharts';
+import { PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { DIMENSION_COLORS } from '@/utils/dimensionColors';
 import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 
@@ -67,10 +66,6 @@ function ClientAdminDashboard() {
     email: '',
     mobile: '',
   });
-  const [selectedBoss, setSelectedBoss] = useState<Boss | null>(null);
-  const [showKRAModal, setShowKRAModal] = useState(false);
-  const [kraType, setKraType] = useState<'functional' | 'organizational' | 'self-development'>('functional');
-  const [newKRA, setNewKRA] = useState<any>({});
   const [bossKRAs, setBossKRAs] = useState<{ [bossId: string]: any }>({});
   const [showKRAsView, setShowKRAsView] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -419,85 +414,6 @@ function ClientAdminDashboard() {
     }
   };
 
-  const [editingKRAIndex, setEditingKRAIndex] = useState<number | null>(null);
-
-  const handleAddKRA = async (formData?: FunctionalKRAFormData) => {
-    if (!selectedBoss) return;
-
-    try {
-      const userId = localStorage.getItem('userId');
-      
-      // Check if we're editing an existing KRA
-      if (editingKRAIndex !== null && kraType === 'functional') {
-        // Update existing KRA using client-admin endpoint
-        const requestData = formData
-          ? {
-              kra: formData.kra,
-              kpis: formData.kpis,
-              reportsGenerated: formData.reportsGenerated || [],
-              pilotWeight: formData.pilotWeight || 10,
-              pilotScore: formData.pilotScore || 0,
-            }
-          : newKRA;
-
-        const res = await fetch(`/api/client-admin/bosses/${selectedBoss._id}/kras/functional/${editingKRAIndex}?userId=${userId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestData),
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          setShowKRAModal(false);
-          setNewKRA({});
-          setEditingKRAIndex(null);
-          fetchBossKRAs(selectedBoss._id);
-          alert('KRA updated.');
-        } else {
-          alert(data.message || 'Failed to update KRA');
-        }
-      } else {
-        // Add new KRA
-        const endpoint = `/api/client-admin/bosses/${selectedBoss._id}/kras/${kraType}`;
-        
-        const requestData = kraType === 'functional' && formData
-          ? {
-              kra: formData.kra,
-              kpis: formData.kpis,
-              reportsGenerated: formData.reportsGenerated || [],
-              pilotWeight: formData.pilotWeight || 10,
-              pilotScore: formData.pilotScore || 0,
-            }
-          : newKRA;
-
-        const res = await fetch(`${endpoint}?userId=${userId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestData),
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          setShowKRAModal(false);
-          setNewKRA({});
-          setEditingKRAIndex(null);
-          fetchBossKRAs(selectedBoss._id);
-          alert(
-            kraType === 'functional'
-              ? 'KRA added.'
-              : kraType === 'organizational'
-                ? 'Core value added.'
-                : 'Area of concern added.'
-          );
-        } else {
-          alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
-        }
-      }
-    } catch (error) {
-      alert('Network error');
-    }
-  };
-
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
@@ -783,72 +699,6 @@ function ClientAdminDashboard() {
       uploadedAt: new Date().toISOString(),
     };
     handleAddProof(bossId, kraIndex, newProof);
-  };
-
-  // Helper to get member index for a boss in their team
-
-  // Handle editing a KRA
-  const handleEditKRA = async (boss: Boss, kraIndex: number) => {
-    const kra = bossKRAs[boss._id]?.functionalKRAs?.[kraIndex];
-    if (!kra) return;
-
-    // Check if already edited once or locked
-    if ((kra.editCount || 0) >= 1) {
-      alert('This KRA can only be edited once. It has already been edited.');
-      return;
-    }
-    if (kra.isScoreLocked) {
-      alert('This KRA has been finalized and cannot be edited.');
-      return;
-    }
-
-    // Set up edit mode
-    setSelectedBoss(boss);
-    setEditingKRAIndex(kraIndex);
-    setShowKRAModal(true);
-    setKraType('functional');
-    // Set existing KRA data for editing - convert to form data format
-    const kpis = Array.isArray(kra.kpis) ? kra.kpis : (kra.kpis ? [{ kpi: String(kra.kpis), target: '' }] : []);
-    setNewKRA({
-      kra: kra.kra,
-      kpis: kpis,
-      reportsGenerated: kra.reportsGenerated || [],
-      pilotWeight: kra.pilotWeight || 10,
-      pilotScore: kra.pilotScore || 0,
-    });
-  };
-
-  // Handle deleting a KRA
-  const handleDeleteKRA = async (boss: Boss, kraIndex: number) => {
-    const kra = bossKRAs[boss._id]?.functionalKRAs?.[kraIndex];
-    if (!kra) return;
-
-    if (kra.isScoreLocked) {
-      alert('Cannot delete a finalized KRA.');
-      return;
-    }
-
-    if (!confirm('Are you sure you want to delete this KRA? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/bosses/${boss._id}/kras/functional/${kraIndex}?userId=${userId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        fetchBossKRAs(boss._id);
-        alert('KRA deleted.');
-      } else {
-        alert(data.message || 'Failed to delete KRA');
-      }
-    } catch (error) {
-      console.error('Error deleting KRA:', error);
-      alert('Failed to delete KRA');
-    }
   };
 
   // Handle locking/finalizing KRA scores
@@ -1675,39 +1525,6 @@ function ClientAdminDashboard() {
                           className={styles.bossActionButton}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedBoss(boss);
-                            setShowKRAModal(true);
-                            setKraType('functional');
-                          }}
-                        >
-                          Add Functional KRA
-                        </button>
-                        <button
-                          className={styles.bossActionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedBoss(boss);
-                            setShowKRAModal(true);
-                            setKraType('organizational');
-                          }}
-                        >
-                          Add Core Value
-                        </button>
-                        <button
-                          className={styles.bossActionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedBoss(boss);
-                            setShowKRAModal(true);
-                            setKraType('self-development');
-                          }}
-                        >
-                          Add Area of Concern
-                        </button>
-                        <button
-                          className={styles.bossActionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
                             if (showKRAsView === boss._id) {
                               setShowKRAsView(null);
                             } else {
@@ -1716,7 +1533,7 @@ function ClientAdminDashboard() {
                             }
                           }}
                         >
-                          {showKRAsView === boss._id ? 'Hide Dimensions' : 'View Dimensions'}
+                          {showKRAsView === boss._id ? 'Hide Dimensions' : 'View 4D Data'}
                         </button>
                       </div>
                       {showKRAsView === boss._id && bossKRAs[boss._id] && (
@@ -1740,42 +1557,6 @@ function ClientAdminDashboard() {
                                       }}>
                                         🔒 Finalized
                                       </span>
-                                    )}
-                                    {/* Edit Button */}
-                                    {!kra.isScoreLocked && (kra.editCount || 0) < 1 && (
-                                      <button
-                                        onClick={() => handleEditKRA(boss, idx)}
-                                        style={{
-                                          padding: '0.25rem 0.75rem',
-                                          backgroundColor: '#2196F3',
-                                          color: 'white',
-                                          border: 'none',
-                                          borderRadius: '4px',
-                                          cursor: 'pointer',
-                                          fontSize: '12px',
-                                        }}
-                                        type="button"
-                                      >
-                                        ✏️ Edit
-                                      </button>
-                                    )}
-                                    {/* Delete Button */}
-                                    {!kra.isScoreLocked && (
-                                      <button
-                                        onClick={() => handleDeleteKRA(boss, idx)}
-                                        style={{
-                                          padding: '0.25rem 0.75rem',
-                                          backgroundColor: '#f44336',
-                                          color: 'white',
-                                          border: 'none',
-                                          borderRadius: '4px',
-                                          cursor: 'pointer',
-                                          fontSize: '12px',
-                                        }}
-                                        type="button"
-                                      >
-                                        🗑️ Delete
-                                      </button>
                                     )}
                                     {/* Lock/Finalize Button */}
                                     {!kra.isScoreLocked && (
@@ -2472,78 +2253,6 @@ function ClientAdminDashboard() {
                   <button type="button" onClick={() => { setShowAddCSVModal(false); setCsvFile(null); }} style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd', padding: '0.5rem 1rem', borderRadius: '4px' }}>Cancel</button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* KRA Modal */}
-      {showKRAModal && selectedBoss && (
-        <div className={styles.modalOverlay} onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>{editingKRAIndex !== null ? 'Edit' : 'Add'} {kraType === 'functional' ? 'Functional KRA' : kraType === 'organizational' ? 'Core Value' : 'Area of Concern'} for {selectedBoss.name}</h2>
-              <button
-                className={styles.closeButton}
-                onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              {kraType === 'functional' ? (
-                <KRAForm
-                  key={editingKRAIndex !== null ? `edit-${selectedBoss._id}-${editingKRAIndex}` : `add-${selectedBoss._id}`}
-                  onSubmit={handleAddKRA}
-                  onCancel={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
-                  mode={editingKRAIndex !== null ? "edit" : "add"}
-                  initialData={editingKRAIndex !== null ? newKRA : undefined}
-                />
-              ) : (
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAddKRA();
-                }}>
-                  {kraType === 'organizational' && (
-                    <div className={baseStyles.formGroup}>
-                      <label>Core Values *</label>
-                      <input
-                        type="text"
-                        className={baseStyles.input}
-                        value={newKRA.coreValues || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, coreValues: e.target.value })}
-                        required
-                      />
-                    </div>
-                  )}
-                  {kraType === 'self-development' && (
-                    <div className={baseStyles.formGroup}>
-                      <label>Area of Concern *</label>
-                      <input
-                        type="text"
-                        className={baseStyles.input}
-                        value={newKRA.areaOfConcern || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, areaOfConcern: e.target.value })}
-                        required
-                      />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                    <button type="submit" className={baseStyles.submitButton}>
-                      {kraType === 'organizational' ? 'Add Core Value' : 'Add Area of Concern'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowKRAModal(false); setEditingKRAIndex(null); setNewKRA({}); }}
-                      className={baseStyles.cancelButton}
-                      style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
             </div>
           </div>
         </div>

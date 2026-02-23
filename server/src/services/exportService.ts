@@ -140,11 +140,13 @@ export async function getPersonalExportData(
     developingOthersKRAs: memberDetails.developingOthersKRAs,
   };
 
-  const r1Result = calculateMemberScores(memberKRAs, dimensionWeights, 1, true);
-  const r2Result = calculateMemberScores(memberKRAs, dimensionWeights, 2, true);
-  const r3Result = calculateMemberScores(memberKRAs, dimensionWeights, 3, true);
-  const r4Result = calculateMemberScores(memberKRAs, dimensionWeights, 4, true);
-  const avgResult = calculateMemberScores(memberKRAs, dimensionWeights, 'average', true);
+  // Calculate per-period scores (includePilot doesn't affect single period calculations, but passing false for consistency)
+  const r1Result = calculateMemberScores(memberKRAs, dimensionWeights, 1, false);
+  const r2Result = calculateMemberScores(memberKRAs, dimensionWeights, 2, false);
+  const r3Result = calculateMemberScores(memberKRAs, dimensionWeights, 3, false);
+  const r4Result = calculateMemberScores(memberKRAs, dimensionWeights, 4, false);
+  // Average calculation - Pilot NOT included per Excel verification
+  const avgResult = calculateMemberScores(memberKRAs, dimensionWeights, 'average', false);
 
   const r1Scores: DimensionScores = {
     functional: r1Result.functional,
@@ -281,11 +283,13 @@ export async function getOrganizationExportData(
       developingOthersKRAs: memberDetails.developingOthersKRAs,
     };
 
-    const r1Result = calculateMemberScores(memberKRAs, dimensionWeights, 1, true);
-    const r2Result = calculateMemberScores(memberKRAs, dimensionWeights, 2, true);
-    const r3Result = calculateMemberScores(memberKRAs, dimensionWeights, 3, true);
-    const r4Result = calculateMemberScores(memberKRAs, dimensionWeights, 4, true);
-    const avgResult = calculateMemberScores(memberKRAs, dimensionWeights, 'average', true);
+    // Calculate per-period scores (includePilot doesn't affect single period calculations, but passing false for consistency)
+    const r1Result = calculateMemberScores(memberKRAs, dimensionWeights, 1, false);
+    const r2Result = calculateMemberScores(memberKRAs, dimensionWeights, 2, false);
+    const r3Result = calculateMemberScores(memberKRAs, dimensionWeights, 3, false);
+    const r4Result = calculateMemberScores(memberKRAs, dimensionWeights, 4, false);
+    // Average calculation - Pilot NOT included per Excel verification
+    const avgResult = calculateMemberScores(memberKRAs, dimensionWeights, 'average', false);
 
     const r1Scores: DimensionScores = {
       functional: r1Result.functional,

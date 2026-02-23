@@ -157,6 +157,22 @@ function TeamMemberKRAs() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Calculate weight sum for Functional KRAs per period
+  const calculateWeightSum = (period: 'pilot' | 'r1' | 'r2' | 'r3' | 'r4'): number => {
+    if (!member?.kras || member.kras.length === 0) return 0;
+    const weightKey = `${period}Weight` as keyof KRA;
+    return member.kras.reduce((sum, kra) => {
+      const weight = Number(kra[weightKey]) || 0;
+      return sum + weight;
+    }, 0);
+  };
+
+  // Get weight validation status for a period
+  const getWeightValidation = (period: 'pilot' | 'r1' | 'r2' | 'r3' | 'r4'): { sum: number; isValid: boolean } => {
+    const sum = calculateWeightSum(period);
+    return { sum, isValid: sum === 100 || sum === 0 };
+  };
+
   const fetchMemberData = async () => {
     if (!memberId) return;
 
@@ -1150,6 +1166,26 @@ function TeamMemberKRAs() {
               </div>
             )}
 
+            {/* Weight Sum Validation Indicator */}
+            {member?.kras && member.kras.length > 0 && (
+              <div className={styles.weightValidation}>
+                <span className={styles.weightValidationLabel}>Weight Totals:</span>
+                {(['pilot', 'r1', 'r2', 'r3', 'r4'] as const).map((period) => {
+                  const { sum, isValid } = getWeightValidation(period);
+                  const periodLabel = period === 'pilot' ? 'Pilot' : period.toUpperCase();
+                  return (
+                    <span
+                      key={period}
+                      className={`${styles.weightBadge} ${isValid ? styles.weightValid : styles.weightInvalid}`}
+                      title={isValid ? 'Weights sum to 100%' : `Weights sum to ${sum}% (should be 100%)`}
+                    >
+                      {periodLabel}: {sum}%
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
         <div className={styles.kraList}>
           {member.kras && member.kras.length > 0 ? (
             member.kras.map((kra) => (
@@ -1278,7 +1314,7 @@ function TeamMemberKRAs() {
                               <label>Weight</label>
                               <input
                                 type="number"
-                                value={kra.pilotWeight || ''}
+                                value={kra.pilotWeight != null ? Number(kra.pilotWeight) : ''}
                                 onChange={(e) =>
                                   handleUpdateKRA(kra._id!, 'pilotWeight', parseFloat(e.target.value) || 0)
                                 }
@@ -1322,7 +1358,7 @@ function TeamMemberKRAs() {
                               <label>Weight</label>
                               <input
                                 type="number"
-                                value={kra[weightKey] || ''}
+                                value={kra[weightKey] != null ? Number(kra[weightKey]) : ''}
                                 onChange={(e) =>
                                   handleUpdateKRA(kra._id!, weightKey, parseFloat(e.target.value) || 0)
                                 }
@@ -1336,7 +1372,7 @@ function TeamMemberKRAs() {
                               <input
                                 type="number"
                                 min="0"
-                                max="100"
+                                max="5"
                                 step="0.01"
                                 value={kra[scoreKey] || ''}
                                 onChange={(e) =>
@@ -1467,7 +1503,7 @@ function TeamMemberKRAs() {
                                   <input
                                     type="number"
                                     min="0"
-                                    max="100"
+                                    max="5"
                                     step="0.01"
                                     value={dimension.pilotScore || ''}
                                     onChange={(e) =>
@@ -1524,7 +1560,7 @@ function TeamMemberKRAs() {
                                   <input
                                     type="number"
                                     min="0"
-                                    max="100"
+                                    max="5"
                                     step="0.01"
                                     value={dimension[scoreKey] || ''}
                                     onChange={(e) =>
@@ -1682,7 +1718,7 @@ function TeamMemberKRAs() {
                                   <input
                                     type="number"
                                     min="0"
-                                    max="100"
+                                    max="5"
                                     step="0.01"
                                     value={development.pilotScore || ''}
                                     onChange={(e) =>
@@ -1735,7 +1771,7 @@ function TeamMemberKRAs() {
                                   <input
                                     type="number"
                                     min="0"
-                                    max="100"
+                                    max="5"
                                     step="0.01"
                                     value={development[scoreKey] || ''}
                                     onChange={(e) =>
@@ -1898,7 +1934,7 @@ function TeamMemberKRAs() {
                                   <input
                                     type="number"
                                     min="0"
-                                    max="100"
+                                    max="5"
                                     step="0.01"
                                     value={developing.pilotScore || ''}
                                     onChange={(e) =>
@@ -1951,7 +1987,7 @@ function TeamMemberKRAs() {
                                   <input
                                     type="number"
                                     min="0"
-                                    max="100"
+                                    max="5"
                                     step="0.01"
                                     value={developing[scoreKey] || ''}
                                     onChange={(e) =>

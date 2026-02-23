@@ -72,7 +72,7 @@ export const getNavigationItems = (role: 'platform_admin' | 'client_admin' | 're
           <circle cx="12" cy="7" r="4"></circle>
         </svg>
       ),
-      roles: ['platform_admin', 'client_admin', 'reviewer', 'boss', 'manager', 'employee'],
+      roles: ['platform_admin', 'client_admin', 'reviewer', 'boss', 'manager'],
     },
     {
       label: 'Settings',
@@ -83,7 +83,7 @@ export const getNavigationItems = (role: 'platform_admin' | 'client_admin' | 're
           <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
         </svg>
       ),
-      roles: ['platform_admin', 'client_admin', 'reviewer', 'boss', 'manager', 'employee'],
+      roles: ['platform_admin', 'client_admin', 'reviewer', 'boss', 'manager'],
     },
   ];
 

@@ -374,8 +374,8 @@ export async function getBossAnalytics(
           }
         }
 
-        const avgDeptScore = deptScoreCount > 0 
-          ? Math.round((deptTotalScore / deptScoreCount) * 100) / 100 
+        const avgDeptScore = deptScoreCount > 0
+          ? Math.round((deptTotalScore / deptScoreCount) * 100) / 100
           : 0;
 
         return {
@@ -396,7 +396,7 @@ export async function getBossAnalytics(
         totalEmployeesWithScores += dept.employeeCount;
       }
     });
-    
+
     const orgAverageScore = totalEmployeesWithScores > 0
       ? Math.round((totalWeightedScore / totalEmployeesWithScores) * 100) / 100
       : 0;
@@ -830,6 +830,9 @@ export async function getManagerKRAs(
         organizationalKRAs: memberDetails?.organizationalKRAs || [],
         selfDevelopmentKRAs: memberDetails?.selfDevelopmentKRAs || [],
         developingOthersKRAs: memberDetails?.developingOthersKRAs || [],
+        krasFinalized: memberDetails?.krasFinalized || false,
+        krasReadyForReview: memberDetails?.krasReadyForReview || false,
+        krasFinalizedAt: memberDetails?.krasFinalizedAt || null,
       },
     });
   } catch (error) {
@@ -872,12 +875,12 @@ export async function getMyKRAs(
     if (boss.teamId) {
       team = await Team.findById(boss.teamId);
     }
-    
+
     // Fallback to organization team if boss.teamId doesn't exist or team not found
     if (!team) {
       team = await Team.findOne({ organizationId: boss.organizationId });
     }
-    
+
     // If still no team, try finding team by createdBy
     if (!team) {
       team = await Team.findOne({ createdBy: boss._id });
@@ -908,6 +911,126 @@ export async function getMyKRAs(
         selfDevelopmentKRAs: memberDetails?.selfDevelopmentKRAs || [],
         developingOthersKRAs: memberDetails?.developingOthersKRAs || [],
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Finalize manager KRAs (Boss only)
+ * Locks all KRAs so the manager can no longer edit them
+ * PUT /api/boss/managers/:managerId/kras/finalize
+ */
+export async function finalizeManagerKRAs(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const bossId = req.query.userId as string;
+    const managerId = req.params.managerId;
+
+    if (!bossId || !managerId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID and Manager ID are required',
+      });
+      return;
+    }
+
+    const boss = await User.findById(bossId);
+    if (!boss || boss.role !== 'boss') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only Admins can finalize Supervisor KRAs',
+      });
+      return;
+    }
+
+    const manager = await User.findById(managerId);
+    if (!manager || manager.role !== 'manager' || manager.bossId?.toString() !== boss._id.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Manager not found or does not belong to you',
+      });
+      return;
+    }
+
+    const team = await Team.findOne({ createdBy: manager._id });
+    if (!team) {
+      res.status(404).json({ status: 'error', message: 'Team not found' });
+      return;
+    }
+
+    const memberIndex = team.membersDetails.findIndex(
+      (m: any) => m.mobile === manager.mobile
+    );
+    if (memberIndex === -1) {
+      res.status(404).json({ status: 'error', message: 'Manager not found in team' });
+      return;
+    }
+
+    if (team.membersDetails[memberIndex].krasFinalized) {
+      res.status(400).json({
+        status: 'error',
+        message: 'KRAs are already finalized for this manager',
+      });
+      return;
+    }
+
+    team.membersDetails[memberIndex].krasFinalized = true;
+    team.membersDetails[memberIndex].krasFinalizedAt = new Date();
+    team.membersDetails[memberIndex].krasFinalizedBy = boss._id as any;
+    team.membersDetails[memberIndex].krasReadyForReview = false;
+
+    const member = team.membersDetails[memberIndex];
+    member.functionalKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = boss._id as any;
+    });
+    member.organizationalKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = boss._id as any;
+    });
+    member.selfDevelopmentKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = boss._id as any;
+    });
+    member.developingOthersKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = boss._id as any;
+    });
+
+    await team.save();
+
+    try {
+      const { Notification } = await import('../models/Notification');
+      const notification = new Notification({
+        userId: manager._id,
+        type: 'success',
+        title: 'KRAs Finalized',
+        message: `Your KRAs have been reviewed and finalized by ${boss.name}. They are now locked.`,
+        isRead: false,
+        metadata: {
+          type: 'kra_finalized',
+          bossId: boss._id,
+          bossName: boss.name,
+          teamId: team._id,
+        },
+      });
+      await notification.save();
+    } catch (notifError) {
+      console.error('Failed to send finalization notification:', notifError);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `KRAs for ${manager.name} have been finalized successfully.`,
     });
   } catch (error) {
     next(error);

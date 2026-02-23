@@ -1,0 +1,829 @@
+/* ============================================
+   ONBOARDING STYLES
+   Wizard flow for first-time users
+   ============================================ */
+
+.onboarding {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8edf5 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== Header ========== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--color-core-white);
+  border-bottom: 1px solid var(--color-main-grey-40);
+  box-shadow: var(--shadow-sm);
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logo {
+  height: 36px;
+  width: auto;
+}
+
+.headerTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+}
+
+/* ========== Progress Bar ========== */
+.progressContainer {
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--color-core-white);
+  border-bottom: 1px solid var(--color-main-grey-20);
+}
+
+.progressSteps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.progressStep {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: default;
+}
+
+.stepCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.stepCircleActive {
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  color: var(--color-core-white);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.stepCircleCompleted {
+  background: #4caf50;
+  color: var(--color-core-white);
+}
+
+.stepCircleInactive {
+  background: var(--color-main-grey-20);
+  color: var(--color-main-grey-60);
+}
+
+.stepLabel {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+  white-space: nowrap;
+}
+
+.stepLabelInactive {
+  color: var(--color-main-grey-60);
+}
+
+.stepConnector {
+  width: 60px;
+  height: 2px;
+  background: var(--color-main-grey-40);
+  margin: 0 var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.stepConnectorCompleted {
+  background: #4caf50;
+}
+
+/* ========== Content ========== */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+}
+
+.stepContent {
+  width: 100%;
+  max-width: 800px;
+  animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== Footer / Navigation ========== */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--color-core-white);
+  border-top: 1px solid var(--color-main-grey-40);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.footerLeft {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.footerRight {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.btnPrimary {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  color: var(--color-core-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: transparent;
+  color: var(--color-main-black-80);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btnSecondary:hover {
+  background: var(--color-main-grey-20);
+}
+
+.btnSkip {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: transparent;
+  color: var(--color-main-grey-60);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btnSkip:hover {
+  color: var(--color-main-black-80);
+}
+
+/* ========== Video Step ========== */
+.videoStep {
+  text-align: center;
+}
+
+.videoTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-28);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  margin-bottom: var(--spacing-sm);
+}
+
+.videoSubtitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  color: var(--color-main-grey-60);
+  margin-bottom: var(--spacing-xl);
+}
+
+.videoContainer {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 */
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  background: #000;
+}
+
+.videoContainer iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.videoNav {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+}
+
+.videoDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-main-grey-40);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  padding: 0;
+}
+
+.videoDotActive {
+  background: var(--color-primary-main-blue);
+  transform: scale(1.3);
+}
+
+/* ========== PYG Step ========== */
+.pygStep {
+  background: var(--color-core-white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.pygHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.pygTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+}
+
+.pygSubtitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-grey-60);
+  margin-top: var(--spacing-xs);
+}
+
+.timelineToggle {
+  display: flex;
+  background: var(--color-main-grey-20);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.timelineBtn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  background: transparent;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-grey-60);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timelineBtnActive {
+  background: var(--color-primary-main-blue);
+  color: var(--color-core-white);
+  border-radius: var(--radius-md);
+}
+
+.goalsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.goalCard {
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  transition: box-shadow 0.2s;
+}
+
+.goalCard:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.goalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+}
+
+.goalNumber {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-main-blue);
+  background: rgba(33, 150, 243, 0.1);
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.removeGoalBtn {
+  background: none;
+  border: none;
+  color: var(--color-error-100);
+  cursor: pointer;
+  font-size: var(--font-size-18);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.2s;
+}
+
+.removeGoalBtn:hover {
+  background: rgba(198, 40, 40, 0.1);
+}
+
+.goalFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.goalFieldFull {
+  grid-column: 1 / -1;
+}
+
+.goalField label {
+  display: block;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+  margin-bottom: var(--spacing-xs);
+}
+
+.goalField input,
+.goalField textarea {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-black-100);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.goalField input:focus,
+.goalField textarea:focus {
+  border-color: var(--color-primary-main-blue);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.goalField textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.breakdownSection {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-main-grey-20);
+}
+
+.breakdownTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-grey-60);
+  margin-bottom: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.breakdownGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.breakdownGridMonthly {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.breakdownItem label {
+  display: block;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-grey-60);
+  margin-bottom: 2px;
+}
+
+.breakdownItem input {
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  color: var(--color-main-black-100);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.breakdownItem input:focus {
+  border-color: var(--color-primary-main-blue);
+}
+
+.addGoalBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px dashed var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-main-blue);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addGoalBtn:hover {
+  border-color: var(--color-primary-main-blue);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+/* ========== Add Team Members Step ========== */
+.teamStep {
+  background: var(--color-core-white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.teamTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  margin-bottom: var(--spacing-xs);
+}
+
+.teamSubtitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-grey-60);
+  margin-bottom: var(--spacing-xl);
+}
+
+.teamOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.teamOptionCard {
+  border: 2px solid var(--color-main-grey-40);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.teamOptionCard:hover {
+  border-color: var(--color-primary-main-blue);
+  box-shadow: 0 4px 16px rgba(33, 150, 243, 0.15);
+}
+
+.teamOptionCardActive {
+  border-color: var(--color-primary-main-blue);
+  background: rgba(33, 150, 243, 0.03);
+}
+
+.teamOptionIcon {
+  font-size: 40px;
+  margin-bottom: var(--spacing-md);
+}
+
+.teamOptionTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  margin-bottom: var(--spacing-xs);
+}
+
+.teamOptionDesc {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+}
+
+/* Manual add form */
+.manualForm {
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.manualFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.formField label {
+  display: block;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+  margin-bottom: var(--spacing-xs);
+}
+
+.formField input,
+.formField select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-black-100);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.formField input:focus,
+.formField select:focus {
+  border-color: var(--color-primary-main-blue);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+/* CSV upload */
+.csvUpload {
+  border: 2px dashed var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.csvUpload:hover {
+  border-color: var(--color-primary-main-blue);
+  background: rgba(33, 150, 243, 0.02);
+}
+
+.csvIcon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-md);
+}
+
+.csvText {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-80);
+  margin-bottom: var(--spacing-xs);
+}
+
+.csvHint {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+}
+
+/* Invite */
+.inviteSection {
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.inviteLinkContainer {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.inviteLinkInput {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-grey-60);
+  background: var(--color-main-grey-20);
+}
+
+.copyBtn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary-main-blue);
+  color: var(--color-core-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.copyBtn:hover {
+  background: var(--color-primary-deep1-blue);
+}
+
+/* Added members list */
+.addedMembers {
+  margin-top: var(--spacing-xl);
+}
+
+.addedMembersTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-main-black-100);
+  margin-bottom: var(--spacing-md);
+}
+
+.membersList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.memberItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--color-main-grey-20);
+  border-radius: var(--radius-md);
+}
+
+.memberInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.memberAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-core-white);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-14);
+}
+
+.memberName {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-100);
+}
+
+.memberRole {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12);
+  color: var(--color-main-grey-60);
+}
+
+.removeMemberBtn {
+  background: none;
+  border: none;
+  color: var(--color-error-100);
+  cursor: pointer;
+  font-size: var(--font-size-16);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+.removeMemberBtn:hover {
+  background: rgba(198, 40, 40, 0.1);
+}
+
+/* ========== KRAs Step ========== */
+.kraStep {
+  background: var(--color-core-white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.kraTitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-main-black-100);
+  margin-bottom: var(--spacing-xs);
+}
+
+.kraSubtitle {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-main-grey-60);
+  margin-bottom: var(--spacing-xl);
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .progressSteps {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .stepConnector {
+    display: none;
+  }
+
+  .stepLabel {
+    display: none;
+  }
+
+  .teamOptions {
+    grid-template-columns: 1fr;
+  }
+
+  .manualFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .goalFields {
+    grid-template-columns: 1fr;
+  }
+
+  .breakdownGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .footer {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .footerLeft, .footerRight {
+    width: 100%;
+    justify-content: center;
+  }
+}

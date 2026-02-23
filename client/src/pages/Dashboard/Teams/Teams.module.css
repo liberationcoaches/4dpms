@@ -109,7 +109,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #667eea;
+  background: #2196f3;
   color: white;
   display: flex;
   align-items: center;
@@ -364,8 +364,8 @@
 
 .input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #2196f3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
 }
 
 .modalActions {

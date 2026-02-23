@@ -156,7 +156,7 @@ function Performance() {
               <YAxis domain={[0, 5]} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="4D Index" fill="#667eea" />
+              <Bar dataKey="4D Index" fill="#2196f3" />
             </BarChart>
           </ResponsiveContainer>
         </div>

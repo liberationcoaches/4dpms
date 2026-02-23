@@ -219,12 +219,12 @@
   cursor: pointer;
   transition: all 0.2s;
   margin-top: var(--spacing-sm);
-  box-shadow: 0 12px 30px rgba(126, 87, 194, 0.25);
+  box-shadow: 0 12px 30px rgba(33, 150, 243, 0.25);
 }
 
 .primaryButton:hover:not(:disabled) {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 14px 34px rgba(126, 87, 194, 0.28);
+  box-shadow: 0 14px 34px rgba(33, 150, 243, 0.28);
 }
 
 .primaryButton:disabled {

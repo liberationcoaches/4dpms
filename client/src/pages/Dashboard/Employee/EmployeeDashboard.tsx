@@ -5,6 +5,9 @@ import styles from './EmployeeDashboard.module.css';
 import logo from '@/assets/logo.png';
 import { getNavigationItems } from '@/utils/navigationConfig';
 import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
+import KRAEditor from './KRAEditor';
+import DimensionWeightsEditor from './DimensionWeightsEditor';
+import ProfileEditor from './ProfileEditor';
 
 interface PerformanceData {
   employee: {
@@ -36,7 +39,7 @@ interface Proof {
   uploadedAt: string;
 }
 
-type ActiveTab = 'dashboard' | 'settings';
+type ActiveTab = 'dashboard' | 'my4DData' | 'settings';
 
 function EmployeeDashboard() {
   const navigate = useNavigate();
@@ -133,7 +136,7 @@ function EmployeeDashboard() {
       setIsDownloadingReport(true);
       const userId = localStorage.getItem('userId');
       const response = await fetch(`/api/user/my-report?userId=${userId}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to download report');
       }
@@ -232,7 +235,7 @@ function EmployeeDashboard() {
   };
 
   const navigationItems = getNavigationItems('employee');
-  
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -304,7 +307,7 @@ function EmployeeDashboard() {
     }
 
     const updatedProofs = [...currentProofs, proof];
-    
+
     // Update the employee's KRA
     try {
       const userId = localStorage.getItem('userId');
@@ -434,9 +437,9 @@ function EmployeeDashboard() {
             disabled={isDownloadingReport}
             aria-label="Download My Report"
             title="Download My Report as PDF"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
               gap: '6px',
               padding: '8px 12px',
               borderRadius: '8px',
@@ -523,7 +526,7 @@ function EmployeeDashboard() {
 
             <div className={baseStyles.navItems}>
               {navigationItems.map((item) => {
-                const isActive = location.pathname === item.path || 
+                const isActive = location.pathname === item.path ||
                   (item.path === '/dashboard' && location.pathname === '/dashboard');
                 return (
                   <button
@@ -543,6 +546,19 @@ function EmployeeDashboard() {
 
             <div className={baseStyles.sidebarFooter}>
               <div className={baseStyles.navDivider}></div>
+              <button
+                className={`${baseStyles.menuItem} ${activeTab === 'my4DData' ? baseStyles.menuItemActive : ''}`}
+                onClick={() => {
+                  setActiveTab('my4DData');
+                  setShowMenu(false);
+                }}
+              >
+                <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 11l3 3L22 4"></path>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                <span>My 4D Data</span>
+              </button>
               <button
                 className={`${baseStyles.menuItem} ${activeTab === 'settings' ? baseStyles.menuItemActive : ''}`}
                 onClick={() => {
@@ -579,483 +595,439 @@ function EmployeeDashboard() {
                 <p className={styles.welcome}>Welcome, {performanceData.employee.name}</p>
               </div>
 
-      <div className={styles.overview}>
-        <div className={styles.scoreCard}>
-          <h2>Current Score</h2>
-          <div className={styles.scoreValue}>{performanceData.currentScore.toFixed(1)}</div>
-          <div className={styles.scoreLabel}>Out of 100</div>
-        </div>
-
-        <div className={styles.infoCard}>
-          <h3>Next Review Date</h3>
-          <p className={styles.date}>
-            {performanceData.nextReviewDate
-              ? new Date(performanceData.nextReviewDate).toLocaleDateString()
-              : 'Not scheduled'}
-          </p>
-        </div>
-
-        <div className={styles.infoCard}>
-          <h3>Current Period</h3>
-          <p className={styles.period}>Period {performanceData.currentPeriod}</p>
-        </div>
-
-        <div 
-          className={styles.feedbackCard}
-          onClick={() => navigate('/dashboard/employee/feedback')}
-        >
-          <h3>Feedback History</h3>
-          <p className={styles.feedbackLink}>View all feedback →</p>
-        </div>
-      </div>
-
-      <div className={styles.historical}>
-        <h2>Historical Trends</h2>
-        {performanceData.historicalScores.length > 0 ? (
-          <div className={styles.trendsChart}>
-            {performanceData.historicalScores.map((item, index) => (
-              <div key={index} className={styles.trendItem}>
-                <div className={styles.trendBar}>
-                  <div
-                    className={styles.trendFill}
-                    style={{ height: `${item.score}%` }}
-                  />
+              <div className={styles.overview}>
+                <div className={styles.scoreCard}>
+                  <h2>Current Score</h2>
+                  <div className={styles.scoreValue}>{performanceData.currentScore.toFixed(1)}</div>
+                  <div className={styles.scoreLabel}>Out of 100</div>
                 </div>
-                <div className={styles.trendLabel}>
-                  <div>Period {item.period}</div>
-                  <div className={styles.trendScore}>{item.score.toFixed(1)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className={styles.noData}>No historical data available yet</p>
-        )}
-      </div>
 
-      {/* My KRAs Section */}
-      {performanceData.kras && (
-        <div className={styles.myKRAsSection}>
-          <h2>My KRAs</h2>
-          <div className={styles.krasGrid}>
-            <div className={styles.kraCategory}>
-              <div 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setExpandedCategories({ ...expandedCategories, functional: !expandedCategories.functional })}
-              >
-                <h3 style={{ margin: 0 }}>Functional KRAs ({performanceData.kras.functionalKRAs?.length || 0})</h3>
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    color: '#666',
-                    padding: '0.25rem 0.5rem',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedCategories({ ...expandedCategories, functional: !expandedCategories.functional });
-                  }}
+                <div className={styles.infoCard}>
+                  <h3>Next Review Date</h3>
+                  <p className={styles.date}>
+                    {performanceData.nextReviewDate
+                      ? new Date(performanceData.nextReviewDate).toLocaleDateString()
+                      : 'Not scheduled'}
+                  </p>
+                </div>
+
+                <div className={styles.infoCard}>
+                  <h3>Current Period</h3>
+                  <p className={styles.period}>Period {performanceData.currentPeriod}</p>
+                </div>
+
+                <div
+                  className={styles.feedbackCard}
+                  onClick={() => navigate('/dashboard/employee/feedback')}
                 >
-                  {expandedCategories.functional ? '▼' : '▶'}
-                </button>
+                  <h3>Feedback History</h3>
+                  <p className={styles.feedbackLink}>View all feedback →</p>
+                </div>
               </div>
-              {expandedCategories.functional && performanceData.kras.functionalKRAs?.length > 0 && (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                    {(showAllKRAs.functional 
-                      ? performanceData.kras.functionalKRAs 
-                      : performanceData.kras.functionalKRAs.slice(0, 3)
-                    ).map((kra: any, idx: number) => {
-                      const actualIndex = showAllKRAs.functional ? idx : idx;
-                      return (
-                        <div 
-                          key={actualIndex} 
-                          onClick={() => {
-                            setSelectedKRA({ kra, index: actualIndex, type: 'self' });
-                            setShowKRADetailModal(true);
-                          }}
-                      style={{ 
-                        padding: '1.5rem', 
-                        border: '2px solid #e0e0e0', 
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        backgroundColor: '#fff',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#2196F3';
-                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#e0e0e0';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.kra}</h4>
-                      <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
-                        {(() => {
-                          let kpis: Array<{ kpi: string; target?: string }> = [];
-                          if (Array.isArray(kra.kpis)) {
-                            kpis = kra.kpis;
-                          } else if (kra.kpis) {
-                            kpis = [{ kpi: String(kra.kpis) }];
-                          }
-                          return kpis.length > 0 ? `${kpis.length} KPI${kpis.length > 1 ? 's' : ''}` : 'No KPIs';
-                        })()}
-                      </p>
-                      <p style={{ margin: '0.5rem 0 0 0', color: '#999', fontSize: '12px' }}>
-                        {(() => {
-                          let proofs: any[] = [];
-                          if (Array.isArray(kra.reportsGenerated)) {
-                            proofs = kra.reportsGenerated;
-                          } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
-                            proofs = [{ type: 'drive_link', value: kra.reportsGenerated }];
-                          }
-                          return proofs.length > 0 ? `${proofs.length} proof${proofs.length > 1 ? 's' : ''} submitted` : 'No proof submitted';
-                        })()}
-                      </p>
-                      <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
-                        Click to view details →
+
+              <div className={styles.historical}>
+                <h2>Historical Trends</h2>
+                {performanceData.historicalScores.length > 0 ? (
+                  <div className={styles.trendsChart}>
+                    {performanceData.historicalScores.map((item, index) => (
+                      <div key={index} className={styles.trendItem}>
+                        <div className={styles.trendBar}>
+                          <div
+                            className={styles.trendFill}
+                            style={{ height: `${item.score}%` }}
+                          />
+                        </div>
+                        <div className={styles.trendLabel}>
+                          <div>Period {item.period}</div>
+                          <div className={styles.trendScore}>{item.score.toFixed(1)}</div>
                         </div>
                       </div>
-                    );
-                    })}
+                    ))}
                   </div>
-                  {performanceData.kras.functionalKRAs.length > 3 && (
-                    <button
-                      onClick={() => setShowAllKRAs({ ...showAllKRAs, functional: !showAllKRAs.functional })}
-                      style={{
-                        marginTop: '1rem',
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#f0f0f0',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        color: '#2196F3',
-                        fontWeight: '600',
-                      }}
-                    >
-                      {showAllKRAs.functional ? `Show Less (${performanceData.kras.functionalKRAs.length - 3} hidden)` : `Show All (${performanceData.kras.functionalKRAs.length - 3} more)`}
-                    </button>
-                  )}
-                </>
-              )}
-              {!expandedCategories.functional && performanceData.kras.functionalKRAs?.length > 0 && (
-                <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
-              )}
-              {performanceData.kras.functionalKRAs?.length === 0 && (
-                <p>No Functional KRAs assigned</p>
-              )}
-            </div>
-            <div className={styles.kraCategory}>
-              <div 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational })}
-              >
-                <h3 style={{ margin: 0 }}>Organizational Dimension - Core Values ({performanceData.kras.organizationalKRAs?.length || 0})</h3>
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    color: '#666',
-                    padding: '0.25rem 0.5rem',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational });
-                  }}
-                >
-                  {expandedCategories.organizational ? '▼' : '▶'}
-                </button>
+                ) : (
+                  <p className={styles.noData}>No historical data available yet</p>
+                )}
               </div>
-              {expandedCategories.organizational && performanceData.kras.organizationalKRAs?.length > 0 && (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                    {(showAllKRAs.organizational 
-                      ? performanceData.kras.organizationalKRAs 
-                      : performanceData.kras.organizationalKRAs.slice(0, 3)
-                    ).map((kra: any, idx: number) => {
-                      const actualIndex = showAllKRAs.organizational ? idx : idx;
-                      return (
-                        <div 
-                          key={actualIndex} 
-                          onClick={() => {
-                            setSelectedKRA({ kra, index: actualIndex, type: 'self' });
-                            setShowKRADetailModal(true);
-                          }}
-                          style={{ 
-                            padding: '1.5rem', 
-                            border: '2px solid #e0e0e0', 
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            backgroundColor: '#fff',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#2196F3';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = '#e0e0e0';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                        >
-                          <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.coreValues}</h4>
-                          <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
-                            Click to view details →
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {performanceData.kras.organizationalKRAs.length > 3 && (
-                    <button
-                      onClick={() => setShowAllKRAs({ ...showAllKRAs, organizational: !showAllKRAs.organizational })}
-                      style={{
-                        marginTop: '1rem',
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#f0f0f0',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        color: '#2196F3',
-                        fontWeight: '600',
-                      }}
-                    >
-                      {showAllKRAs.organizational ? `Show Less (${performanceData.kras.organizationalKRAs.length - 3} hidden)` : `Show All (${performanceData.kras.organizationalKRAs.length - 3} more)`}
-                    </button>
-                  )}
-                </>
-              )}
-              {!expandedCategories.organizational && performanceData.kras.organizationalKRAs?.length > 0 && (
-                <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
-              )}
-              {performanceData.kras.organizationalKRAs?.length === 0 && (
-                <p>No core values assigned</p>
-              )}
-            </div>
-            <div className={styles.kraCategory}>
-              <div 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment })}
-              >
-                <h3 style={{ margin: 0 }}>Self Development (Areas of Concern) ({performanceData.kras.selfDevelopmentKRAs?.length || 0})</h3>
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    color: '#666',
-                    padding: '0.25rem 0.5rem',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment });
-                  }}
-                >
-                  {expandedCategories.selfDevelopment ? '▼' : '▶'}
-                </button>
-              </div>
-              {expandedCategories.selfDevelopment && performanceData.kras.selfDevelopmentKRAs?.length > 0 && (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                    {(showAllKRAs.selfDevelopment 
-                      ? performanceData.kras.selfDevelopmentKRAs 
-                      : performanceData.kras.selfDevelopmentKRAs.slice(0, 3)
-                    ).map((kra: any, idx: number) => {
-                      const actualIndex = showAllKRAs.selfDevelopment ? idx : idx;
-                      return (
-                        <div 
-                          key={actualIndex} 
-                          onClick={() => {
-                            setSelectedKRA({ kra, index: actualIndex, type: 'self' });
-                            setShowKRADetailModal(true);
-                          }}
-                          style={{ 
-                            padding: '1.5rem', 
-                            border: '2px solid #e0e0e0', 
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            backgroundColor: '#fff',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#2196F3';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = '#e0e0e0';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                        >
-                          <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.areaOfConcern}</h4>
-                          <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
-                            Click to view details →
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {performanceData.kras.selfDevelopmentKRAs.length > 3 && (
-                    <button
-                      onClick={() => setShowAllKRAs({ ...showAllKRAs, selfDevelopment: !showAllKRAs.selfDevelopment })}
-                      style={{
-                        marginTop: '1rem',
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#f0f0f0',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        color: '#2196F3',
-                        fontWeight: '600',
-                      }}
-                    >
-                      {showAllKRAs.selfDevelopment ? `Show Less (${performanceData.kras.selfDevelopmentKRAs.length - 3} hidden)` : `Show All (${performanceData.kras.selfDevelopmentKRAs.length - 3} more)`}
-                    </button>
-                  )}
-                </>
-              )}
-              {!expandedCategories.selfDevelopment && performanceData.kras.selfDevelopmentKRAs?.length > 0 && (
-                <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
-              )}
-              {performanceData.kras.selfDevelopmentKRAs?.length === 0 && (
-                <p>No areas of concern assigned</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      <div className={styles.feedback}>
-        <h2>Feedback & Comments</h2>
-        <div className={styles.feedbackCard}>
-          {performanceData.kras?.functionalKRAs?.length > 0 ? (
-            <div>
-              <h3>Functional Dimension</h3>
-              {performanceData.kras.functionalKRAs.map((kra: any, index: number) => (
-                <div key={index} className={styles.feedbackItem}>
-                  <strong>{kra.kra}</strong>
-                  <p>{kra[`r${performanceData.currentPeriod}ActualPerf`] || 'No feedback yet'}</p>
+              {/* My KRAs Section */}
+              {performanceData.kras && (
+                <div className={styles.myKRAsSection}>
+                  <h2>My KRAs</h2>
+                  <div className={styles.krasGrid}>
+                    <div className={styles.kraCategory}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedCategories({ ...expandedCategories, functional: !expandedCategories.functional })}
+                      >
+                        <h3 style={{ margin: 0 }}>Functional KRAs ({performanceData.kras.functionalKRAs?.length || 0})</h3>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            color: '#666',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategories({ ...expandedCategories, functional: !expandedCategories.functional });
+                          }}
+                        >
+                          {expandedCategories.functional ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {expandedCategories.functional && performanceData.kras.functionalKRAs?.length > 0 && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {(showAllKRAs.functional
+                              ? performanceData.kras.functionalKRAs
+                              : performanceData.kras.functionalKRAs.slice(0, 3)
+                            ).map((kra: any, idx: number) => {
+                              const actualIndex = showAllKRAs.functional ? idx : idx;
+                              return (
+                                <div
+                                  key={actualIndex}
+                                  onClick={() => {
+                                    setSelectedKRA({ kra, index: actualIndex, type: 'self' });
+                                    setShowKRADetailModal(true);
+                                  }}
+                                  style={{
+                                    padding: '1.5rem',
+                                    border: '2px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: '#fff',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#2196F3';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#e0e0e0';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.kra}</h4>
+                                  <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+                                    {(() => {
+                                      let kpis: Array<{ kpi: string; target?: string }> = [];
+                                      if (Array.isArray(kra.kpis)) {
+                                        kpis = kra.kpis;
+                                      } else if (kra.kpis) {
+                                        kpis = [{ kpi: String(kra.kpis) }];
+                                      }
+                                      return kpis.length > 0 ? `${kpis.length} KPI${kpis.length > 1 ? 's' : ''}` : 'No KPIs';
+                                    })()}
+                                  </p>
+                                  <p style={{ margin: '0.5rem 0 0 0', color: '#999', fontSize: '12px' }}>
+                                    {(() => {
+                                      let proofs: any[] = [];
+                                      if (Array.isArray(kra.reportsGenerated)) {
+                                        proofs = kra.reportsGenerated;
+                                      } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+                                        proofs = [{ type: 'drive_link', value: kra.reportsGenerated }];
+                                      }
+                                      return proofs.length > 0 ? `${proofs.length} proof${proofs.length > 1 ? 's' : ''} submitted` : 'No proof submitted';
+                                    })()}
+                                  </p>
+                                  <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                    Click to view details →
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {performanceData.kras.functionalKRAs.length > 3 && (
+                            <button
+                              onClick={() => setShowAllKRAs({ ...showAllKRAs, functional: !showAllKRAs.functional })}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#f0f0f0',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#2196F3',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {showAllKRAs.functional ? `Show Less (${performanceData.kras.functionalKRAs.length - 3} hidden)` : `Show All (${performanceData.kras.functionalKRAs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!expandedCategories.functional && performanceData.kras.functionalKRAs?.length > 0 && (
+                        <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
+                      )}
+                      {performanceData.kras.functionalKRAs?.length === 0 && (
+                        <p>No Functional KRAs assigned</p>
+                      )}
+                    </div>
+                    <div className={styles.kraCategory}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational })}
+                      >
+                        <h3 style={{ margin: 0 }}>Organizational Dimension - Core Values ({performanceData.kras.organizationalKRAs?.length || 0})</h3>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            color: '#666',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategories({ ...expandedCategories, organizational: !expandedCategories.organizational });
+                          }}
+                        >
+                          {expandedCategories.organizational ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {expandedCategories.organizational && performanceData.kras.organizationalKRAs?.length > 0 && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {(showAllKRAs.organizational
+                              ? performanceData.kras.organizationalKRAs
+                              : performanceData.kras.organizationalKRAs.slice(0, 3)
+                            ).map((kra: any, idx: number) => {
+                              const actualIndex = showAllKRAs.organizational ? idx : idx;
+                              return (
+                                <div
+                                  key={actualIndex}
+                                  onClick={() => {
+                                    setSelectedKRA({ kra, index: actualIndex, type: 'self' });
+                                    setShowKRADetailModal(true);
+                                  }}
+                                  style={{
+                                    padding: '1.5rem',
+                                    border: '2px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: '#fff',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#2196F3';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#e0e0e0';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.coreValues}</h4>
+                                  <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                    Click to view details →
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {performanceData.kras.organizationalKRAs.length > 3 && (
+                            <button
+                              onClick={() => setShowAllKRAs({ ...showAllKRAs, organizational: !showAllKRAs.organizational })}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#f0f0f0',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#2196F3',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {showAllKRAs.organizational ? `Show Less (${performanceData.kras.organizationalKRAs.length - 3} hidden)` : `Show All (${performanceData.kras.organizationalKRAs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!expandedCategories.organizational && performanceData.kras.organizationalKRAs?.length > 0 && (
+                        <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
+                      )}
+                      {performanceData.kras.organizationalKRAs?.length === 0 && (
+                        <p>No core values assigned</p>
+                      )}
+                    </div>
+                    <div className={styles.kraCategory}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment })}
+                      >
+                        <h3 style={{ margin: 0 }}>Self Development (Areas of Concern) ({performanceData.kras.selfDevelopmentKRAs?.length || 0})</h3>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            color: '#666',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCategories({ ...expandedCategories, selfDevelopment: !expandedCategories.selfDevelopment });
+                          }}
+                        >
+                          {expandedCategories.selfDevelopment ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {expandedCategories.selfDevelopment && performanceData.kras.selfDevelopmentKRAs?.length > 0 && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                            {(showAllKRAs.selfDevelopment
+                              ? performanceData.kras.selfDevelopmentKRAs
+                              : performanceData.kras.selfDevelopmentKRAs.slice(0, 3)
+                            ).map((kra: any, idx: number) => {
+                              const actualIndex = showAllKRAs.selfDevelopment ? idx : idx;
+                              return (
+                                <div
+                                  key={actualIndex}
+                                  onClick={() => {
+                                    setSelectedKRA({ kra, index: actualIndex, type: 'self' });
+                                    setShowKRADetailModal(true);
+                                  }}
+                                  style={{
+                                    padding: '1.5rem',
+                                    border: '2px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: '#fff',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#2196F3';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#e0e0e0';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.areaOfConcern}</h4>
+                                  <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                    Click to view details →
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {performanceData.kras.selfDevelopmentKRAs.length > 3 && (
+                            <button
+                              onClick={() => setShowAllKRAs({ ...showAllKRAs, selfDevelopment: !showAllKRAs.selfDevelopment })}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#f0f0f0',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                color: '#2196F3',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {showAllKRAs.selfDevelopment ? `Show Less (${performanceData.kras.selfDevelopmentKRAs.length - 3} hidden)` : `Show All (${performanceData.kras.selfDevelopmentKRAs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!expandedCategories.selfDevelopment && performanceData.kras.selfDevelopmentKRAs?.length > 0 && (
+                        <p style={{ marginTop: '0.5rem', color: '#999', fontSize: '14px' }}>Click to expand and view KRAs</p>
+                      )}
+                      {performanceData.kras.selfDevelopmentKRAs?.length === 0 && (
+                        <p>No areas of concern assigned</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.noData}>No feedback available yet</p>
-          )}
-        </div>
-      </div>
+              )}
 
-      <div className={styles.actions}>
-        <button
-          className={styles.actionPlanButton}
-          onClick={() => setShowActionPlan(!showActionPlan)}
-        >
-          {showActionPlan ? 'Cancel' : 'Create Action Plan'}
-        </button>
-      </div>
+              <div className={styles.feedback}>
+                <h2>Feedback & Comments</h2>
+                <div className={styles.feedbackCard}>
+                  {performanceData.kras?.functionalKRAs?.length > 0 ? (
+                    <div>
+                      <h3>Functional Dimension</h3>
+                      {performanceData.kras.functionalKRAs.map((kra: any, index: number) => (
+                        <div key={index} className={styles.feedbackItem}>
+                          <strong>{kra.kra}</strong>
+                          <p>{kra[`r${performanceData.currentPeriod}ActualPerf`] || 'No feedback yet'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={styles.noData}>No feedback available yet</p>
+                  )}
+                </div>
+              </div>
 
-      {showActionPlan && (
-        <div className={styles.actionPlanForm}>
-          <h2>Create Action Plan</h2>
-          <textarea
-            value={actionPlan}
-            onChange={(e) => setActionPlan(e.target.value)}
-            placeholder="Enter your action plan for improvement..."
-            className={styles.actionPlanTextarea}
-          />
-          <button className={styles.acknowledgeButton} onClick={handleAcknowledge}>
-            Acknowledge Review & Save Action Plan
-          </button>
-        </div>
-      )}
+              <div className={styles.actions}>
+                <button
+                  className={styles.actionPlanButton}
+                  onClick={() => setShowActionPlan(!showActionPlan)}
+                >
+                  {showActionPlan ? 'Cancel' : 'Create Action Plan'}
+                </button>
+              </div>
+
+              {showActionPlan && (
+                <div className={styles.actionPlanForm}>
+                  <h2>Create Action Plan</h2>
+                  <textarea
+                    value={actionPlan}
+                    onChange={(e) => setActionPlan(e.target.value)}
+                    placeholder="Enter your action plan for improvement..."
+                    className={styles.actionPlanTextarea}
+                  />
+                  <button className={styles.acknowledgeButton} onClick={handleAcknowledge}>
+                    Acknowledge Review & Save Action Plan
+                  </button>
+                </div>
+              )}
             </>
+          )}
+
+          {activeTab === 'my4DData' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditor userId={localStorage.getItem('userId') || ''} />
+            </div>
           )}
 
           {activeTab === 'settings' && (
             <div className={baseStyles.tabContent}>
               <h1 className={baseStyles.pageTitle}>Profile & Settings</h1>
-              
-              <form onSubmit={handleSaveProfile} className={styles.profileForm}>
-                <div className={baseStyles.formGroup}>
-                  <label htmlFor="profileName">Name</label>
-                  <input
-                    id="profileName"
-                    type="text"
-                    className={`${baseStyles.input} ${profileErrors.name ? baseStyles.inputError : ''}`}
-                    value={profile.name}
-                    onChange={(e) => handleProfileChange('name', e.target.value)}
-                  />
-                  {profileErrors.name && (
-                    <span className={baseStyles.errorText}>{profileErrors.name}</span>
-                  )}
-                </div>
 
-                <div className={baseStyles.formGroup}>
-                  <label htmlFor="profileEmail">Email</label>
-                  <input
-                    id="profileEmail"
-                    type="email"
-                    className={`${baseStyles.input} ${profileErrors.email ? baseStyles.inputError : ''}`}
-                    value={profile.email}
-                    onChange={(e) => handleProfileChange('email', e.target.value)}
-                  />
-                  {profileErrors.email && (
-                    <span className={baseStyles.errorText}>{profileErrors.email}</span>
-                  )}
-                </div>
+              <ProfileEditor
+                userId={localStorage.getItem('userId') || ''}
+                onProfileUpdate={(p) => setUser({ name: p.name, email: p.email, mobile: p.mobile })}
+              />
 
-                <div className={baseStyles.formGroup}>
-                  <label htmlFor="profileMobile">Mobile</label>
-                  <input
-                    id="profileMobile"
-                    type="tel"
-                    className={`${baseStyles.input} ${profileErrors.mobile ? baseStyles.inputError : ''}`}
-                    value={profile.mobile}
-                    onChange={(e) => handleProfileChange('mobile', e.target.value.replace(/\D/g, ''))}
-                    maxLength={10}
-                  />
-                  {profileErrors.mobile && (
-                    <span className={baseStyles.errorText}>{profileErrors.mobile}</span>
-                  )}
-                </div>
-
-                {profileSuccessMessage && (
-                  <div className={baseStyles.successMessage} role="alert">
-                    {profileSuccessMessage}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className={baseStyles.submitButton}
-                  disabled={isSavingProfile}
-                >
-                  {isSavingProfile ? 'Saving...' : 'Save Changes'}
-                </button>
-              </form>
+              <div style={{ marginTop: '2rem' }}>
+                <DimensionWeightsEditor userId={localStorage.getItem('userId') || ''} />
+              </div>
             </div>
           )}
         </div>
@@ -1063,7 +1035,7 @@ function EmployeeDashboard() {
 
       {/* KRA Detail Modal */}
       {showKRADetailModal && selectedKRA && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -1081,7 +1053,7 @@ function EmployeeDashboard() {
             setSelectedKRA(null);
           }}
         >
-          <div 
+          <div
             style={{
               backgroundColor: 'white',
               padding: '2rem',
@@ -1114,7 +1086,7 @@ function EmployeeDashboard() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#333' }}>{selectedKRA.kra.kra}</h3>
-              
+
               {/* KPIs Section */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem', fontSize: '16px' }}>KPIs (Key Performance Indicators)</label>
@@ -1166,11 +1138,11 @@ function EmployeeDashboard() {
                   return proofs.length > 0 ? (
                     <div style={{ marginBottom: '0.5rem' }}>
                       {proofs.map((proof: any, proofIndex: number) => (
-                        <div key={proofIndex} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
+                        <div key={proofIndex} style={{
+                          display: 'flex',
+                          alignItems: 'center',
                           justifyContent: 'space-between',
-                          gap: '0.5rem', 
+                          gap: '0.5rem',
                           marginBottom: '0.5rem',
                           padding: '0.75rem',
                           backgroundColor: '#f5f5f5',
@@ -1216,7 +1188,7 @@ function EmployeeDashboard() {
 
       {/* Proof Dialog */}
       {showProofDialog.isOpen && showProofDialog.kraIndex !== -1 && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -1231,7 +1203,7 @@ function EmployeeDashboard() {
           }}
           onClick={() => setShowProofDialog({ kraIndex: -1, isOpen: false })}
         >
-          <div 
+          <div
             style={{
               backgroundColor: 'white',
               padding: '2rem',

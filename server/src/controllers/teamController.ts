@@ -136,15 +136,15 @@ export async function getTeamMembers(
     const members =
       team.membersDetails && team.membersDetails.length > 0
         ? team.membersDetails.map((m: any, idx: number) => ({
-            _id: `${team._id}-${idx}`,
-            name: m.name,
-            mobile: m.mobile,
-            role: m.role,
-            functionalKRAs: m.functionalKRAs || [],
-            organizationalKRAs: m.organizationalKRAs || [],
-            selfDevelopmentKRAs: m.selfDevelopmentKRAs || [],
-            developingOthersKRAs: m.developingOthersKRAs || [],
-          }))
+          _id: `${team._id}-${idx}`,
+          name: m.name,
+          mobile: m.mobile,
+          role: m.role,
+          functionalKRAs: m.functionalKRAs || [],
+          organizationalKRAs: m.organizationalKRAs || [],
+          selfDevelopmentKRAs: m.selfDevelopmentKRAs || [],
+          developingOthersKRAs: m.developingOthersKRAs || [],
+        }))
         : [];
 
     res.status(200).json({
@@ -187,11 +187,11 @@ export async function addTeamMember(
       return;
     }
 
-    // Check if user is manager
-    if (user.role !== 'manager') {
+    // Check if user has a team-management role
+    if (!['manager', 'boss', 'client_admin'].includes(user.role)) {
       res.status(403).json({
         status: 'error',
-        message: 'Only Supervisors can add team members',
+        message: 'Only Supervisors, Bosses, and Admins can add team members',
       });
       return;
     }
@@ -283,7 +283,7 @@ export async function joinTeamByCode(
       // Member already exists in team
       // Check if user account exists
       let user = await User.findOne({ mobile: validated.mobile });
-      
+
       if (!user) {
         // Create user account for existing member
         user = new User({
@@ -608,7 +608,7 @@ export async function getDimensionWeights(
 
     // Return dimension weights, fallback to organization weights, then default values
     let weights = team.dimensionWeights;
-    
+
     // If team doesn't have weights, try to get from organization
     if (!weights && user.organizationId) {
       const organization = await Organization.findById(user.organizationId);
@@ -619,7 +619,7 @@ export async function getDimensionWeights(
         await team.save();
       }
     }
-    
+
     // Final fallback to default values
     if (!weights) {
       weights = {

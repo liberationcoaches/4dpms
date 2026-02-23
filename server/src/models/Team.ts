@@ -19,43 +19,43 @@ export interface IFunctionalKRA {
   kra: string; // KRA description (Task/Goal for quarter)
   kpis: IKPI[]; // Multiple KPIs - how the KRA will be achieved
   reportsGenerated?: IProof[]; // Proof system - files or drive links
-  
+
   // Edit tracking - KRA can only be edited ONCE after creation
   editCount?: number; // Number of times KRA has been edited (max 1 allowed)
-  
+
   // Score lock - once locked, scores cannot be changed
   isScoreLocked?: boolean; // If true, scores are finalized
   scoreLockedAt?: Date; // When scores were locked
   scoreLockedBy?: mongoose.Types.ObjectId; // Who locked the scores
-  
+
   // Pilot Period (Starting score)
   pilotWeight?: number; // Weight in pilot period
   pilotScore?: number; // Score 0-5 (can be decimal)
-  
+
   // Review Period 1
   r1Weight?: number; // Can be different from pilot
   r1Score?: number; // Score 0-5 (can be decimal)
   r1ActualPerf?: string; // Actual performance notes
   r1ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R1
-  
+
   // Review Period 2
   r2Weight?: number;
   r2Score?: number;
   r2ActualPerf?: string;
   r2ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R2
-  
+
   // Review Period 3
   r3Weight?: number;
   r3Score?: number;
   r3ActualPerf?: string;
   r3ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R3
-  
+
   // Review Period 4
   r4Weight?: number;
   r4Score?: number;
   r4ActualPerf?: string;
   r4ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R4
-  
+
   // Calculated
   averageScore?: number; // Average across all review periods
 }
@@ -63,13 +63,13 @@ export interface IFunctionalKRA {
 // Organizational Dimension KRA
 export interface IOrganizationalKRA {
   coreValues: string; // Changed from coreValue to match Excel "Core Values"
-  
+
   // Edit tracking - KRA can only be edited ONCE after creation
   editCount?: number;
   isScoreLocked?: boolean;
   scoreLockedAt?: Date;
   scoreLockedBy?: mongoose.Types.ObjectId;
-  
+
   // Pilot Period (no score, just critical incident based on Excel structure)
   pilotCriticalIncident?: string;
   // Review Period 1
@@ -92,13 +92,13 @@ export interface IOrganizationalKRA {
 export interface ISelfDevelopmentKRA {
   areaOfConcern: string;
   actionPlanInitiative?: string;
-  
+
   // Edit tracking - KRA can only be edited ONCE after creation
   editCount?: number;
   isScoreLocked?: boolean;
   scoreLockedAt?: Date;
   scoreLockedBy?: mongoose.Types.ObjectId;
-  
+
   // Pilot Period
   pilotScore?: number;
   pilotReason?: string;
@@ -122,13 +122,13 @@ export interface ISelfDevelopmentKRA {
 export interface IDevelopingOthersKRA {
   person: string;
   areaOfDevelopment?: string;
-  
+
   // Edit tracking - KRA can only be edited ONCE after creation
   editCount?: number;
   isScoreLocked?: boolean;
   scoreLockedAt?: Date;
   scoreLockedBy?: mongoose.Types.ObjectId;
-  
+
   // Pilot Period
   pilotScore?: number;
   pilotReason?: string;
@@ -152,6 +152,11 @@ export interface ITeamMemberDetail {
   name: string;
   role: string;
   mobile: string;
+  // KRA finalization tracking
+  krasReadyForReview?: boolean; // Set when member saves KRAs
+  krasFinalized?: boolean; // Set when supervisor/admin finalizes
+  krasFinalizedAt?: Date;
+  krasFinalizedBy?: mongoose.Types.ObjectId;
   // Functional Dimension KRAs (D1) - Only Dimension with KRAs
   functionalKRAs?: IFunctionalKRA[];
   // Note: Other dimensions (Organizational, Self Development, Developing Others) 
@@ -208,6 +213,11 @@ const TeamSchema = new Schema<ITeam>(
         name: { type: String, required: true, trim: true },
         role: { type: String, required: true, trim: true },
         mobile: { type: String, required: true, trim: true },
+        // KRA finalization tracking
+        krasReadyForReview: { type: Boolean, default: false },
+        krasFinalized: { type: Boolean, default: false },
+        krasFinalizedAt: { type: Date },
+        krasFinalizedBy: { type: Schema.Types.ObjectId, ref: 'User' },
         // Functional Dimension KRAs (D1) - Only Dimension with KRAs
         functionalKRAs: [
           {
@@ -222,8 +232,8 @@ const TeamSchema = new Schema<ITeam>(
             // Proof/Reports system - multiple files or drive links
             reportsGenerated: [
               {
-                type: { 
-                  type: String, 
+                type: {
+                  type: String,
                   enum: ['drive_link', 'file_upload'],
                   default: 'drive_link'
                 },

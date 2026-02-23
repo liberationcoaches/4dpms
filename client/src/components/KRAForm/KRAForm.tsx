@@ -19,6 +19,7 @@ export interface FunctionalKRAFormData {
   reportsGenerated?: Proof[];
   pilotWeight?: number;
   pilotScore?: number;
+  pilotActualPerf?: string;
 }
 
 interface KRAFormProps {
@@ -35,6 +36,7 @@ function KRAForm({ initialData, onSubmit, onCancel, mode = 'add' }: KRAFormProps
     reportsGenerated: initialData?.reportsGenerated || [],
     pilotWeight: initialData?.pilotWeight || 10,
     pilotScore: initialData?.pilotScore || 0,
+    pilotActualPerf: initialData?.pilotActualPerf || '',
   });
 
   const [showProofDialog, setShowProofDialog] = useState(false);
@@ -280,7 +282,7 @@ function KRAForm({ initialData, onSubmit, onCancel, mode = 'add' }: KRAFormProps
             −
           </button>
           <div className={styles.weightDisplay}>
-            <span className={styles.weightValue}>{formData.pilotWeight || 10}</span>
+            <span className={styles.weightValue}>{Number(formData.pilotWeight) || 10}</span>
             <span className={styles.weightUnit}>%</span>
           </div>
           <button
@@ -311,7 +313,7 @@ function KRAForm({ initialData, onSubmit, onCancel, mode = 'add' }: KRAFormProps
             −
           </button>
           <div className={styles.pilotScoreDisplay}>
-            <span className={styles.scoreValue}>{(formData.pilotScore || 0).toString().padStart(2, '0')}</span>
+            <span className={styles.scoreValue}>{Number(formData.pilotScore) || 0}</span>
           </div>
           <button
             type="button"
@@ -323,6 +325,20 @@ function KRAForm({ initialData, onSubmit, onCancel, mode = 'add' }: KRAFormProps
             +
           </button>
         </div>
+      </div>
+
+      {/* Pilot Actual Performance */}
+      <div className={styles.formGroup}>
+        <label>
+          Pilot Actual Performance <span className={styles.optionalLabel}>(Optional)</span>
+        </label>
+        <textarea
+          value={formData.pilotActualPerf || ''}
+          onChange={(e) => setFormData({ ...formData, pilotActualPerf: e.target.value })}
+          placeholder="Describe the actual performance or comments for the pilot period"
+          className={styles.textarea}
+          rows={3}
+        />
       </div>
 
       {/* Form Actions */}

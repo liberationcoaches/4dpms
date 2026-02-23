@@ -225,5 +225,23 @@ export async function createUserFromInvite(
   invite.usedBy = user._id;
   await invite.save();
 
+  // Notify the person who created the invite
+  if (invite.createdBy) {
+    try {
+      const { Notification } = await import('../models/Notification');
+      const notification = new Notification({
+        userId: invite.createdBy,
+        type: 'info',
+        title: 'New member joined via your invite',
+        message: `${data.name.trim()} has joined your org/team via your invite.`,
+        isRead: false,
+        metadata: { type: 'invite_used', memberName: data.name.trim(), memberId: user._id },
+      });
+      await notification.save();
+    } catch (err) {
+      console.error('Failed to send invite-used notification:', err);
+    }
+  }
+
   return { user, teamCode };
 }

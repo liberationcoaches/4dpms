@@ -51,6 +51,24 @@
   box-sizing: border-box;
 }
 
+.textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  border-radius: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
 .kpiRow {
   display: flex;
   gap: 0.5rem;
@@ -114,11 +132,11 @@
   padding: 0.5rem;
   background: rgba(255, 255, 255, 0.8);
   border-radius: 6px;
-  border: 1px solid rgba(126, 87, 194, 0.2);
+  border: 1px solid rgba(33, 150, 243, 0.2);
 }
 
 .driveLink {
-  color: #7e57c2;
+  color: #1976d2;
   text-decoration: none;
   font-weight: 500;
 }
@@ -153,7 +171,7 @@
 }
 
 .addProofBtn {
-  background: #7e57c2;
+  background: #1976d2;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -164,7 +182,7 @@
 }
 
 .addProofBtn:hover {
-  background: #5e3a9e;
+  background: #1565c0;
 }
 
 .noData {
@@ -339,7 +357,7 @@
 .proofTypeSelector button {
   flex: 1;
   padding: 0.75rem;
-  border: 2px solid rgba(126, 87, 194, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.3);
   background: white;
   border-radius: 8px;
   cursor: pointer;
@@ -349,9 +367,9 @@
 }
 
 .proofTypeSelector button.active {
-  background: #7e57c2;
+  background: #1976d2;
   color: white;
-  border-color: #7e57c2;
+  border-color: #1976d2;
 }
 
 .proofInput {
@@ -382,7 +400,7 @@
 }
 
 .addBtn {
-  background: #7e57c2;
+  background: #1976d2;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -395,7 +413,7 @@
 }
 
 .addBtn:hover {
-  background: #5e3a9e;
+  background: #1565c0;
 }
 
 .cancelBtn {

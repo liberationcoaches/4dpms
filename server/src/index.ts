@@ -34,6 +34,7 @@ import reviewerRoutes from './routes/reviewerRoutes';
 import employeeRoutes from './routes/employeeRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 import enquiryRoutes from './routes/enquiryRoutes';
+import onboardingRoutes from './routes/onboardingRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
@@ -49,6 +50,7 @@ app.use('/api/reviewer', reviewerRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/enquiry', enquiryRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 // Error handler
 app.use(errorHandler);

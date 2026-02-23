@@ -74,7 +74,7 @@ const selfDevelopmentKRASchema = z.object({
  */
 export async function createEmployee(
   req: Request,
-  res: Response, 
+  res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
@@ -314,9 +314,9 @@ export async function getTeamPerformance(
     });
 
     // Calculate performance metrics using proper dimension weights
-    const employeeScores: Array<{ 
-      _id: string; 
-      name: string; 
+    const employeeScores: Array<{
+      _id: string;
+      name: string;
       score: number;  // 4D Index
       dimensions: {
         functional: number;
@@ -804,6 +804,9 @@ export async function getEmployeeKRAs(
         organizationalKRAs: memberDetails?.organizationalKRAs || [],
         selfDevelopmentKRAs: memberDetails?.selfDevelopmentKRAs || [],
         developingOthersKRAs: memberDetails?.developingOthersKRAs || [],
+        krasFinalized: memberDetails?.krasFinalized || false,
+        krasReadyForReview: memberDetails?.krasReadyForReview || false,
+        krasFinalizedAt: memberDetails?.krasFinalizedAt || null,
       },
     });
   } catch (error) {
@@ -874,3 +877,124 @@ export async function getMyKRAs(
   }
 }
 
+/**
+ * Finalize employee KRAs (Manager only)
+ * Locks all KRAs so the employee can no longer edit them
+ */
+export async function finalizeEmployeeKRAs(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const managerId = req.query.userId as string;
+    const employeeId = req.params.employeeId;
+
+    if (!managerId || !employeeId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'User ID and Employee ID are required',
+      });
+      return;
+    }
+
+    const manager = await User.findById(managerId);
+    if (!manager || manager.role !== 'manager') {
+      res.status(403).json({
+        status: 'error',
+        message: 'Only Supervisors can finalize Member KRAs',
+      });
+      return;
+    }
+
+    const employee = await User.findById(employeeId);
+    if (!employee || employee.role !== 'employee' || employee.managerId?.toString() !== manager._id.toString()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Employee not found or does not belong to you',
+      });
+      return;
+    }
+
+    const team = await Team.findById(manager.teamId);
+    if (!team) {
+      res.status(404).json({ status: 'error', message: 'Team not found' });
+      return;
+    }
+
+    const memberIndex = team.membersDetails.findIndex(
+      (m: any) => m.mobile === employee.mobile
+    );
+    if (memberIndex === -1) {
+      res.status(404).json({ status: 'error', message: 'Employee not found in team' });
+      return;
+    }
+
+    if (team.membersDetails[memberIndex].krasFinalized) {
+      res.status(400).json({
+        status: 'error',
+        message: 'KRAs are already finalized for this employee',
+      });
+      return;
+    }
+
+    // Set top-level finalization
+    team.membersDetails[memberIndex].krasFinalized = true;
+    team.membersDetails[memberIndex].krasFinalizedAt = new Date();
+    team.membersDetails[memberIndex].krasFinalizedBy = manager._id as any;
+    team.membersDetails[memberIndex].krasReadyForReview = false;
+
+    // Lock all individual KRAs across all dimensions
+    const member = team.membersDetails[memberIndex];
+    member.functionalKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = manager._id as any;
+    });
+    member.organizationalKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = manager._id as any;
+    });
+    member.selfDevelopmentKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = manager._id as any;
+    });
+    member.developingOthersKRAs?.forEach(kra => {
+      kra.isScoreLocked = true;
+      kra.scoreLockedAt = new Date();
+      kra.scoreLockedBy = manager._id as any;
+    });
+
+    await team.save();
+
+    // Notify the employee
+    try {
+      const { Notification } = await import('../models/Notification');
+      const notification = new Notification({
+        userId: employee._id,
+        type: 'success',
+        title: 'KRAs Finalized',
+        message: `Your KRAs have been reviewed and finalized by ${manager.name}. They are now locked.`,
+        isRead: false,
+        metadata: {
+          type: 'kra_finalized',
+          managerId: manager._id,
+          managerName: manager.name,
+          teamId: team._id,
+        },
+      });
+      await notification.save();
+    } catch (notifError) {
+      console.error('Failed to send finalization notification:', notifError);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `KRAs for ${employee.name} have been finalized successfully.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

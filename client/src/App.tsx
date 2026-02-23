@@ -27,13 +27,13 @@ import Scoring from './pages/Reviewer/Scoring';
 import EmployeeDashboard from './pages/Dashboard/Employee/EmployeeDashboard';
 import FeedbackHistory from './pages/Dashboard/Employee/FeedbackHistory';
 import MidCycleNotes from './pages/Dashboard/Manager/MidCycleNotes';
+import Onboarding from './pages/Onboarding/Onboarding';
+import UnifiedDashboard from './pages/UnifiedDashboard/UnifiedDashboard';
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Home />} />
-      </Route>
+      <Route path="/" element={<Home />} />
       <Route path="/auth/signup" element={<SignUp />} />
       <Route path="/auth/join" element={<Join />} />
       <Route path="/auth/join/:token" element={<Join />} />
@@ -43,6 +43,8 @@ function App() {
       <Route path="/auth/access-code" element={<AccessCode />} />
       <Route path="/auth/enquiry-or-signup" element={<EnquiryOrSignUp />} />
       <Route path="/auth/set-password" element={<SetPassword />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/app" element={<UnifiedDashboard />} />
       <Route path="/dashboard" element={<Dashboard />}>
         <Route path="performance" element={<Performance />} />
         <Route path="teams" element={<Teams />} />

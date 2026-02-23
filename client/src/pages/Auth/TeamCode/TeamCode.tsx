@@ -21,7 +21,7 @@ function TeamCode() {
 
   const validate = () => {
     const next: Partial<Record<keyof TeamCodeForm, string>> = {};
-    
+
     if (showEmailField) {
       // Only validate email when email field is shown
       if (!formData.email?.trim()) {
@@ -45,7 +45,7 @@ function TeamCode() {
         next.teamCode = 'Team code seems too short';
       }
     }
-    
+
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -96,7 +96,14 @@ function TeamCode() {
   };
 
   const handleWelcomeContinue = () => {
-    navigate('/dashboard');
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'boss') {
+      navigate('/dashboard/boss');
+    } else if (userRole === 'manager') {
+      navigate('/dashboard/manager');
+    } else {
+      navigate('/dashboard/employee');
+    }
   };
 
   if (showWelcome) {
@@ -146,7 +153,7 @@ function TeamCode() {
           </div>
           <h2 className={styles.greeting}>Join your team</h2>
           <p className={styles.subGreeting}>
-            {showEmailField 
+            {showEmailField
               ? 'Please provide your email to complete the sign up.'
               : 'Enter your details and the team code to join your team.'}
           </p>

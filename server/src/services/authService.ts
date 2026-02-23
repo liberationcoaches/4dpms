@@ -1,5 +1,5 @@
 import { User, IUser } from '../models/User';
-import { OTP, IOTP } from '../models/OTP';
+import { OTP } from '../models/OTP';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import {

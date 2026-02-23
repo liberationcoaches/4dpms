@@ -1,117 +1,373 @@
 /* ============================================
-   HOME PAGE STYLES
-   Using design system variables for consistency
+   LANDING PAGE — Light, Clean, Consistent
+   Matches Login/SignUp design language
    ============================================ */
 
-.home {
+/* ---------- Container ---------- */
+.landing {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-2xl) var(--spacing-xl);
   background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
+  position: relative;
+  overflow: hidden;
 }
 
-.logoSection {
-  margin-bottom: var(--spacing-2xl);
+/* Accent blurs — same as Login/SignUp */
+.accentOne,
+.accentTwo,
+.accentGrid {
+  position: absolute;
+  filter: blur(40px);
+  opacity: 0.6;
+  z-index: 0;
 }
 
-.titleSection {
-  text-align: center;
-  margin-bottom: var(--spacing-2xl);
+.accentOne {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(33, 150, 243, 0.28), transparent 60%);
+  top: 5%;
+  left: 8%;
 }
 
-.title {
+.accentTwo {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(25, 118, 210, 0.28), transparent 60%);
+  bottom: 8%;
+  right: 10%;
+}
+
+.accentGrid {
+  inset: 8% 6%;
+  background-image: linear-gradient(rgba(33, 150, 243, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(33, 150, 243, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  filter: blur(0);
+  opacity: 0.4;
+  animation: gridDrift 25s linear infinite;
+}
+
+@keyframes gridDrift {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 24px 24px;
+  }
+}
+
+/* Third subtle accent */
+.accentThree {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(156, 39, 176, 0.15), transparent 60%);
+  filter: blur(50px);
+  top: 45%;
+  left: 55%;
+  opacity: 0.5;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ---------- Header ---------- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  position: relative;
+  z-index: 10;
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoImg {
+  height: 40px;
+  width: auto;
+}
+
+.logoText {
   font-family: var(--font-inter);
-  font-size: var(--font-size-36);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-main-black-100);
-  margin-bottom: var(--spacing-md);
+  font-size: 22px;
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-main-black-100, #1a1a2e);
+  letter-spacing: 0.5px;
 }
 
-.subtitle {
+.headerNav {
+  display: flex;
+  gap: 12px;
+}
+
+.headerBtn {
+  padding: 10px 24px;
+  border-radius: var(--radius-md, 10px);
   font-family: var(--font-inter);
-  font-size: var(--font-size-16);
-  font-weight: var(--font-weight-regular);
-  color: var(--color-main-grey-60);
-}
-
-.portalGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--spacing-lg);
-  width: 100%;
-  max-width: 1100px;
-}
-
-.portalCard {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  padding: var(--spacing-2xl);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  text-align: center;
+  font-size: var(--font-size-14, 14px);
+  font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.25s ease;
+  border: none;
+}
+
+.headerBtnLogin {
+  background: transparent;
+  color: var(--color-main-black-80, #333);
+  border: 1px solid rgba(33, 150, 243, 0.25);
+}
+
+.headerBtnLogin:hover {
+  background: rgba(33, 150, 243, 0.08);
+  border-color: rgba(33, 150, 243, 0.5);
+  transform: scale(1.06);
+}
+
+.headerBtnSignup {
+  background: linear-gradient(135deg, var(--color-primary-main-blue, #2196f3), var(--color-primary-deep1-blue, #1565c0));
+  color: var(--color-core-white, #fff);
+  box-shadow: 0 4px 14px rgba(33, 150, 243, 0.2);
+}
+
+.headerBtnSignup:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 22px rgba(33, 150, 243, 0.35);
+}
+
+/* ---------- Hero Section ---------- */
+.hero {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
-  border-top: 6px solid var(--portal-color);
+  text-align: center;
+  padding: 40px 24px 60px;
+  position: relative;
+  z-index: 5;
 }
 
-.portalCard:hover {
-  transform: translateY(-10px);
-  box-shadow: var(--shadow-lg);
-}
-
-.portalIcon {
-  font-size: 48px;
-  margin-bottom: var(--spacing-xl);
-}
-
-.portalCard h3 {
+.heroTagline {
   font-family: var(--font-inter);
-  font-size: var(--font-size-24);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-main-black-100);
-  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-14, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-primary-main-blue, #2196f3);
+  margin-bottom: 20px;
+  animation: fadeInUp 0.7s ease-out;
 }
 
-.portalCard p {
+.heroTitle {
   font-family: var(--font-inter);
-  font-size: var(--font-size-14);
-  font-weight: var(--font-weight-regular);
-  color: var(--color-main-grey-60);
-  margin-bottom: var(--spacing-lg);
-  line-height: 1.6;
+  font-size: clamp(32px, 5.5vw, 56px);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.2;
+  max-width: 750px;
+  color: var(--color-main-black-100, #1a1a2e);
+  margin-bottom: 20px;
+  animation: fadeInUp 0.7s ease-out 0.12s both;
 }
 
-.portalButton {
-  margin-top: auto;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background-color: var(--portal-color);
-  color: var(--color-core-white);
-  border: none;
-  border-radius: var(--radius-md);
+.heroTitleHighlight {
+  color: var(--color-primary-main-blue, #2196f3);
+}
+
+.heroSubtitle {
   font-family: var(--font-inter);
-  font-size: var(--font-size-14);
-  font-weight: var(--font-weight-semibold);
+  font-size: clamp(15px, 1.8vw, 18px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-main-grey-60, #777);
+  max-width: 560px;
+  line-height: 1.7;
+  margin-bottom: 44px;
+  animation: fadeInUp 0.7s ease-out 0.24s both;
+}
+
+/* ---------- CTA Buttons (side by side, enlarge on hover) ---------- */
+.ctaRow {
+  display: flex;
+  gap: 18px;
+  animation: fadeInUp 0.7s ease-out 0.36s both;
+}
+
+.ctaBtn {
+  padding: 16px 48px;
+  border-radius: var(--radius-md, 10px);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-16, 16px);
+  font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.2s;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.portalButton:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
+.ctaLogin {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  color: var(--color-main-black-100, #1a1a2e);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .title {
-    font-size: var(--font-size-24);
+.ctaLogin:hover {
+  transform: scale(1.12);
+  border-color: var(--color-primary-main-blue, #2196f3);
+  box-shadow: 0 12px 36px rgba(33, 150, 243, 0.15);
+}
+
+.ctaSignup {
+  background: linear-gradient(135deg, var(--color-primary-main-blue, #2196f3), var(--color-primary-deep1-blue, #1565c0));
+  color: var(--color-core-white, #fff);
+  box-shadow: 0 8px 24px rgba(33, 150, 243, 0.25);
+}
+
+.ctaSignup:hover {
+  transform: scale(1.12);
+  box-shadow: 0 14px 40px rgba(33, 150, 243, 0.4);
+}
+
+/* ---------- Dimensions Strip ---------- */
+.dimensionsStrip {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 0 24px 50px;
+  position: relative;
+  z-index: 5;
+  animation: fadeInUp 0.7s ease-out 0.5s both;
+}
+
+.dimBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(33, 150, 243, 0.12);
+  border-radius: 100px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.dimBadge:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.dimDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dimDotBlue {
+  background: #2196f3;
+}
+
+.dimDotPurple {
+  background: #9c27b0;
+}
+
+.dimDotOrange {
+  background: #ff9800;
+}
+
+.dimDotGreen {
+  background: #4caf50;
+}
+
+.dimLabel {
+  font-family: var(--font-inter);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-main-black-80, #333);
+  white-space: nowrap;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+  text-align: center;
+  padding: 20px;
+  position: relative;
+  z-index: 5;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-12, 12px);
+  color: var(--color-main-grey-60, #777);
+}
+
+/* ---------- Animations ---------- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
   }
-  
-  .portalGrid {
-    grid-template-columns: 1fr;
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .header {
+    padding: 16px 20px;
+  }
+
+  .ctaRow {
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .ctaBtn {
+    width: 100%;
+    text-align: center;
+    padding: 14px 32px;
+  }
+
+  .dimensionsStrip {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .dimBadge {
+    padding: 8px 14px;
+  }
+
+  .dimLabel {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroTitle {
+    font-size: 26px;
+  }
+
+  .heroSubtitle {
+    font-size: 14px;
+  }
+
+  .headerNav {
+    gap: 8px;
+  }
+
+  .headerBtn {
+    padding: 8px 16px;
+    font-size: 13px;
   }
 }

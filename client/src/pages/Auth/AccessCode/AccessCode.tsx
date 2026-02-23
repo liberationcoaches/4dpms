@@ -54,30 +54,43 @@ function AccessCode() {
       if (response.ok) {
         // Get user role for redirection
         const userRole = localStorage.getItem('userRole');
-        
-        // Role-based redirection
-        if (userRole) {
-          switch (userRole) {
-            case 'platform_admin':
-              navigate('/admin/dashboard');
-              break;
-            case 'reviewer':
-              navigate('/reviewer/dashboard');
-              break;
-            case 'boss':
-              navigate('/dashboard/boss');
-              break;
-            case 'manager':
-              navigate('/dashboard/manager');
-              break;
-            case 'employee':
-              navigate('/dashboard/employee');
-              break;
-            default:
-              navigate('/dashboard');
+        const userId = localStorage.getItem('userId');
+
+        // Admin/reviewer/CSA go to their specific dashboards
+        if (userRole === 'platform_admin') {
+          navigate('/admin/dashboard');
+          return;
+        }
+        if (userRole === 'reviewer') {
+          navigate('/reviewer/dashboard');
+          return;
+        }
+        if (userRole === 'client_admin') {
+          navigate('/client-admin/dashboard');
+          return;
+        }
+
+        // All other roles: check onboarding status first
+        if (userId) {
+          try {
+            const onboardingRes = await fetch(`/api/onboarding/status?userId=${userId}`);
+            const onboardingData = await onboardingRes.json();
+            if (onboardingData.status === 'success' && !onboardingData.data.onboardingCompleted) {
+              navigate('/onboarding');
+              return;
+            }
+          } catch {
+            // If check fails, go to dashboard
           }
+        }
+
+        // Route to role-specific dashboard
+        if (userRole === 'boss') {
+          navigate('/dashboard/boss');
+        } else if (userRole === 'manager') {
+          navigate('/dashboard/manager');
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard/employee');
         }
       } else {
         setErrors({ accessCode: data.message || 'Failed to set access code' });

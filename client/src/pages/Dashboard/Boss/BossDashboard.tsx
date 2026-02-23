@@ -1,11 +1,13 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './BossDashboard.module.css';
 import logo from '@/assets/logo.png';
-import KRAForm, { FunctionalKRAFormData } from '@/components/KRAForm/KRAForm';
 import TeamMemberCard from '@/components/TeamMemberCard/TeamMemberCard';
 import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
+import KRAEditorSelfService from '@/pages/Dashboard/Employee/KRAEditor';
+import DimensionWeightsEditor from '@/pages/Dashboard/Employee/DimensionWeightsEditor';
+import ProfileEditor from '@/pages/Dashboard/Employee/ProfileEditor';
 
 interface Manager {
   _id: string;
@@ -59,14 +61,10 @@ function BossDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'managers' | 'analytics' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'managers' | 'analytics' | 'my4DData' | 'profile'>('dashboard');
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
-  const [profile, setProfile] = useState({ name: '', email: '', mobile: '' });
-  const [profileErrors, setProfileErrors] = useState<Partial<{ name: string; email: string; mobile: string }>>({});
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [profileSuccessMessage, setProfileSuccessMessage] = useState('');
   const [newManager, setNewManager] = useState({
     name: '',
     email: '',
@@ -75,10 +73,6 @@ function BossDashboard() {
   });
   const [myKRAs, setMyKRAs] = useState<any>(null);
   const [managerKRAs, setManagerKRAs] = useState<{ [managerId: string]: any }>({});
-  const [selectedManager, setSelectedManager] = useState<Manager | null>(null);
-  const [showKRAModal, setShowKRAModal] = useState(false);
-  const [kraType, setKraType] = useState<'functional' | 'organizational' | 'self-development'>('functional');
-  const [newKRA, setNewKRA] = useState<any>({});
   const [showKRAsView, setShowKRAsView] = useState<string | null>(null);
   const [showProofDialog, setShowProofDialog] = useState<{ managerId: string; kraIndex: number; isOpen: boolean }>({
     managerId: '',
@@ -101,7 +95,7 @@ function BossDashboard() {
     organizational: false,
     selfDevelopment: false,
   });
-  
+
   // Edit/Delete manager state
   const [showEditManagerModal, setShowEditManagerModal] = useState(false);
   const [editingManager, setEditingManager] = useState<Manager | null>(null);
@@ -164,11 +158,6 @@ function BossDashboard() {
       const data = await fetchUserProfileApi(userId);
       if (data?.status === 'success' && data.data) {
         setUser({ name: data.data.name as string, email: data.data.email as string });
-        setProfile({
-          name: (data.data.name as string) || '',
-          email: (data.data.email as string) || '',
-          mobile: (data.data.mobile as string) || '',
-        });
       }
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
@@ -198,7 +187,7 @@ function BossDashboard() {
       setIsDownloadingReport(true);
       const userId = localStorage.getItem('userId');
       const response = await fetch(`/api/user/my-report?userId=${userId}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to download report');
       }
@@ -238,71 +227,6 @@ function BossDashboard() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const handleProfileChange = (field: 'name' | 'email' | 'mobile', value: string) => {
-    setProfile((prev) => ({ ...prev, [field]: value }));
-    if (profileErrors[field]) {
-      setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-    setProfileSuccessMessage('');
-  };
-
-  const validateProfile = (): boolean => {
-    const newErrors: Partial<{ name: string; email: string; mobile: string }> = {};
-
-    if (!profile.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-
-    if (!profile.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-
-    if (!profile.mobile.trim()) {
-      newErrors.mobile = 'Mobile number is required';
-    } else if (!/^[0-9]{10}$/.test(profile.mobile.replace(/\D/g, ''))) {
-      newErrors.mobile = 'Invalid mobile number (10 digits required)';
-    }
-
-    setProfileErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSaveProfile = async (e: FormEvent) => {
-    e.preventDefault();
-    setProfileSuccessMessage('');
-
-    if (!validateProfile()) {
-      return;
-    }
-
-    setIsSavingProfile(true);
-    const userId = localStorage.getItem('userId') || '';
-
-    try {
-      const response = await fetch(`/api/user/profile?userId=${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setProfileSuccessMessage('Profile saved.');
-        setUser({ name: profile.name, email: profile.email });
-        setTimeout(() => setProfileSuccessMessage(''), 3000);
-      } else {
-        setProfileErrors({ email: data.message || 'Failed to update profile' });
-      }
-    } catch (error) {
-      setProfileErrors({ email: 'Network error. Please try again.' });
-    } finally {
-      setIsSavingProfile(false);
-    }
   };
 
   const fetchManagers = async () => {
@@ -372,48 +296,36 @@ function BossDashboard() {
     }
   };
 
-  const handleAddManagerKRA = async (formData?: FunctionalKRAFormData) => {
-    if (!selectedManager) return;
+  const handleFinalizeManagerKRAs = async (manager: Manager) => {
+    const kras = managerKRAs[manager._id];
+    if (!kras) return;
+
+    // Check if already finalized
+    if (kras.krasFinalized) {
+      alert('KRAs for this supervisor are already finalized.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to finalize all KRAs for ${manager.name}? Once finalized, scores cannot be modified.`)) {
+      return;
+    }
 
     try {
       const userId = localStorage.getItem('userId');
-      const endpoint = `/api/boss/managers/${selectedManager._id}/kras/${kraType}`;
-      
-      // For functional KRAs, use the unified form data
-      // For other types, use the old structure (will be updated later)
-      const requestData = kraType === 'functional' && formData
-        ? {
-            kra: formData.kra,
-            kpis: formData.kpis,
-            reportsGenerated: formData.reportsGenerated || [],
-            pilotWeight: formData.pilotWeight || 0,
-            pilotScore: formData.pilotScore || 0,
-          }
-        : newKRA;
-
-      const res = await fetch(`${endpoint}?userId=${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData),
+      const res = await fetch(`/api/boss/managers/${manager._id}/kras/finalize?userId=${userId}`, {
+        method: 'PUT',
       });
 
       const data = await res.json();
-      if (res.ok) {
-        setShowKRAModal(false);
-        setNewKRA({});
-        fetchManagerKRAs(selectedManager._id);
-        alert(
-          kraType === 'functional'
-            ? 'KRA added.'
-            : kraType === 'organizational'
-              ? 'Core value added.'
-              : 'Area of concern added.'
-        );
+      if (res.ok && data.status === 'success') {
+        fetchManagerKRAs(manager._id);
+        alert(`KRAs for ${manager.name} have been finalized successfully.`);
       } else {
-        alert(data.message || (kraType === 'functional' ? 'Failed to add KRA' : kraType === 'organizational' ? 'Failed to add Core Value' : 'Failed to add Area of Concern'));
+        alert(data.message || 'Failed to finalize KRAs');
       }
     } catch (error) {
-      alert('Network error');
+      console.error('Error finalizing KRAs:', error);
+      alert('Failed to finalize KRAs');
     }
   };
 
@@ -564,7 +476,7 @@ function BossDashboard() {
       }
 
       const updatedProofs = [...currentProofs, proof];
-      
+
       // Update the boss's own KRA
       try {
         const userId = localStorage.getItem('userId');
@@ -621,7 +533,7 @@ function BossDashboard() {
     }
 
     const updatedProofs = [...currentProofs, proof];
-    
+
     // Update the KRA with new proofs
     try {
       const userId = localStorage.getItem('userId');
@@ -665,7 +577,7 @@ function BossDashboard() {
     if (!file) return;
 
     if (!file.type.match(/^image\/(jpeg|jpg|png)$/i) && file.type !== 'application/pdf') {
-      alert('Only JPG, PNG, or PDF files are allowed'); 
+      alert('Only JPG, PNG, or PDF files are allowed');
       return;
     }
 
@@ -745,9 +657,9 @@ function BossDashboard() {
             disabled={isDownloadingReport}
             aria-label="Download My Report"
             title="Download My Report as PDF"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
               gap: '6px',
               padding: '8px 12px',
               borderRadius: '8px',
@@ -889,6 +801,19 @@ function BossDashboard() {
             <div className={baseStyles.sidebarFooter}>
               <div className={baseStyles.navDivider}></div>
               <button
+                className={`${baseStyles.menuItem} ${activeTab === 'my4DData' ? baseStyles.menuItemActive : ''}`}
+                onClick={() => {
+                  setActiveTab('my4DData');
+                  setShowMenu(false);
+                }}
+              >
+                <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 11l3 3L22 4"></path>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                <span>My 4D Data</span>
+              </button>
+              <button
                 className={`${baseStyles.menuItem} ${activeTab === 'profile' ? baseStyles.menuItemActive : ''}`}
                 onClick={() => {
                   setActiveTab('profile');
@@ -965,10 +890,10 @@ function BossDashboard() {
                   <h2>My KRAs</h2>
                   <div className={styles.krasGrid}>
                     <div className={styles.kraCategory}>
-                      <div 
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
                           cursor: 'pointer',
                         }}
@@ -995,63 +920,63 @@ function BossDashboard() {
                       {expandedCategories.functional && myKRAs.functionalKRAs?.length > 0 && (
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                            {(showAllKRAs.functional 
-                              ? myKRAs.functionalKRAs 
+                            {(showAllKRAs.functional
+                              ? myKRAs.functionalKRAs
                               : myKRAs.functionalKRAs.slice(0, 3)
                             ).map((kra: any, idx: number) => {
                               const actualIndex = showAllKRAs.functional ? idx : idx;
                               return (
-                                <div 
-                                  key={actualIndex} 
+                                <div
+                                  key={actualIndex}
                                   onClick={() => {
                                     setSelectedKRA({ kra, index: actualIndex, type: 'self' });
                                     setShowKRADetailModal(true);
                                   }}
-                              style={{ 
-                                padding: '1.5rem', 
-                                border: '2px solid #e0e0e0', 
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                backgroundColor: '#fff',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = '#2196F3';
-                                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = '#e0e0e0';
-                                e.currentTarget.style.boxShadow = 'none';
-                              }}
-                            >
-                              <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.kra}</h4>
-                              <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
-                                {(() => {
-                                  let kpis: Array<{ kpi: string; target?: string }> = [];
-                                  if (Array.isArray(kra.kpis)) {
-                                    kpis = kra.kpis;
-                                  } else if (kra.kpis) {
-                                    kpis = [{ kpi: String(kra.kpis) }];
-                                  }
-                                  return kpis.length > 0 ? `${kpis.length} KPI${kpis.length > 1 ? 's' : ''}` : 'No KPIs';
-                                })()}
-                              </p>
-                              <p style={{ margin: '0.5rem 0 0 0', color: '#999', fontSize: '12px' }}>
-                                {(() => {
-                                  let proofs: any[] = [];
-                                  if (Array.isArray(kra.reportsGenerated)) {
-                                    proofs = kra.reportsGenerated;
-                                  } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
-                                    proofs = [{ type: 'drive_link', value: kra.reportsGenerated }];
-                                  }
-                                  return proofs.length > 0 ? `${proofs.length} proof${proofs.length > 1 ? 's' : ''} submitted` : 'No proof submitted';
-                                })()}
-                              </p>
-                              <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
-                                Click to view details →
+                                  style={{
+                                    padding: '1.5rem',
+                                    border: '2px solid #e0e0e0',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: '#fff',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#2196F3';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = '#e0e0e0';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#333' }}>{kra.kra}</h4>
+                                  <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+                                    {(() => {
+                                      let kpis: Array<{ kpi: string; target?: string }> = [];
+                                      if (Array.isArray(kra.kpis)) {
+                                        kpis = kra.kpis;
+                                      } else if (kra.kpis) {
+                                        kpis = [{ kpi: String(kra.kpis) }];
+                                      }
+                                      return kpis.length > 0 ? `${kpis.length} KPI${kpis.length > 1 ? 's' : ''}` : 'No KPIs';
+                                    })()}
+                                  </p>
+                                  <p style={{ margin: '0.5rem 0 0 0', color: '#999', fontSize: '12px' }}>
+                                    {(() => {
+                                      let proofs: any[] = [];
+                                      if (Array.isArray(kra.reportsGenerated)) {
+                                        proofs = kra.reportsGenerated;
+                                      } else if (typeof kra.reportsGenerated === 'string' && kra.reportsGenerated.trim()) {
+                                        proofs = [{ type: 'drive_link', value: kra.reportsGenerated }];
+                                      }
+                                      return proofs.length > 0 ? `${proofs.length} proof${proofs.length > 1 ? 's' : ''} submitted` : 'No proof submitted';
+                                    })()}
+                                  </p>
+                                  <div style={{ marginTop: '0.5rem', fontSize: '12px', color: '#2196F3', fontWeight: '600' }}>
+                                    Click to view details →
+                                  </div>
                                 </div>
-                              </div>
-                            );
+                              );
                             })}
                           </div>
                           {myKRAs.functionalKRAs.length > 3 && (
@@ -1082,10 +1007,10 @@ function BossDashboard() {
                       )}
                     </div>
                     <div className={styles.kraCategory}>
-                      <div 
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
                           cursor: 'pointer',
                         }}
@@ -1112,21 +1037,21 @@ function BossDashboard() {
                       {expandedCategories.organizational && myKRAs.organizationalKRAs?.length > 0 && (
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                            {(showAllKRAs.organizational 
-                              ? myKRAs.organizationalKRAs 
+                            {(showAllKRAs.organizational
+                              ? myKRAs.organizationalKRAs
                               : myKRAs.organizationalKRAs.slice(0, 3)
                             ).map((kra: any, idx: number) => {
                               const actualIndex = showAllKRAs.organizational ? idx : idx;
                               return (
-                                <div 
-                                  key={actualIndex} 
+                                <div
+                                  key={actualIndex}
                                   onClick={() => {
                                     setSelectedKRA({ kra, index: actualIndex, type: 'self' });
                                     setShowKRADetailModal(true);
                                   }}
-                                  style={{ 
-                                    padding: '1.5rem', 
-                                    border: '2px solid #e0e0e0', 
+                                  style={{
+                                    padding: '1.5rem',
+                                    border: '2px solid #e0e0e0',
                                     borderRadius: '8px',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s',
@@ -1177,10 +1102,10 @@ function BossDashboard() {
                       )}
                     </div>
                     <div className={styles.kraCategory}>
-                      <div 
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
                           cursor: 'pointer',
                         }}
@@ -1207,21 +1132,21 @@ function BossDashboard() {
                       {expandedCategories.selfDevelopment && myKRAs.selfDevelopmentKRAs?.length > 0 && (
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                            {(showAllKRAs.selfDevelopment 
-                              ? myKRAs.selfDevelopmentKRAs 
+                            {(showAllKRAs.selfDevelopment
+                              ? myKRAs.selfDevelopmentKRAs
                               : myKRAs.selfDevelopmentKRAs.slice(0, 3)
                             ).map((kra: any, idx: number) => {
                               const actualIndex = showAllKRAs.selfDevelopment ? idx : idx;
                               return (
-                                <div 
-                                  key={actualIndex} 
+                                <div
+                                  key={actualIndex}
                                   onClick={() => {
                                     setSelectedKRA({ kra, index: actualIndex, type: 'self' });
                                     setShowKRADetailModal(true);
                                   }}
-                                  style={{ 
-                                    padding: '1.5rem', 
-                                    border: '2px solid #e0e0e0', 
+                                  style={{
+                                    padding: '1.5rem',
+                                    border: '2px solid #e0e0e0',
                                     borderRadius: '8px',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s',
@@ -1475,39 +1400,6 @@ function BossDashboard() {
                           className={styles.actionButton}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedManager(manager);
-                            setShowKRAModal(true);
-                            setKraType('functional');
-                          }}
-                        >
-                          Add Functional KRA
-                        </button>
-                        <button
-                          className={styles.actionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedManager(manager);
-                            setShowKRAModal(true);
-                            setKraType('organizational');
-                          }}
-                        >
-                          Add Core Value
-                        </button>
-                        <button
-                          className={styles.actionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedManager(manager);
-                            setShowKRAModal(true);
-                            setKraType('self-development');
-                          }}
-                        >
-                          Add Area of Concern
-                        </button>
-                        <button
-                          className={styles.actionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
                             if (showKRAsView === manager._id) {
                               setShowKRAsView(null);
                             } else {
@@ -1516,7 +1408,7 @@ function BossDashboard() {
                             }
                           }}
                         >
-                          {showKRAsView === manager._id ? 'Hide Dimensions' : 'View Dimensions'}
+                          {showKRAsView === manager._id ? 'Hide Dimensions' : 'View 4D Data'}
                         </button>
                         <div className={styles.editDeleteActions}>
                           <button
@@ -1541,12 +1433,44 @@ function BossDashboard() {
                       </div>
                       {showKRAsView === manager._id && managerKRAs[manager._id] && (
                         <div className={styles.krasView}>
+                          {/* Finalize All KRAs Button */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                            <div>
+                              {managerKRAs[manager._id].krasFinalized ? (
+                                <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                                  🔒 All KRAs Finalized
+                                </span>
+                              ) : (
+                                <span style={{ color: '#666' }}>
+                                  KRAs pending finalization
+                                </span>
+                              )}
+                            </div>
+                            {!managerKRAs[manager._id].krasFinalized && (
+                              <button
+                                onClick={() => handleFinalizeManagerKRAs(manager)}
+                                style={{
+                                  padding: '0.5rem 1rem',
+                                  backgroundColor: '#FF9800',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold',
+                                  fontSize: '14px',
+                                }}
+                                type="button"
+                              >
+                                🔒 Finalize All KRAs
+                              </button>
+                            )}
+                          </div>
                           <h4>Functional KRAs</h4>
                           {managerKRAs[manager._id].functionalKRAs?.length > 0 ? (
                             managerKRAs[manager._id].functionalKRAs.map((kra: any, idx: number) => (
                               <div key={idx} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
                                 <h5 style={{ marginTop: 0, marginBottom: '0.5rem' }}>{kra.kra}</h5>
-                                
+
                                 {/* KPIs Section */}
                                 <div style={{ marginBottom: '1rem' }}>
                                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem' }}>KPIs (Key Performance Indicators)</label>
@@ -1716,67 +1640,23 @@ function BossDashboard() {
             </div>
           )}
 
+          {activeTab === 'my4DData' && (
+            <div className={styles.tabContent}>
+              <KRAEditorSelfService userId={localStorage.getItem('userId') || ''} />
+            </div>
+          )}
+
           {activeTab === 'profile' && (
             <div className={styles.tabContent}>
               <h1>Profile & Settings</h1>
-              <div className={styles.profileForm}>
-                <form onSubmit={handleSaveProfile}>
-                  <div className={baseStyles.formGroup}>
-                    <label htmlFor="profile-name">Name *</label>
-                    <input
-                      id="profile-name"
-                      type="text"
-                      value={profile.name}
-                      onChange={(e) => handleProfileChange('name', e.target.value)}
-                      className={`${baseStyles.input} ${profileErrors.name ? baseStyles.inputError : ''}`}
-                    />
-                    {profileErrors.name && (
-                      <span className={baseStyles.errorText}>{profileErrors.name}</span>
-                    )}
-                  </div>
 
-                  <div className={baseStyles.formGroup}>
-                    <label htmlFor="profile-email">Email *</label>
-                    <input
-                      id="profile-email"
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => handleProfileChange('email', e.target.value)}
-                      className={`${baseStyles.input} ${profileErrors.email ? baseStyles.inputError : ''}`}
-                    />
-                    {profileErrors.email && (
-                      <span className={baseStyles.errorText}>{profileErrors.email}</span>
-                    )}
-                  </div>
+              <ProfileEditor
+                userId={localStorage.getItem('userId') || ''}
+                onProfileUpdate={(p) => setUser({ name: p.name, email: p.email })}
+              />
 
-                  <div className={baseStyles.formGroup}>
-                    <label htmlFor="profile-mobile">Mobile *</label>
-                    <input
-                      id="profile-mobile"
-                      type="tel"
-                      value={profile.mobile}
-                      onChange={(e) => handleProfileChange('mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      className={`${baseStyles.input} ${profileErrors.mobile ? baseStyles.inputError : ''}`}
-                      maxLength={10}
-                      placeholder="10 digits"
-                    />
-                    {profileErrors.mobile && (
-                      <span className={baseStyles.errorText}>{profileErrors.mobile}</span>
-                    )}
-                  </div>
-
-                  {profileSuccessMessage && (
-                    <div className={baseStyles.successMessage}>{profileSuccessMessage}</div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className={baseStyles.submitButton}
-                    disabled={isSavingProfile}
-                  >
-                    {isSavingProfile ? 'Saving...' : 'Save Profile'}
-                  </button>
-                </form>
+              <div style={{ marginTop: '2rem' }}>
+                <DimensionWeightsEditor userId={localStorage.getItem('userId') || ''} />
               </div>
 
               {/* My KRAs in Profile */}
@@ -1828,79 +1708,9 @@ function BossDashboard() {
         </div>
       </div>
 
-      {/* KRA Modal for Supervisors */}
-      {showKRAModal && selectedManager && (
-        <div className={styles.modalOverlay} onClick={() => setShowKRAModal(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Add {kraType === 'functional' ? 'Functional KRA' : kraType === 'organizational' ? 'Core Value' : 'Area of Concern'} for {selectedManager.name}</h2>
-              <button
-                className={styles.closeButton}
-                onClick={() => setShowKRAModal(false)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              {kraType === 'functional' ? (
-                <KRAForm
-                  onSubmit={handleAddManagerKRA}
-                  onCancel={() => setShowKRAModal(false)}
-                  mode="add"
-                />
-              ) : (
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAddManagerKRA();
-                }}>
-                  {kraType === 'organizational' && (
-                    <div className={baseStyles.formGroup}>
-                      <label>Core Values *</label>
-                      <input
-                        type="text"
-                        className={baseStyles.input}
-                        value={newKRA.coreValues || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, coreValues: e.target.value })}
-                        required
-                      />
-                    </div>
-                  )}
-                  {kraType === 'self-development' && (
-                    <div className={baseStyles.formGroup}>
-                      <label>Area of Concern *</label>
-                      <input
-                        type="text"
-                        className={baseStyles.input}
-                        value={newKRA.areaOfConcern || ''}
-                        onChange={(e) => setNewKRA({ ...newKRA, areaOfConcern: e.target.value })}
-                        required
-                      />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                    <button type="submit" className={baseStyles.submitButton}>
-                      {kraType === 'organizational' ? 'Add Core Value' : 'Add Area of Concern'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowKRAModal(false)}
-                      className={baseStyles.cancelButton}
-                      style={{ background: '#f0f0f0', color: '#333', border: '1px solid #ddd' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* KRA Detail Modal */}
       {showKRADetailModal && selectedKRA && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -1918,7 +1728,7 @@ function BossDashboard() {
             setSelectedKRA(null);
           }}
         >
-          <div 
+          <div
             style={{
               backgroundColor: 'white',
               padding: '2rem',
@@ -1951,7 +1761,7 @@ function BossDashboard() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#333' }}>{selectedKRA.kra.kra}</h3>
-              
+
               {/* KPIs Section */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.5rem', fontSize: '16px' }}>KPIs (Key Performance Indicators)</label>
@@ -2003,11 +1813,11 @@ function BossDashboard() {
                   return proofs.length > 0 ? (
                     <div style={{ marginBottom: '0.5rem' }}>
                       {proofs.map((proof: any, proofIndex: number) => (
-                        <div key={proofIndex} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
+                        <div key={proofIndex} style={{
+                          display: 'flex',
+                          alignItems: 'center',
                           justifyContent: 'space-between',
-                          gap: '0.5rem', 
+                          gap: '0.5rem',
                           marginBottom: '0.5rem',
                           padding: '0.75rem',
                           backgroundColor: '#f5f5f5',
@@ -2053,7 +1863,7 @@ function BossDashboard() {
 
       {/* Proof Dialog */}
       {showProofDialog.isOpen && showProofDialog.kraIndex !== -1 && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -2068,7 +1878,7 @@ function BossDashboard() {
           }}
           onClick={() => setShowProofDialog({ managerId: '', kraIndex: -1, isOpen: false })}
         >
-          <div 
+          <div
             style={{
               backgroundColor: 'white',
               padding: '2rem',
@@ -2350,7 +2160,7 @@ function BossDashboard() {
                   style={{
                     padding: '0.75rem 1.5rem',
                     border: 'none',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
                     color: 'white',
                     borderRadius: '8px',
                     cursor: 'pointer',

@@ -58,27 +58,44 @@ function Login() {
           navigate('/auth/access-code');
           return;
         }
-        
+
         // Role-based redirection for successful login
         if (data.data?.role) {
-          switch (data.data.role) {
-            case 'platform_admin':
-              navigate('/admin/dashboard');
-              break;
-            case 'reviewer':
-              navigate('/reviewer/dashboard');
-              break;
-            case 'boss':
-              navigate('/dashboard/boss');
-              break;
-            case 'manager':
-              navigate('/dashboard/manager');
-              break;
-            case 'employee':
-              navigate('/dashboard/employee');
-              break;
-            default:
-              navigate('/dashboard');
+          const role = data.data.role;
+
+          // Platform admin, reviewer, and CSA go to their own dashboards (no onboarding)
+          if (role === 'platform_admin') {
+            navigate('/admin/dashboard');
+            return;
+          }
+          if (role === 'reviewer') {
+            navigate('/reviewer/dashboard');
+            return;
+          }
+          if (role === 'client_admin') {
+            navigate('/client-admin/dashboard');
+            return;
+          }
+
+          // Boss, manager, employee → check onboarding first
+          try {
+            const onboardingRes = await fetch(`/api/onboarding/status?userId=${data.data.userId}`);
+            const onboardingData = await onboardingRes.json();
+            if (onboardingData.status === 'success' && !onboardingData.data.onboardingCompleted) {
+              navigate('/onboarding');
+              return;
+            }
+          } catch {
+            // If onboarding check fails, continue to dashboard
+          }
+
+          // Route to role-specific dashboard
+          if (role === 'boss') {
+            navigate('/dashboard/boss');
+          } else if (role === 'manager') {
+            navigate('/dashboard/manager');
+          } else {
+            navigate('/dashboard/employee');
           }
         } else {
           navigate('/dashboard');
@@ -94,8 +111,8 @@ function Login() {
   };
 
   const handleChange = (field: keyof LoginForm, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
   return (
@@ -118,24 +135,26 @@ function Login() {
             <span className={styles.logoText}>4DPMS</span>
           </div>
           <h2 className={styles.greeting}>Welcome back!</h2>
-          <p className={styles.subGreeting}>Enter your mobile number to login. Access code required for non-admin users.</p>
+          <p className={styles.subGreeting}>
+            Enter your mobile number to login. Access code required for non-admin users.
+          </p>
 
           <form className={styles.form} onSubmit={handleSubmit} noValidate>
             <div className={styles.inputGroup}>
-              <label htmlFor="mobile" className={styles.label}>
-                Mobile
-              </label>
               <input
                 id="mobile"
                 type="tel"
                 className={`${styles.input} ${errors.mobile ? styles.inputError : ''}`}
                 value={formData.mobile}
-                onChange={(e) => handleChange('mobile', e.target.value.replace(/\D/g, ''))}
+                onChange={e => handleChange('mobile', e.target.value.replace(/\D/g, ''))}
                 maxLength={10}
-                placeholder="Enter mobile number"
+                placeholder=" "
                 aria-invalid={!!errors.mobile}
                 aria-describedby={errors.mobile ? 'mobile-error' : undefined}
               />
+              <label htmlFor="mobile" className={styles.label}>
+                Mobile
+              </label>
               {errors.mobile && (
                 <span id="mobile-error" className={styles.errorText} role="alert">
                   {errors.mobile}
@@ -144,19 +163,19 @@ function Login() {
             </div>
 
             <div className={styles.inputGroup}>
-              <label htmlFor="accessCode" className={styles.label}>
-                Access Code
-              </label>
               <input
                 id="accessCode"
                 type="password"
                 className={`${styles.input} ${errors.accessCode ? styles.inputError : ''}`}
                 value={formData.accessCode}
-                onChange={(e) => handleChange('accessCode', e.target.value)}
-                placeholder="Enter your access code"
+                onChange={e => handleChange('accessCode', e.target.value)}
+                placeholder=" "
                 aria-invalid={!!errors.accessCode}
                 aria-describedby={errors.accessCode ? 'accessCode-error' : undefined}
               />
+              <label htmlFor="accessCode" className={styles.label}>
+                Access Code
+              </label>
               {errors.accessCode && (
                 <span id="accessCode-error" className={styles.errorText} role="alert">
                   {errors.accessCode}
@@ -197,4 +216,3 @@ function Login() {
 }
 
 export default Login;
-

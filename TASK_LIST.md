@@ -9,12 +9,260 @@
 
 | Metric | Status |
 |--------|--------|
-| Critical Bugs | 0 ✅ |
-| Backend | 100% Complete ✅ |
+| Critical Bugs | **0 CRITICAL** ✅ |
+| Backend | 100% Complete ✅ (15 route modules) |
 | Frontend Pages | 100% Complete ✅ |
 | Core Features | 100% Complete ✅ |
-| Testing Issues | 10 Fixed, 4 Still Need Work, 1 Pending |
-| Code Cleanup | Pending (Low Priority) |
+| Models | 12 Mongoose models ✅ |
+| Scoring System | ✅ Fixed (calculations corrected) |
+| 4D Data Input | ✅ All 3 issues fixed (Issue 19-21) |
+| 4D Data Ownership | ✅ Self-service model implemented |
+| Testing Issues | 19 Fixed, 0 Pending |
+| Code Cleanup | 7 console.logs, 4 auth TODOs, salary hardcode (Low Priority) |
+
+---
+
+## ✅ Architectural Change: 4D Data Ownership Model
+
+> **Status:** ✅ IMPLEMENTED - February 2026
+> **Priority:** HIGH - Role separation enforcement
+
+### Summary
+
+Changed the 4D data entry model so that **every user enters their own 4D data**. Supervisors (Managers, Bosses, Client Admins) can only **view and finalize** their team members' 4D data, not add or edit it.
+
+### Changes Made
+
+| Dashboard | Previous | New Behavior |
+|-----------|----------|--------------|
+| **BossDashboard** | Could add KRAs for managers | View 4D Data + Finalize only |
+| **ManagerDashboard** | Could add KRAs for employees | View 4D Data + Finalize only |
+| **ClientAdminDashboard** | Could add/edit/delete KRAs for bosses | View 4D Data + Finalize only |
+| **EmployeeDashboard** | Self-service 4D entry | ✅ Unchanged - full self-service |
+
+### Self-Service 4D Data Entry (All Roles)
+
+Each dashboard has a "My 4D Data" tab where users can:
+- Add/edit their own Functional KRAs (with KPIs, weights, pilot scores)
+- Add/edit their own Organizational KRAs (Core Values)
+- Add/edit their own Self Development KRAs (Areas of Concern)
+- Add/edit their own Developing Others KRAs
+
+Component used: `KRAEditor` from `pages/Dashboard/Employee/KRAEditor.tsx`
+
+### Supervisor Capabilities (After Change)
+
+Supervisors can:
+- ✅ View team members' 4D data
+- ✅ Finalize/Lock all KRAs for a team member (all dashboards)
+- ❌ Add KRAs for others (removed)
+- ❌ Edit KRAs for others (removed)
+- ❌ Delete KRAs for others (removed)
+
+### Finalize Functionality
+
+| Role | Can Finalize | API Endpoint |
+|------|--------------|--------------|
+| **Client Admin** | Bosses' KRAs | `POST /api/client-admin/bosses/:bossId/kras/functional/:kraIndex/lock` |
+| **Boss (Admin)** | Managers' KRAs | `PUT /api/boss/managers/:managerId/kras/finalize` |
+| **Manager (Supervisor)** | Employees' KRAs | `PUT /api/manager/employees/:employeeId/kras/finalize` |
+
+When viewing a team member's 4D data, supervisors see:
+- A status indicator showing if KRAs are finalized or pending
+- A "🔒 Finalize All KRAs" button (orange) if not yet finalized
+- A "🔒 All KRAs Finalized" badge (green) if already finalized
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `client/src/pages/Dashboard/Boss/BossDashboard.tsx` | Removed Add KRA buttons/modal; Added `handleFinalizeManagerKRAs` function and Finalize button |
+| `client/src/pages/Dashboard/Manager/ManagerDashboard.tsx` | Removed Add KRA buttons/modal; Added `handleFinalizeEmployeeKRAs` function and Finalize button |
+| `client/src/pages/ClientAdmin/ClientAdminDashboard.tsx` | Removed Add/Edit/Delete KRA buttons/modal; Kept existing Finalize button for individual KRAs |
+
+---
+
+## ✅ CRITICAL: Scoring System Calculation Fixes
+
+> **Status:** ✅ IMPLEMENTED - February 2026
+> **Priority:** CRITICAL - Fixed before production use
+> **Decision:** Weights kept as integers (10-100%) in UI/storage, calculations adjusted to handle correctly
+
+### Background
+
+The scoring calculation logic was cross-verified against actual Excel files used by Liberation Coaches:
+- `Assets/Execl/KRA Setting - 2025-26 (1).xlsx` (Template)
+- `Assets/Execl/Dispatch - Chandrakant Karpe 24-25.xlsx` (Real data)
+- `Assets/Execl/KRA Format_Sandipkumar Ashvinbhai Mevada.xlsx` (Real data - 1 quarter)
+
+### Verified Excel Formulas
+
+| Dimension | Excel Formula | Current Code Issue |
+|-----------|---------------|-------------------|
+| **Functional (1D)** | `=SUMPRODUCT(weights, scores)` where weights sum to 1.0 | Code divides by sum of weights (WRONG) |
+| **Organizational (2D)** | `=IF(SUM(scores)=0, 0, AVERAGE(scores))` - R1-R4 only | Correct |
+| **Self Development (3D)** | `=IF(SUM(scores)=0, 0, AVERAGE(scores))` - R1-R4 only | Includes Pilot (WRONG) |
+| **Developing Others (4D)** | `=IF(SUM(scores)=0, 0, AVERAGE(scores))` - R1-R4 only | Includes Pilot (WRONG) |
+| **Final 4D Index** | `=AVERAGE(R1_Total, R2_Total, R3_Total, R4_Total)` | Pilot handling may be wrong |
+| **Percentage** | `=Score / 5` (since max score is 5) | Uses `* 20` (same result, OK) |
+
+### Key Rules Confirmed from Excel
+
+1. **Pilot is NOT included** in yearly averages for ANY dimension
+2. **Functional weights** are decimals in Excel (0.1, 0.3) summing to 1.0, but we store as integers (10, 30) summing to 100
+3. **Functional score** = `SUMPRODUCT(weights, scores)` - NO division when weights sum to 1.0/100%
+4. **Dimension weights** stored as decimals (0.6, 0.2, 0.1, 0.1) in Excel, we use integers (60, 20, 10, 10)
+5. **Final 4D Index** = Average of R1, R2, R3, R4 weighted totals (Pilot excluded)
+
+### Files to Modify
+
+#### 1. `server/src/utils/calculations.ts` - ✅ FIXED
+
+| Function | Previous Behavior | Fix Applied |
+|----------|------------------|--------------|
+| `calculateFunctionalDimensionScore()` | ~~Divides `sumProduct / sumWeights`~~ | ✅ Now uses `sumProduct / 100` (Excel SUMPRODUCT behavior) |
+| `calculateSelfDevelopmentAverageAcrossPeriods()` | ~~`includePilot` defaulted to `true`~~ | ✅ Now defaults to `false` |
+| `calculateDevelopingOthersAverageAcrossPeriods()` | ~~`includePilot` defaulted to `true`~~ | ✅ Now defaults to `false` |
+| `calculateMemberScores()` | ~~`includePilot` defaulted to `true`~~ | ✅ Now defaults to `false` for yearly averages |
+| `DEFAULT_DIMENSION_WEIGHTS` | `{ functional: 60, organizational: 20, selfDevelopment: 10, developingOthers: 10 }` | ✅ Kept as integers, calculation adjusted |
+
+#### 2. `server/src/utils/kraCalculations.ts` - ✅ FIXED
+
+| Function | Previous Behavior | Fix Applied |
+|----------|------------------|--------------|
+| `calculateSelfDevelopmentAverageScore()` | ~~Included `pilotScore` in average~~ | ✅ Pilot removed from average |
+| `calculateDevelopingOthersAverageScore()` | ~~Included `pilotScore` in average~~ | ✅ Pilot removed from average |
+| `calculateFunctionalAverageScore()` | Only R1-R4 | ✅ Correct - kept as is |
+| `calculateOrganizationalAverageScore()` | Only R1-R4 | ✅ Correct - kept as is |
+
+#### 3. `server/src/utils/dimensionCalculations.ts` - Verify Only
+
+| Function | Status |
+|----------|--------|
+| `calculateOrganizationalAverage()` | ✅ Correct - only R1-R4 |
+| `calculateSelfDevelopmentAverage()` | ✅ Correct - only R1-R4 |
+| `calculateDevelopingOthersAverage()` | ✅ Correct - only R1-R4 |
+
+#### 4. `server/src/services/exportService.ts` - ✅ FIXED
+
+- ✅ All calls to `calculateMemberScores()` now explicitly pass `includePilot = false`
+- ✅ Comments added to clarify Pilot exclusion per Excel verification
+
+### Frontend Weight Handling (Already Correct)
+
+- `KRAForm.tsx` - Uses integers (10, 20, 30...) with +/- buttons in increments of 10 ✅
+- `Scoring.tsx` - Uses integers ✅
+- `TeamMemberKRAs.tsx` - Uses integers ✅
+
+### Testing Checklist After Implementation
+
+- [ ] Create test case with Sandipkumar's data (1 quarter only):
+  - Functional: Pilot=0.95, R1=3.35 → Period R1 should = 3.35
+  - Organizational: R1=2.7 → Should = 2.7
+  - Self Dev: R1=2.0 → Should = 2.0
+  - Dev Others: R1=3.0 → Should = 3.0
+  - R1 Total: 0.6×3.35 + 0.2×2.7 + 0.1×2.0 + 0.1×3.0 = 2.01 + 0.54 + 0.20 + 0.30 = **3.05**
+  - Final 4D Index: 3.05 (only R1 has data)
+  - Percentage: 3.05/5 = 61%
+
+- [x] ✅ Verify Pilot scores are NOT included in any yearly averages (code updated)
+- [x] ✅ Verify Functional calculation matches Excel SUMPRODUCT behavior (code updated)
+- [ ] Verify exported PDF shows correct scores (requires manual testing)
+
+---
+
+## ✅ 4D Data Input Form Issues (TeamMemberKRAs.tsx) - ALL FIXED
+
+> **Status:** ✅ All Issues Fixed - February 2026
+> **Audit Date:** February 2026
+> **File:** `client/src/pages/Dashboard/TeamMember/TeamMemberKRAs.tsx`
+
+### Issues Fixed
+
+#### Issue 19: Score Input Max Value Bug - ✅ FIXED
+**Problem:** All score input fields had `max="100"` but scores should be on a **0-5 scale** per Excel.
+
+**Fix Applied:** Changed all 7 instances of `max="100"` to `max="5"` in TeamMemberKRAs.tsx:
+- Functional dimension score inputs (Pilot + R1-R4)
+- Organizational dimension score inputs (Pilot + R1-R4)
+- Self Development score inputs (Pilot + R1-R4)
+- Developing Others score inputs (Pilot + R1-R4)
+
+---
+
+#### Issue 20: Missing Weight Sum Validation - ✅ FIXED
+**Problem:** No validation that Functional KRA weights for each review period sum to exactly 100%.
+
+**Fix Applied:**
+- Added `calculateWeightSum()` and `getWeightValidation()` helper functions
+- Added visual weight sum indicator showing Pilot, R1, R2, R3, R4 weight totals
+- Green badge when weights sum to 100% (valid)
+- Red badge when weights don't sum to 100% (invalid)
+- Added CSS styles for `.weightValidation`, `.weightBadge`, `.weightValid`, `.weightInvalid`
+
+---
+
+#### Issue 21: KRAForm Missing Pilot Actual Performance Field - ✅ FIXED
+**Problem:** The Add KRA form (`KRAForm.tsx`) didn't include a field for `pilotActualPerf` (Actual Performance comment).
+
+**Fix Applied:**
+- Added `pilotActualPerf` to `FunctionalKRAFormData` interface
+- Added textarea field for "Pilot Actual Performance" (optional)
+- Added `.textarea` CSS styles to KRAForm.module.css
+
+**Current Fields in KRAForm:**
+- ✅ KRA Name
+- ✅ KPIs (array)
+- ✅ Proof of Work
+- ✅ Pilot Weight
+- ✅ Pilot Score
+- ✅ Pilot Actual Performance (added)
+
+---
+
+### Data Collection Summary (Verified)
+
+#### Functional Dimension ✅ COMPLETE
+| Field | Status | Notes |
+|-------|--------|-------|
+| KRA Name | ✅ | Required |
+| KPIs | ✅ | Array with target |
+| Proof of Work | ✅ | Drive link or file |
+| Pilot Weight | ✅ | 10-100% |
+| Pilot Score | ✅ | 0-5 scale |
+| Pilot Actual Perf | ✅ | In edit view |
+| R1-R4 Weight | ✅ | 10-100% |
+| R1-R4 Score | ✅ | 0-5 scale |
+| R1-R4 Actual Perf | ✅ | In edit view |
+
+#### Organizational Dimension ✅ COMPLETE
+| Field | Status | Notes |
+|-------|--------|-------|
+| Core Values | ✅ | Required |
+| R1-R4 Score | ✅ | 0-5 scale |
+| R1-R4 Critical Incident | ✅ | Text field |
+| Pilot Score | ⚠️ | Extra field (not in Excel calculations) - OK to keep |
+| Pilot Critical Incident | ⚠️ | Extra field - OK to keep |
+
+#### Self Development ✅ COMPLETE
+| Field | Status | Notes |
+|-------|--------|-------|
+| Area of Concern | ✅ | Required |
+| Action Plan/Initiative | ✅ | Optional |
+| Pilot Score | ✅ | Display only (not in yearly avg) |
+| Pilot Reason | ✅ | Text field |
+| R1-R4 Score | ✅ | 0-5 scale |
+| R1-R4 Reason | ✅ | Text field |
+
+#### Developing Others ✅ COMPLETE
+| Field | Status | Notes |
+|-------|--------|-------|
+| Person | ✅ | Required |
+| Area of Development | ✅ | Optional |
+| Pilot Score | ✅ | Display only (not in yearly avg) |
+| Pilot Reason | ✅ | Text field |
+| R1-R4 Score | ✅ | 0-5 scale |
+| R1-R4 Reason | ✅ | Text field |
 
 ---
 
@@ -22,58 +270,31 @@
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | **Unify Org Code + Invite Code** | ✅ Join page tries invite code first, then org code |
-| 2 | **Edit/Delete Org in Admin Dashboard** | ✅ Edit/Delete buttons and modals present |
-| 3 | **Remove Placeholder Boss Creation** | ✅ No placeholder boss creation |
+| 1 | **Unify Org Code + Invite Code** | ✅ Join page tries invite code first, then org code (`/api/organizations/resolve`) |
+| 2 | **Edit/Delete Org in Admin Dashboard** | ✅ Edit/Delete buttons, modals, and `DELETE /api/organizations/:id` endpoint |
+| 3 | **Remove Placeholder Boss Creation** | ✅ No placeholder boss creation; org can exist without boss |
 | 4 | **Status Inconsistency** | ✅ All creation flows set isActive=false; login sets isActive=true |
 | 8 | **KRA Proof Field** | ✅ Single unified "Reports/Proof of Work" field (Drive Link or File Upload) |
 | 10 | **Mobile Number Validation** | ✅ maxLength={10} on all mobile inputs |
-| 11 | **Personal PDF Download** | ✅ "My Report" button on Employee, Boss, Manager dashboards; /api/user/my-report exists |
-| 12 | **Remove Excel Export from CSA** | ✅ UI only has "Export PDF" button (handler still supports excel internally but no UI exposes it) |
+| 11 | **Personal PDF Download** | ✅ "My Report" button on Employee, Boss, Manager dashboards; `GET /api/user/my-report` |
+| 12 | **Remove Excel Export from CSA** | ✅ UI only shows "Export PDF" button |
 | 13 | **Dimension Weights Visibility** | ✅ Weights displayed in BossDashboard and ManagerDashboard |
+| 17 | **Supervisor KRA Finalization** | ✅ `PUT /api/manager/employees/:id/kras/finalize` - finalizes all KRAs, locks scores, sends notification |
+| 18 | **Boss KRA Finalization** | ✅ `PUT /api/boss/managers/:managerId/kras/finalize` - finalizes all manager KRAs, locks scores, sends notification |
+| 6 | **Button Sizes Standardized** | ✅ Standard `.btn-sm`, `.btn-md`, `.btn-lg` utility classes added to `design-system.css` |
+| 7 | **Color Gradient Fix** | ✅ All violet/purple colors (`#667eea`, `#764ba2`, `#7e57c2`) replaced with blue design system colors across all files |
+| 9 | **Weightage Display** | ✅ Weight values wrapped with `Number()` in TeamMemberKRAs, KRAForm, Scoring; `padStart` removed from score displays |
+| 15 | **Profile Tab Layout** | ✅ Centering structure verified; `.content` padding fixed; ProfileEditor uses `maxWidth: 700px; margin: 0 auto` |
 
 ---
 
-## ❌ STILL NEED WORK (Code Verified - NOT Fixed)
+## ⚠️ PARTIALLY COMPLETE (Architecture)
 
 ### Issue 5: Supervisor-Admin Hierarchy - PARTIALLY FIXED
 - `createdBy` field added to User model ✅
 - CSA hierarchy endpoint exists (`GET /api/client-admin/hierarchy`) ✅
 - `reportsTo` field NOT added ❌ (still uses separate `managerId` + `bossId`)
-- **Remaining:** Add `reportsTo` to User model for full hierarchy support
-
-### Issue 6: Button Sizes - NOT FIXED
-- Some standardized button classes exist (`submitButton`, `createButton`)
-- No size utility classes (`btnSmall`, `btnMedium`, `btnLarge`)
-- Buttons across dashboards still have inconsistent sizes
-- **Fix needed:** Create standard size classes and apply consistently
-
-### Issue 7: Color Gradient - NOT FIXED
-Violet/purple colors still present in **10 files, 18+ occurrences:**
-
-| File | Colors Found |
-|------|-------------|
-| `ManagerDashboard.tsx` (line 2204) | `#667eea`, `#764ba2` |
-| `BossDashboard.tsx` (line 2353) | `#667eea`, `#764ba2` |
-| `KRAForm.module.css` (lines 121, 156, 352, 354, 385) | `#7e57c2` |
-| `Scoring.module.css` (lines 322, 355, 390, 460, 462, 492) | `#7e57c2` |
-| `Teams.module.css` (lines 112, 367) | `#667eea` |
-| `FeedbackHistory.module.css` (lines 14, 122, 173) | `#667eea` |
-| `Performance.tsx` (line 159) | `#667eea` |
-
-**Fix needed:** Replace ALL with design system variables (`--color-primary-main-blue`, `--gradient-primary`)
-
-### Issue 9: Weightage Display "010%" - NOT FIXED
-- Weight values displayed as raw strings without formatting
-- `TeamMemberKRAs.tsx`: `value={kra.pilotWeight || ''}` - no parseInt()
-- `KRAForm.tsx`: `{formData.pilotWeight || 10}` - no Number()
-- **Fix needed:** Wrap all weight displays with `Number()` or `parseInt(value, 10)`
-
-### Issue 15: Profile Tab Layout - NEEDS VISUAL CHECK
-- `Settings.module.css` has `max-width: 600px; margin: 0 auto` ✅
-- But Settings is rendered inside `Dashboard.tsx` `<main className={baseStyles.content}>` which has no flex centering
-- `.content` has `flex: 1; padding: var(--spacing-xl)` but no `display: flex` or `align-items: center`
-- **May need:** Explicit centering in parent, or add `display: flex; justify-content: center` to `.content`
+- **Remaining:** Add `reportsTo` to User model for full hierarchy support (planned for Supervisor/Member architecture phase)
 
 ---
 
@@ -83,118 +304,25 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 
 | # | Issue | Description | Effort |
 |---|-------|-------------|--------|
-| 14 | **Verify Scoring System** | Cross-check with existing Excel data (pending user verification) | TBD |
+| 14 | **~~Verify Scoring System~~** | ~~Cross-check with existing Excel data~~ → **VERIFIED: Issues Found - See CRITICAL section above** | **HIGH** |
 
-### Issue 1: Unify Org Code + Invite Code in Join Page
-
-**Problem:**
-- Platform Admin creates org → gets Org Code
-- But Join page (`/auth/join`) only accepts Invite Codes
-- No way to use Org Code to join
-
-**Solution:**
-1. Create new endpoint: `GET /api/organizations/resolve?code=XXX`
-2. Update Join page to try both:
-   - First check if code is an Invite Code → `/api/invites/resolve`
-   - If not found, check if it's an Org Code → `/api/organizations/resolve`
-3. Route to appropriate signup flow based on code type
-
-**Files to modify:**
-- `server/src/controllers/organizationController.ts` - Add resolve endpoint
-- `server/src/routes/organizationRoutes.ts` - Add route
-- `client/src/pages/Auth/Join/Join.tsx` - Update to handle both code types
-
-### Issue 2: Edit/Delete Organization in Platform Admin Dashboard
-
-**Problem:**
-- Platform Admin can create organizations
-- But cannot edit or delete them from the dashboard
-
-**Solution:**
-1. Add Edit button to org cards → opens edit modal
-2. Add Delete button to org cards → shows confirmation dialog
-3. Backend endpoints already exist:
-   - `PUT /api/organizations/:id` - Update org
-   - Need to add: `DELETE /api/organizations/:id` - Delete org
-
-**Files to modify:**
-- `server/src/controllers/organizationController.ts` - Add delete endpoint
-- `server/src/routes/organizationRoutes.ts` - Add delete route
-- `client/src/pages/Admin/AdminDashboard.tsx` - Add edit/delete buttons and modals
-
-### Issue 3: Remove Placeholder Boss Creation
-
-**Problem:**
-- When Platform Admin creates an org, system auto-creates a "Pending Boss Assignment" user
-- Email: `placeholder-{timestamp}@temp.org`
-- These ghost users appear in CSA's user list (confusing)
-
-**Screenshot evidence:** Placeholder user visible in Roles & Permissions
-
-**Solution:**
-- Remove placeholder boss creation logic
-- Organization can exist without a boss initially
-- Boss gets assigned when CSA creates one via invite or directly
-
-**Files to modify:**
-- `server/src/controllers/organizationController.ts` - Lines 55-127, remove placeholder boss creation
-
-### Issue 4: Status Inconsistency (Pending vs Active)
-
-**Problem:**
-- Creating Supervisor directly via Admin → Status: "Pending"
-- Creating Supervisor via Invite link → Status: "Active"
-- Inconsistent user experience
-
-**Solution:**
-- Standardize status logic:
-  - **"Pending"** = Account created, user hasn't logged in yet
-  - **"Active"** = User has logged in at least once
-- All new accounts start as "Pending"
-- On first successful login → change status to "Active"
-
-**Implementation:**
-1. All creation flows set `isActive: false` initially
-2. In login controller, after successful auth:
-   ```typescript
-   if (!user.isActive) {
-     user.isActive = true;
-     await user.save();
-   }
-   ```
-
-**Files to modify:**
-- `server/src/controllers/authController.ts` - Update login to set active on first login
-- `server/src/controllers/clientAdminController.ts` - Ensure new users start as Pending
-- `server/src/services/inviteService.ts` - Ensure invite users start as Pending
-- `server/src/services/authService.ts` - Ensure signup users start as Pending
+### Issues 1-4: All Fixed (See Confirmed Fixed table above)
+- **Issue 1:** Join page unified - handles both Org Code and Invite Code via `/api/organizations/resolve`
+- **Issue 2:** Edit/Delete org - AdminDashboard has modals, backend has PUT/DELETE endpoints
+- **Issue 3:** Placeholder boss creation removed - org can exist without boss
+- **Issue 4:** Status standardized - all users start `isActive=false`, login sets `isActive=true`
 
 ### Issue 5: Supervisor-Admin Hierarchy Visibility
 
-**Problem:**
-- When CSA invites/creates a Supervisor, there's no clear link showing ownership
-- CSA should see:
-  - All Supervisors under their department
-  - Each Supervisor's team members
-  - Performance reports rolling up
-- Currently no way to know "which Supervisor belongs to which Admin"
+**Current state:**
+- ✅ `createdBy` field added to User model
+- ✅ `GET /api/client-admin/hierarchy` endpoint implemented
+- ❌ `reportsTo` field NOT added (still uses separate `managerId` + `bossId`)
 
-**Root cause:**
-- Current model has `organizationId` but no direct `createdBy` or `reportsTo` for CSA→Supervisor relationship
-- The hierarchy is: CSA → Boss → Manager → Employee
-- But visibility isn't properly scoped
-
-**Solution (ties into Supervisor/Member architecture):**
-1. Add `createdBy` or `reportsTo` field to track who created/manages whom
-2. Update queries to show CSA their Supervisors and downstream teams
-3. Build hierarchy view in CSA dashboard
-
-**This is the foundation for the Supervisor/Member architecture**
-
-**Files to modify:**
-- `server/src/models/User.ts` - Add `reportsTo` or `createdBy` field
-- `server/src/controllers/clientAdminController.ts` - Set relationship when creating
-- `client/src/pages/ClientAdmin/ClientAdminDashboard.tsx` - Show hierarchy view
+**Remaining for Supervisor/Member architecture:**
+- Add `reportsTo` field to User model (replaces `managerId` + `bossId`)
+- Build subtree queries for visibility
+- This is the foundation for the planned Supervisor/Member tab system
 
 ---
 
@@ -371,17 +499,24 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 - `client/src/pages/Dashboard/Boss/BossDashboard.tsx` - Add weights for team
 - `client/src/pages/Dashboard/Manager/ManagerDashboard.tsx` - Add weights for team
 
-### Issue 14: Verify Scoring System
+### Issue 14: ~~Verify Scoring System~~ → CRITICAL ISSUES FOUND
 
-**Status:** Pending user verification with existing Excel data
+**Status:** ✅ VERIFIED against Excel files → **CRITICAL fixes required**
 
-**Action:**
-- User will provide existing Excel files with real data
-- Cross-check calculations between app and Excel
-- Fix any discrepancies found
+**Findings:**
+- Cross-checked with `KRA Format_Sandipkumar Ashvinbhai Mevada.xlsx` (real data)
+- Multiple calculation discrepancies identified
+- **See the CRITICAL section at the top of this document for full details**
 
-**Files to check (if issues found):**
-- `server/src/utils/calculations.ts` - Main calculation logic
+**Summary of Issues:**
+1. Functional dimension score formula is wrong (divides by sum of weights instead of 100)
+2. Self Development average incorrectly includes Pilot
+3. Developing Others average incorrectly includes Pilot
+4. Pilot should NEVER be included in yearly averages
+
+**Files to fix:**
+- `server/src/utils/calculations.ts` - Functional score formula
+- `server/src/utils/kraCalculations.ts` - Remove Pilot from Self Dev & Dev Others averages
 
 ---
 
@@ -389,10 +524,13 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 
 ### Backend - 100% Complete
 - [x] All controllers implemented
-- [x] All models created (User, Organization, Team, ReviewCycle, Invite, Notification, OTP, ActionPlan, Feedback, ReviewLock, Enquiry)
-- [x] All routes configured
+- [x] 12 models created (User, Organization, Team, ReviewCycle, Invite, Notification, OTP, ActionPlan, Feedback, ReviewLock, Enquiry, PlanYourGoals)
+- [x] 15 route modules configured
 - [x] Score calculations working
-- [x] Export service (Excel/PDF)
+- [x] Export service (PDF for CSA, personal PDF for all users)
+- [x] KRA Finalization endpoint (manager finalizes employee KRAs)
+- [x] CSA hierarchy endpoint
+- [x] Org code resolution endpoint
 
 ### Frontend - 100% Complete
 - [x] All Auth pages (SignUp, Login, OTP, Join, TeamCode, AccessCode, SetPassword, Enquiry)
@@ -440,17 +578,17 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 
 | # | File | Line | Note |
 |---|------|------|------|
-| 1 | `teamController.ts` | 98 | Replace userId query param with JWT |
-| 2 | `userController.ts` | 17 | Replace userId query param with JWT |
-| 3 | `userController.ts` | 220 | Replace userId query param with JWT |
-| 4 | `accessCodeController.ts` | 22 | Replace userId query param with JWT |
+| 1 | `teamController.ts` | ~98 | `// TODO: Get userId from auth token/session` |
+| 2 | `userController.ts` | ~24 | `// TODO: Get userId from auth token/session` |
+| 3 | `userController.ts` | ~233 | `// TODO: Get userId from auth token/session` |
+| 4 | `accessCodeController.ts` | ~22 | `// TODO: Get userId from auth token/session` |
 
 ### Other Cleanup
 
 | # | Task | File | Notes |
 |---|------|------|-------|
-| 1 | Add salary field to User | `exportService.ts` | Line 164 - currently hardcoded to 0 |
-| 2 | Clean up placeholder boss logic | `organizationController.ts` | Lines 55-127 |
+| 1 | Add salary field to User model | `exportService.ts` | Lines 186, 328 - `grossSalary` hardcoded to 0 in both `getPersonalExportData()` and `getOrganizationExportData()` |
+| 2 | ~~Clean up placeholder boss logic~~ | ~~`organizationController.ts`~~ | ✅ DONE - Placeholder logic removed; links existing user if found, no ghost creation |
 
 ---
 
@@ -480,6 +618,10 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 ## 🚀 Production Readiness Checklist
 
 ### Before Launch
+- [x] ✅ ~~CRITICAL: Fix scoring calculation issues~~ (COMPLETED February 2026)
+- [x] ✅ ~~HIGH: Fix score input max value bug~~ (Issue 19 - COMPLETED February 2026)
+- [x] ✅ ~~MEDIUM: Add weight sum validation~~ (Issue 20 - COMPLETED February 2026)
+- [x] ✅ ~~LOW: Add pilotActualPerf to KRAForm~~ (Issue 21 - COMPLETED February 2026)
 - [ ] Remove debug console.logs (7 items)
 - [ ] Implement JWT authentication
 - [ ] Add salary field to User model
@@ -505,13 +647,15 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 |---------|---------|----------|--------|
 | User Auth | ✅ | ✅ | Complete |
 | Organization Management | ✅ | ✅ | Complete |
+| Edit/Delete Org (Admin) | ✅ | ✅ | Complete |
 | Team Management | ✅ | ✅ | Complete |
 | Member CRUD | ✅ | ✅ | Complete |
 | Functional KRAs | ✅ | ✅ | Complete |
 | Organizational KRAs | ✅ | ✅ | Complete |
 | Self Development KRAs | ✅ | ✅ | Complete |
 | Developing Others KRAs | ✅ | ✅ | Complete |
-| Score Calculations | ✅ | ✅ | Complete |
+| Score Calculations | ✅ | ✅ | Complete (Fixed February 2026) |
+| 4D Data Input Forms | ✅ | ✅ | Complete (All 3 issues fixed - February 2026) |
 | Score Locking | ✅ | ✅ | Complete |
 | Review Cycles | ✅ | ✅ | Complete |
 | Notifications | ✅ | ✅ | Complete |
@@ -520,11 +664,19 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 | Review Locking | ✅ | ✅ | Complete |
 | Invites | ✅ | ✅ | Complete |
 | Enquiry | ✅ | ✅ | Complete |
-| Export (Excel/PDF) | ✅ | ✅ | Complete |
+| Export (PDF) | ✅ | ✅ | Complete (Excel exists but hidden from UI) |
+| Personal PDF Report | ✅ | ✅ | Complete |
 | Analytics | ✅ | ✅ | Complete |
-| **Unified Join (Org+Invite Code)** | ❌ | ❌ | **Testing Issue** |
-| **Edit/Delete Org (Admin)** | ⚠️ | ❌ | **Testing Issue** |
-| **Remove Placeholder Boss** | ⚠️ | N/A | **Testing Issue** |
+| Unified Join (Org+Invite Code) | ✅ | ✅ | Complete |
+| KRA Finalization (Employee) | ✅ | ✅ | Complete (Manager finalizes all) |
+| KRA Finalization (Boss) | ✅ | ✅ | Complete (`PUT /api/boss/managers/:id/kras/finalize`) |
+| CSA Hierarchy View | ✅ | ✅ | Complete |
+| Onboarding Flow | ✅ | ✅ | Complete |
+| Goal Planning | ✅ | ✅ | Complete |
+| Button Size Consistency | N/A | ✅ | Complete (`.btn-sm`, `.btn-md`, `.btn-lg` in design-system.css) |
+| Color Gradient Fix | N/A | ✅ | Complete (all violet/purple replaced with blue) |
+| Weightage Display | N/A | ✅ | Complete (`Number()` wrapping, `padStart` removed) |
+| Profile Tab Layout | N/A | ✅ | Complete (centering + padding fixed) |
 | Per-Person Weights | ❌ | ❌ | Planned |
 | Supervisor/Member UI | ❌ | ❌ | Planned |
 | JWT Auth | ❌ | ❌ | Planned |
@@ -533,26 +685,35 @@ Violet/purple colors still present in **10 files, 18+ occurrences:**
 
 ## Summary
 
-**MVP is complete!** 🎉
+**MVP is functionally complete and ready for production testing.**
 
 All core functionality is implemented and working:
-- All user roles can perform their tasks
-- All 4 dimensions of KRAs are manageable
-- Score calculations work correctly
+- All user roles can perform their tasks (15 route modules, 12 models)
+- All 4 dimensions of KRAs are manageable with finalization support (both Manager and Boss levels)
+- ✅ **Score calculations fixed** - Functional formula corrected, Pilot correctly excluded from averages
+- ✅ **4D Data Input Forms fixed** - Score max value, weight validation, pilotActualPerf all fixed
 - Edit/delete functionality exists everywhere needed
-- Feedback system is complete
-- Enquiry form works
+- Feedback system complete (mid-cycle notes + history)
+- Personal PDF reports downloadable by all users
+- Unified Join flow (Org Code + Invite Code)
+- CSA hierarchy view implemented
+- Consistent blue color scheme (all violet/purple removed)
+- Standardized button utility classes (`.btn-sm`, `.btn-md`, `.btn-lg`)
+- Clean weight/score display (no "010%" formatting issues)
+- Profile layout properly centered
+- Weight sum validation indicator for Functional KRAs
 
-**Remaining work is optional/enhancement:**
-- Code cleanup (console.logs)
+**All critical and high-priority issues resolved:**
+1. ✅ ~~CRITICAL: Fix scoring calculations~~ (COMPLETED February 2026)
+2. ✅ ~~HIGH: Fix score input max value bug (Issue 19)~~ (COMPLETED February 2026)
+3. ✅ ~~MEDIUM: Add weight sum validation (Issue 20)~~ (COMPLETED February 2026)
+4. ✅ ~~LOW: Add pilotActualPerf to KRAForm (Issue 21)~~ (COMPLETED February 2026)
+
+**Remaining planned work (enhancements, not bugs):**
+- Code cleanup (7 console.logs, 4 auth TODOs, salary hardcode)
 - Production auth (JWT)
-- Per-person dimension weights
-- Supervisor/Member architecture
-
-You can now focus on:
-1. Testing with real users
-2. Code cleanup before production
-3. Planning the data model enhancements
+- Per-person dimension weights (move from team-level to per-member)
+- Supervisor/Member architecture (`reportsTo` field + dual-tab UI)
 
 ---
 

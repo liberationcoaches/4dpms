@@ -7,6 +7,12 @@ const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).trim().optional(),
   email: z.string().email().toLowerCase().trim().optional(),
   mobile: z.string().regex(/^[0-9]{10}$/).trim().optional(),
+  designation: z.string().max(100).trim().optional(),
+  aboutMe: z.string().max(1000).trim().optional(),
+  educationalQualification: z.string().max(500).trim().optional(),
+  skills: z.array(z.string().trim()).optional(),
+  clientele: z.array(z.string().trim()).optional(),
+  languages: z.array(z.string().trim()).optional(),
 });
 
 /**
@@ -47,6 +53,12 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
         companyName: user.companyName,
         industry: user.industry,
         role: user.role || 'employee',
+        designation: user.designation || '',
+        aboutMe: user.aboutMe || '',
+        educationalQualification: user.educationalQualification || '',
+        skills: user.skills || [],
+        clientele: user.clientele || [],
+        languages: user.languages || [],
       },
     });
   } catch (error) {
@@ -102,10 +114,10 @@ export async function getUserByEmail(req: Request, res: Response, next: NextFunc
 export async function fixUserRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { Team } = await import('../models/Team');
-    
+
     // Get all users with accessCode
     const allUsers = await User.find({}).select('+accessCode');
-    
+
     let managersFixed = 0;
     let employeesFixed = 0;
     let unchanged = 0;
@@ -268,6 +280,12 @@ export async function updateProfile(
     if (validatedData.name) user.name = validatedData.name;
     if (validatedData.email) user.email = validatedData.email;
     if (validatedData.mobile) user.mobile = validatedData.mobile;
+    if (validatedData.designation !== undefined) user.designation = validatedData.designation;
+    if (validatedData.aboutMe !== undefined) user.aboutMe = validatedData.aboutMe;
+    if (validatedData.educationalQualification !== undefined) user.educationalQualification = validatedData.educationalQualification;
+    if (validatedData.skills !== undefined) user.skills = validatedData.skills;
+    if (validatedData.clientele !== undefined) user.clientele = validatedData.clientele;
+    if (validatedData.languages !== undefined) user.languages = validatedData.languages;
 
     await user.save();
 
@@ -279,6 +297,12 @@ export async function updateProfile(
         name: user.name,
         email: user.email,
         mobile: user.mobile,
+        designation: user.designation || '',
+        aboutMe: user.aboutMe || '',
+        educationalQualification: user.educationalQualification || '',
+        skills: user.skills || [],
+        clientele: user.clientele || [],
+        languages: user.languages || [],
       },
     });
   } catch (error) {

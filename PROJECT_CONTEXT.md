@@ -60,15 +60,23 @@ LCPL is a **digital Performance Management System** that complements Liberation 
 | **Planned Platform** | Mobile app (Flutter) - final target for all users |
 
 ### What's Working
-- Full backend API for all roles
+- Full backend API for all roles (15 route modules)
 - Web frontend for core workflows
 - 4-Dimension evaluation system
-- Score calculations and exports
+- Score calculations and exports (PDF only for CSA, personal PDF for everyone)
+- **Unified Join Flow** (Org Code + Invite Code in single field)
+- **KRA Finalization** (Supervisor can finalize all KRAs for a member)
+- **Edit/Delete** for orgs, managers, employees, team members
+- **Personal PDF Report** download for Employee, Manager, Boss
+- **Feedback system** (mid-cycle notes + feedback history)
+- **CSA Hierarchy** endpoint for viewing org structure
 
 ### Known Gaps
-- **Some backend features lack frontend UI** - Controllers exist but no corresponding frontend components
 - **Authentication is simplified** - Uses `userId` query parameter (secure auth planned for production)
 - **Third-party integrations not yet configured** - SMS for OTP, email services, cloud storage TBD
+- **Per-person dimension weights** not implemented - currently at team level
+- **Violet/purple color inconsistencies** across CSS (should use design system variables)
+- **Button sizes** not fully standardized across dashboards
 
 ### Development Focus Areas
 
@@ -78,7 +86,7 @@ LCPL is a **digital Performance Management System** that complements Liberation 
 | **HIGH** | Platform Admin dashboard | Organization and user management |
 | **MEDIUM** | Manager/Employee workflows | Core evaluation flows |
 | **PLANNED** | Supervisor/Member architecture | Replace fixed role dashboards |
-| **PLANNED** | Per-person dimension weights | Currently at org level, needs to be per-person |
+| **PLANNED** | Per-person dimension weights | Currently at team level (`Team.dimensionWeights`), needs to move to `membersDetails[]` |
 | **PLANNED** | Mobile app (Flutter) | Final delivery platform |
 | **PLANNED** | Proper authentication | JWT/session-based security |
 | **PLANNED** | Third-party integrations | SMS, email, cloud storage |
@@ -356,7 +364,8 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
 5. Reviewer validates scores → Confirms/validates
 6. System calculates dimension scores → Per-person weighted formulas
 7. System calculates 4D Index → Final score
-8. Scores can be locked → Prevents further edits
+8. Supervisor/Boss finalizes KRAs → `krasFinalized = true` (locks ALL KRAs for that person)
+9. Scores can be locked → Prevents further edits
 ```
 
 ---
@@ -374,6 +383,10 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
   hierarchyLevel, // (0|0.5|1|2|3)
   organizationId, teamId,
   reviewerId, managerId, bossId,   // CURRENT: Separate fields
+  createdBy,                       // NEW: Who created this user
+  designation, aboutMe,
+  educationalQualification, skills, clientele, languages,
+  onboardingCompleted, onboardingStep,
   
   // PLANNED: Replace managerId + bossId with single field
   // reportsTo: ObjectId,          // ← Single field for hierarchy
@@ -404,11 +417,14 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
   members[], // User refs
   membersDetails[]: {
     name, role, mobile,
+    // KRA Finalization Tracking (NEW)
+    krasReadyForReview: boolean,   // Member marks ready
+    krasFinalized: boolean,        // Supervisor/Admin marks final
+    krasFinalizedAt: Date,
+    krasFinalizedBy: ObjectId,
+
     // PLANNED: Move dimensionWeights here (per-person, not per-team)
-    dimensionWeights: {                    // ← NEW: Per-person weights
-      functional, organizational,
-      selfDevelopment, developingOthers    // Must sum to 100%
-    },
+    dimensionWeights: { ... },
     functionalKRAs[]: {
       kra, kpis[]: { kpi, target },
       reportsGenerated[]: { type, value, fileName },
@@ -417,29 +433,23 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
       r2Weight, r2Score, r2ActualPerf, r2ReviewedBy,
       r3Weight, r3Score, r3ActualPerf, r3ReviewedBy,
       r4Weight, r4Score, r4ActualPerf, r4ReviewedBy,
-      averageScore, editCount, isScoreLocked
+      averageScore, editCount, isScoreLocked, scoreLockedAt, scoreLockedBy
     },
     organizationalKRAs[]: {
       coreValues,
       r1Score, r1CriticalIncident,
-      r2Score, r2CriticalIncident,
-      r3Score, r3CriticalIncident,
-      r4Score, r4CriticalIncident,
-      averageScore, editCount, isScoreLocked
+      // ... same for R2-R4
+      averageScore, editCount, isScoreLocked, scoreLockedAt, scoreLockedBy
     },
     selfDevelopmentKRAs[]: {
       areaOfConcern, actionPlanInitiative,
-      pilotScore, pilotReason,
-      r1Score, r1Reason, r2Score, r2Reason,
-      r3Score, r3Reason, r4Score, r4Reason,
-      averageScore, editCount, isScoreLocked
+      // ... same for Pilot-R4
+      averageScore, editCount, isScoreLocked, scoreLockedAt, scoreLockedBy
     },
     developingOthersKRAs[]: {
       person, areaOfDevelopment,
-      pilotScore, pilotReason,
-      r1Score, r1Reason, r2Score, r2Reason,
-      r3Score, r3Reason, r4Score, r4Reason,
-      averageScore, editCount, isScoreLocked
+      // ... same for Pilot-R4
+      averageScore, editCount, isScoreLocked, scoreLockedAt, scoreLockedBy
     }
   },
   dimensionWeights: { ... },  // CURRENT: Team-level (to be deprecated)
@@ -466,6 +476,11 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
 - **Invite**: Token-based invitations with shortCode
 - **Notification**: User notifications with types (info|success|warning|error|review_period_start|system)
 - **OTP**: 6-digit codes with 10-minute expiry, max 3 attempts
+- **ActionPlan**: Employee action plans (employeeId, reviewPeriod, items[], acknowledgedAt)
+- **Feedback**: Mid-cycle notes and feedback (employeeId, addedBy, type, content, reviewPeriod, isPrivate)
+- **ReviewLock**: Locked review tracking (employeeId, reviewPeriod, lockedBy, per-dimension lock flags)
+- **Enquiry**: Contact enquiries (email, name, company, message, status)
+- **PlanYourGoals**: User goal planning (userId, organizationId, year, goals[])
 
 ---
 
@@ -476,9 +491,14 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
 |--------|----------|-------------|
 | POST | `/signup` | Sign up new user |
 | POST | `/signup-with-invite` | Sign up with invite token |
+| POST | `/signup-with-org` | Sign up with org code |
 | POST | `/login` | Login with mobile + access code |
 | POST | `/verify-otp` | Verify mobile OTP |
+| POST | `/verify-otp/mobile` | Verify single OTP |
 | POST | `/resend-otp/mobile` | Resend mobile OTP |
+| POST | `/access-code` | Set access code |
+| POST | `/team-code` | Join team by code |
+| POST | `/set-password` | Set password |
 
 ### Boss Routes (`/api/boss`)
 | Method | Endpoint | Description |
@@ -490,6 +510,8 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
 | POST | `/managers/:id/kras/functional` | Add functional KRA |
 | POST | `/managers/:id/kras/organizational` | Add organizational KRA |
 | POST | `/managers/:id/kras/self-development` | Add self-dev KRA |
+| GET | `/managers/:id/kras` | Get manager KRAs |
+| GET | `/my-kras` | Get boss's own KRAs |
 
 ### Manager Routes (`/api/manager`)
 | Method | Endpoint | Description |
@@ -500,47 +522,118 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
 | POST | `/employees/:id/kras/functional` | Add functional KRA |
 | POST | `/employees/:id/kras/organizational` | Add organizational KRA |
 | POST | `/employees/:id/kras/self-development` | Add self-dev KRA |
+| GET | `/employees/:id/kras` | Get employee KRAs |
+| PUT | `/employees/:id/kras/finalize` | **Finalize all KRAs** for employee |
+| GET | `/my-kras` | Get manager's own KRAs |
 
 ### Employee Routes (`/api/employee`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/performance` | Get performance data |
 | POST | `/acknowledge` | Acknowledge review |
+| GET | `/kras` | Get own KRAs |
+| PUT | `/kras` | Save own KRAs |
+| GET | `/dimension-weights` | Get dimension weights |
+| PUT | `/dimension-weights` | Save dimension weights |
 
 ### Team Routes (`/api/team`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/code` | Get team code |
 | GET | `/members` | Get team members |
+| POST | `/members` | Add team member |
+| PUT | `/members/:idx` | Update team member |
+| DELETE | `/members/:idx` | Delete team member |
+| GET | `/dimension-weights` | Get team dimension weights |
+| PUT | `/dimension-weights` | Update team dimension weights |
 | POST | `/members/:idx/kras` | Add functional KRA |
 | PUT | `/members/:idx/kras/:kraIdx` | Update functional KRA |
+| DELETE | `/members/:idx/kras/:kraIdx` | Delete functional KRA |
 | POST | `/members/:idx/kras/:kraIdx/lock` | Lock KRA scores |
-| POST | `/members/:idx/organizational` | Add organizational dimension |
+| POST | `/members/:idx/organizational` | Add organizational KRA |
+| PUT | `/members/:idx/organizational/:dimIdx` | Update organizational KRA |
+| POST | `/members/:idx/organizational/:dimIdx/lock` | Lock organizational scores |
 | POST | `/members/:idx/self-development` | Add self-development |
+| PUT | `/members/:idx/self-development/:devIdx` | Update self-development |
+| POST | `/members/:idx/self-development/:devIdx/lock` | Lock self-dev scores |
 | POST | `/members/:idx/developing-others` | Add developing others |
+| PUT | `/members/:idx/developing-others/:devIdx` | Update developing others |
+| POST | `/members/:idx/developing-others/:devIdx/lock` | Lock dev-others scores |
 
 ### Client Admin Routes (`/api/client-admin`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/bosses` | Create boss |
 | GET | `/bosses` | Get all bosses |
-| GET | `/analytics` | Get org-wide metrics |
-| GET | `/export?format=excel\|pdf` | Export performance data |
+| GET | `/organization` | Get organization |
+| GET | `/users` | Get org users |
+| GET | `/teams-for-invite` | Get teams for invite |
+| POST | `/users/bulk-upload` | Bulk upload users |
+| POST | `/bosses/:id/kras/functional` | Add boss functional KRA |
 | PUT | `/bosses/:id/kras/functional/:idx` | Update boss KRA |
-| POST | `/bosses/:id/kras/functional/:idx/lock` | Lock boss KRA |
+| DELETE | `/bosses/:id/kras/functional/:idx` | Delete boss KRA |
+| POST | `/bosses/:id/kras/functional/:idx/lock` | Lock boss KRA scores |
+| POST | `/bosses/:id/kras/organizational` | Add boss org KRA |
+| POST | `/bosses/:id/kras/self-development` | Add boss self-dev KRA |
+| GET | `/bosses/:id/kras` | Get boss KRAs |
+| GET | `/bosses/:id/team-member-index` | Get boss member index |
+| GET | `/analytics` | Get CSA analytics |
+| GET | `/hierarchy` | Get org hierarchy view |
+| GET | `/export` | Export performance data (PDF) |
 
 ### Reviewer Routes (`/api/reviewer`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/organizations` | Get assigned organizations |
+| GET | `/organizations/:orgId/employees` | Get org employees |
 | GET | `/employees` | Get all employees to review |
+| GET | `/employees/:id` | Get employee for scoring |
 | POST | `/employees/:id/scores` | Submit scores |
 | POST | `/employees/:id/lock` | Lock review |
 
 ### Organization Routes (`/api/organizations`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| POST | `/` | Create organization |
+| GET | `/` | Get all organizations |
+| GET | `/analytics` | Admin analytics |
+| GET | `/resolve?code=XXX` | Resolve org code (for Join flow) |
+| POST | `/client-admins` | Create client admin |
+| GET | `/client-admins` | Get client admins |
 | GET | `/dimension-weights` | Get dimension weights |
 | PUT | `/dimension-weights` | Update dimension weights |
+| GET | `/:id` | Get organization by ID |
+| PUT | `/:id` | Update organization |
+| DELETE | `/:id` | Delete organization |
+| POST | `/:id/assign-reviewer` | Assign reviewer to org |
+
+### User Routes (`/api/user`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/profile` | Get user profile |
+| GET | `/` | Get user by email |
+| GET | `/list` | List users |
+| GET | `/my-report` | Download personal performance PDF |
+| POST | `/fix-roles` | Fix user roles (admin utility) |
+| PUT | `/profile` | Update user profile |
+
+### Notification Routes (`/api/notifications`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get user notifications |
+| GET | `/count` | Get unread count |
+| POST | `/` | Create notification |
+| PUT | `/:id/read` | Mark as read |
+| PUT | `/read-all` | Mark all as read |
+
+### Other Routes
+| Route | Description |
+|-------|-------------|
+| `/api/enquiry` | Enquiry form (POST /, GET /, PUT /:id) |
+| `/api/onboarding` | Onboarding flow (GET /status, PUT /step, PUT /complete, POST /pyg, GET /pyg) |
+| `/api/feedback` | Feedback (POST /mid-cycle-note, GET /employee/:id, POST /add) |
+| `/api/invites` | Invites (POST /, GET /resolve) |
+| `/api/review-cycles` | Review cycles (POST /, GET /organization/:orgId, PUT /:id, GET /check, POST /:id/trigger) |
 
 > **Authentication**: All endpoints use `userId` query parameter for authentication. No JWT/session middleware.
 
@@ -551,23 +644,37 @@ Reviewer (LCPL Facilitator - assigned to specific teams/departments)
 ### Client-Side Routing
 
 ```
-/                           → Home
-/auth/signup                → Sign up
-/auth/login                 → Login
-/auth/join                  → Join via invite
-/auth/otp-verify            → OTP verification
-/auth/team-code             → Team code entry
-/auth/access-code           → Access code setup
+/                                    → Home
+/auth/signup                         → Sign up
+/auth/login                          → Login
+/auth/join                           → Join via invite/org code
+/auth/join/:token                    → Join via invite token
+/auth/otp-verify                     → OTP verification
+/auth/team-code                      → Team code entry
+/auth/access-code                    → Access code setup
+/auth/enquiry-or-signup              → Enquiry or signup choice
+/auth/set-password                   → Set password
+/onboarding                          → User onboarding flow
+/app                                 → Unified dashboard (planned)
 
-/admin/dashboard            → Platform Admin Dashboard
-/client-admin/dashboard     → Client Admin Dashboard
-/dashboard/boss             → Boss Dashboard
-/dashboard/manager          → Manager Dashboard
-/dashboard/employee         → Employee Dashboard
-/reviewer/dashboard         → Reviewer Dashboard
+/dashboard                           → Dashboard layout (nested routes below)
+  /dashboard/performance             → Performance (4D Index, trends)
+  /dashboard/teams                   → Teams management
+  /dashboard/calendar                → Review cycle calendar
+  /dashboard/settings                → Profile settings
+  /dashboard/notifications           → Notifications
 
+/admin/dashboard                     → Platform Admin Dashboard
+/admin/organizations/:id             → Organization detail view
+/client-admin/dashboard              → Client Admin Dashboard
+/dashboard/boss                      → Boss Dashboard
 /dashboard/boss/review-cycles        → Review cycle config
+/dashboard/manager                   → Manager Dashboard
 /dashboard/manager/team/:memberId    → Team member KRAs
+/dashboard/manager/mid-cycle-notes   → Mid-cycle notes
+/dashboard/employee                  → Employee Dashboard
+/dashboard/employee/feedback         → Feedback history
+/reviewer/dashboard                  → Reviewer Dashboard
 /reviewer/scoring/:employeeId        → Score employee
 ```
 
@@ -612,6 +719,15 @@ index4D = (func*funcWeight + org*orgWeight + self*selfWeight + dev*devWeight) / 
 5. **Dimension Weight Validation**: All 4 dimension weights must sum to 100
 6. **Proof Types**: Drive links or file uploads (JPEG, PNG, PDF, max 10MB)
 
+### KRA Finalization
+- **Purpose**: Prevent further edits to KRAs once agreed upon.
+- **Process**:
+  1. Member/Employee marks KRAs as "Ready for Review" (`krasReadyForReview = true`)
+  2. Supervisor reviews and clicks "Finalize KRAs"
+  3. System sets `krasFinalized = true`, records timestamp and user
+  4. System locks ALL individual KRAs (`isScoreLocked = true`)
+- **Status Fields**: `krasFinalized`, `krasFinalizedAt`, `krasFinalizedBy` in `membersDetails`
+
 ### Code Generation
 - **Organization Code**: 6-8 alphanumeric uppercase characters
 - **Team Code**: 4-8 alphanumeric uppercase characters
@@ -625,21 +741,39 @@ index4D = (func*funcWeight + org*orgWeight + self*selfWeight + dev*devWeight) / 
 LCPL/
 ├── server/
 │   ├── src/
-│   │   ├── controllers/       # Route handlers
+│   │   ├── controllers/       # Route handlers (18 controllers)
 │   │   │   ├── authController.ts
 │   │   │   ├── bossController.ts
 │   │   │   ├── managerController.ts
 │   │   │   ├── employeeController.ts
 │   │   │   ├── clientAdminController.ts
 │   │   │   ├── reviewerController.ts
-│   │   │   └── ...
-│   │   ├── models/            # Mongoose schemas
+│   │   │   ├── organizationController.ts
+│   │   │   ├── userController.ts
+│   │   │   ├── teamController.ts
+│   │   │   ├── feedbackController.ts
+│   │   │   ├── notificationController.ts
+│   │   │   ├── reviewCycleController.ts
+│   │   │   ├── onboardingController.ts
+│   │   │   ├── enquiryController.ts
+│   │   │   ├── inviteController.ts
+│   │   │   ├── accessCodeController.ts
+│   │   │   ├── dimensionController.ts  (used by teamRoutes)
+│   │   │   └── kraController.ts        (used by teamRoutes)
+│   │   ├── models/            # Mongoose schemas (12 models)
 │   │   │   ├── User.ts
 │   │   │   ├── Organization.ts
 │   │   │   ├── Team.ts
 │   │   │   ├── ReviewCycle.ts
-│   │   │   └── ...
-│   │   ├── routes/            # Express routes
+│   │   │   ├── ActionPlan.ts
+│   │   │   ├── Feedback.ts
+│   │   │   ├── ReviewLock.ts
+│   │   │   ├── Enquiry.ts
+│   │   │   ├── PlanYourGoals.ts
+│   │   │   ├── Invite.ts
+│   │   │   ├── Notification.ts
+│   │   │   └── OTP.ts
+│   │   ├── routes/            # Express routes (15 modules)
 │   │   ├── services/          # Business logic
 │   │   │   ├── authService.ts
 │   │   │   ├── inviteService.ts
@@ -656,16 +790,20 @@ LCPL/
 │
 ├── client/
 │   ├── src/
-│   │   ├── components/        # Reusable components
-│   │   ├── pages/             # Page components
-│   │   │   ├── Auth/
-│   │   │   ├── Dashboard/
-│   │   │   ├── Admin/
-│   │   │   ├── ClientAdmin/
-│   │   │   └── Reviewer/
+│   │   ├── components/        # Reusable components (Layout, Dashboard, KRAForm, etc.)
+│   │   ├── pages/
+│   │   │   ├── Auth/          # SignUp, Login, Join, OTPVerify, TeamCode, AccessCode,
+│   │   │   │                  # SetPassword, EnquiryOrSignUp
+│   │   │   ├── Dashboard/     # Boss/, Manager/, Employee/, TeamMember/,
+│   │   │   │                  # Settings/, Calendar/, Performance/, Teams/,
+│   │   │   │                  # Notifications/, MidCycleNotes/, FeedbackHistory/
+│   │   │   ├── Admin/         # AdminDashboard, OrganizationDetail
+│   │   │   ├── ClientAdmin/   # ClientAdminDashboard
+│   │   │   ├── Reviewer/      # ReviewerDashboard, Scoring
+│   │   │   └── Onboarding/    # Onboarding flow
 │   │   ├── utils/
-│   │   ├── styles/
-│   │   └── App.tsx            # Main routing
+│   │   ├── styles/            # CSS Modules, design-system.css, DashboardBase.module.css
+│   │   └── App.tsx            # Main routing (30+ routes)
 │   ├── vite.config.ts
 │   └── package.json
 │
@@ -697,8 +835,8 @@ LCPL/
 
 ### Export Data
 - Service: `/server/src/services/exportService.ts`
-- Formats: Excel (XLSX), PDF (pdfmake)
-- Endpoint: `GET /api/client-admin/export?format=excel|pdf`
+- Org-wide export (CSA): `GET /api/client-admin/export?format=pdf` (PDF only in UI)
+- Personal report: `GET /api/user/my-report` (PDF, available to all users)
 
 ---
 
@@ -726,7 +864,7 @@ NODE_ENV=development
 | 4D Index calculation | `/server/src/utils/calculations.ts` |
 | KRA data structure | `/server/src/models/Team.ts` |
 | Role permissions | Inline checks in controllers |
-| Dimension weights | **Per-person** in `membersDetails[].dimensionWeights` (PLANNED) |
+| Dimension weights | Currently at `Team.dimensionWeights` (team-level); PLANNED: move to `membersDetails[].dimensionWeights` (per-person) |
 | Review periods | ReviewCycle model |
 | Score locking | `isScoreLocked` field on each KRA type |
 | Authentication | `userId` query parameter (temporary) |

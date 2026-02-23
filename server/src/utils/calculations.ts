@@ -48,12 +48,18 @@ export const DEFAULT_DIMENSION_WEIGHTS: IDimensionWeights = {
 
 // ============================================================================
 // FUNCTIONAL DIMENSION CALCULATIONS
-// Excel: Weighted average = Σ(score × weight) / Σ(weights)
+// Excel: Weighted average = SUMPRODUCT(scores, weights) where weights sum to 100%
+// Weights are stored as integers (10, 30, etc.) summing to 100
 // ============================================================================
 
 /**
  * Calculate weighted average for Functional KRAs for a specific period
- * Excel Formula: =SUMPRODUCT(scores, weights) / SUM(weights)
+ * Excel Formula: =SUMPRODUCT(scores, weights) where weights are decimals summing to 1.0
+ * Our weights are integers (10, 30, etc.) summing to 100, so we divide by 100
+ * 
+ * IMPORTANT: This assumes all KRA weights for the period sum to exactly 100.
+ * The Excel behavior is SUMPRODUCT where weights sum to 1.0 (or 100 as integers).
+ * We do NOT divide by sum of weights - that would be wrong for SUMPRODUCT behavior.
  * 
  * @param kras - Array of Functional KRAs
  * @param period - Review period (1-4) or 'pilot'
@@ -66,7 +72,6 @@ export function calculateFunctionalDimensionScore(
   if (!kras || kras.length === 0) return 0;
 
   let sumProduct = 0;
-  let sumWeights = 0;
 
   for (const kra of kras) {
     const scoreKey = period === 'pilot' ? 'pilotScore' : `r${period}Score` as keyof IFunctionalKRA;
@@ -77,14 +82,13 @@ export function calculateFunctionalDimensionScore(
 
     if (score > 0 && weight > 0) {
       sumProduct += score * weight;
-      sumWeights += weight;
     }
   }
 
-  if (sumWeights === 0) return 0;
+  if (sumProduct === 0) return 0;
 
-  // Weighted average (on 0-5 scale)
-  return sumProduct / sumWeights;
+  // Excel SUMPRODUCT behavior: weights are integers summing to 100, divide by 100
+  return sumProduct / 100;
 }
 
 /**
@@ -167,7 +171,7 @@ export function calculateOrganizationalAverageAcrossPeriods(
 
 // ============================================================================
 // SELF DEVELOPMENT DIMENSION CALCULATIONS
-// Excel: Simple average including Pilot
+// Excel: Simple average of R1-R4 only (Pilot NOT included in yearly averages)
 // ============================================================================
 
 /**
@@ -195,11 +199,12 @@ export function calculateSelfDevelopmentDimensionScore(
 }
 
 /**
- * Calculate average Self Development score across Pilot + R1-R4 periods
+ * Calculate average Self Development score across R1-R4 periods
+ * IMPORTANT: Pilot is NOT included in yearly averages (verified against Excel files)
  */
 export function calculateSelfDevelopmentAverageAcrossPeriods(
   kras: ISelfDevelopmentKRA[] | undefined,
-  includePilot: boolean = true
+  includePilot: boolean = false
 ): number {
   const periods: Array<'pilot' | 1 | 2 | 3 | 4> = includePilot
     ? ['pilot', 1, 2, 3, 4]
@@ -220,7 +225,7 @@ export function calculateSelfDevelopmentAverageAcrossPeriods(
 
 // ============================================================================
 // DEVELOPING OTHERS DIMENSION CALCULATIONS
-// Excel: Simple average including Pilot
+// Excel: Simple average of R1-R4 only (Pilot NOT included in yearly averages)
 // ============================================================================
 
 /**
@@ -248,11 +253,12 @@ export function calculateDevelopingOthersDimensionScore(
 }
 
 /**
- * Calculate average Developing Others score across Pilot + R1-R4 periods
+ * Calculate average Developing Others score across R1-R4 periods
+ * IMPORTANT: Pilot is NOT included in yearly averages (verified against Excel files)
  */
 export function calculateDevelopingOthersAverageAcrossPeriods(
   kras: IDevelopingOthersKRA[] | undefined,
-  includePilot: boolean = true
+  includePilot: boolean = false
 ): number {
   const periods: Array<'pilot' | 1 | 2 | 3 | 4> = includePilot
     ? ['pilot', 1, 2, 3, 4]
@@ -299,14 +305,17 @@ export interface MemberKRAs {
  * @param memberKRAs - Member's KRA data
  * @param dimensionWeights - Organization's dimension weights (must sum to 100)
  * @param period - Specific period to calculate, or 'average' for across all periods
- * @param includePilot - Whether to include pilot scores in average calculations
+ * @param includePilot - Whether to include pilot scores in average calculations (default: false per Excel files)
  * @returns Dimension scores and 4D Index
+ * 
+ * IMPORTANT: Verified against Excel files - Pilot is NOT included in yearly averages
+ * Final 4D Index = Average of R1, R2, R3, R4 weighted totals (Pilot excluded)
  */
 export function calculateMemberScores(
   memberKRAs: MemberKRAs,
   dimensionWeights: IDimensionWeights = DEFAULT_DIMENSION_WEIGHTS,
   period: 'average' | 'pilot' | 1 | 2 | 3 | 4 = 'average',
-  includePilot: boolean = true
+  includePilot: boolean = false
 ): DimensionScoresResult {
   let functional: number;
   let organizational: number;

@@ -475,8 +475,8 @@ function Scoring() {
                 const weightKey = reviewPeriod === 0 ? 'pilotWeight' : `r${reviewPeriod}Weight`;
                 const scoreKey = reviewPeriod === 0 ? 'pilotScore' : `r${reviewPeriod}Score`;
                 const perfKey = `r${reviewPeriod}ActualPerf`;
-                const weight = (kra as any)[weightKey] || 10;
-                const score = (kra as any)[scoreKey] || 0;
+                const weight = Number((kra as any)[weightKey]) || 10;
+                const score = Number((kra as any)[scoreKey]) || 0;
                 const actualPerf = (kra as any)[perfKey] || '';
 
                 return (
@@ -588,7 +588,7 @@ function Scoring() {
                               −
                             </button>
                             <div className={styles.pilotScoreDisplay}>
-                              <span className={styles.scoreValue}>{score.toString().padStart(2, '0')}</span>
+                              <span className={styles.scoreValue}>{score}</span>
                             </div>
                             <button
                               type="button"

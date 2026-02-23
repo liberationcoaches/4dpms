@@ -159,6 +159,14 @@ export async function signupWithOrg(req: Request, res: Response, next: NextFunct
         mobileOTP: process.env.NODE_ENV === 'development' ? mobileOTP : undefined,
       },
     });
+
+    // Send join notification to CSA (async, non-blocking)
+    try {
+      const { sendNewMemberNotificationToCSA } = await import('./notificationController');
+      await sendNewMemberNotificationToCSA(organization._id, name.trim(), role);
+    } catch (err) {
+      console.error('Failed to send org-code join notification:', err);
+    }
   } catch (error) {
     next(error);
   }
@@ -174,15 +182,15 @@ export async function verifyOTP(req: Request, res: Response, next: NextFunction)
 
     const user = await verifyUserOTPs(validatedData);
 
-      res.status(200).json({
-        status: 'success',
-        message: 'OTP verified successfully. Account activated.',
-        data: {
-          userId: user._id.toString(),
-          email: user.email,
-          isMobileVerified: user.isMobileVerified,
-        },
-      });
+    res.status(200).json({
+      status: 'success',
+      message: 'OTP verified successfully. Account activated.',
+      data: {
+        userId: user._id.toString(),
+        email: user.email,
+        isMobileVerified: user.isMobileVerified,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -231,7 +239,7 @@ export async function verifySingleOTPEndpoint(
         res.status(200).json({
           status: 'success',
           message: 'Already verified',
-          data: { 
+          data: {
             verified: true,
             userId: user._id.toString(),
           },
@@ -264,7 +272,7 @@ export async function verifySingleOTPEndpoint(
       res.status(200).json({
         status: 'success',
         message: 'OTP verified successfully',
-        data: { 
+        data: {
           verified: true,
           userId: userId || undefined,
           role: userRole || undefined,
@@ -280,7 +288,7 @@ export async function verifySingleOTPEndpoint(
           type,
           isUsed: false,
         }).sort({ createdAt: -1 });
-        
+
         if (!otpRecord) {
           errorMessage = 'No OTP found. Please request a new OTP.';
         } else if (otpRecord.attempts >= 3) {
@@ -334,7 +342,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     if (!accessCode) {
       const { User } = await import('../models/User');
       const user = await User.findOne({ mobile: normalizedMobile }).select('+accessCode');
-      
+
       if (!user) {
         res.status(404).json({
           status: 'error',
@@ -514,7 +522,7 @@ export async function setPassword(req: Request, res: Response, next: NextFunctio
 
     // Find user
     const { User } = await import('../models/User');
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       mobile: normalizedMobile
     });
 
