@@ -184,8 +184,8 @@ export async function getPersonalExportData(
   // Average 4D Index across all periods
   const average = avgResult.fourDIndex;
 
-  // Calculate salary hike based on 4D Index
-  const grossSalary = 0; // Would come from user data
+  // Calculate salary hike based on 4D Index using user profile salary (fallback to 0)
+  const grossSalary = Number(user.grossSalary) || 0;
   const hikePercent = calculateHikePercent(average, DEFAULT_HIKE_SLABS);
   const salaryDetails = calculateSalaryHike(grossSalary, average, DEFAULT_HIKE_SLABS);
 
@@ -327,9 +327,8 @@ export async function getOrganizationExportData(
     // Average 4D Index across all periods
     const average = avgResult.fourDIndex;
 
-    // Calculate salary hike based on 4D Index
-    // For now, use placeholder salary - in production this would come from User model
-    const grossSalary = 0; // Would come from user data
+    // Calculate salary hike based on 4D Index using user profile salary (fallback to 0)
+    const grossSalary = Number(user.grossSalary) || 0;
     const hikePercent = calculateHikePercent(average, DEFAULT_HIKE_SLABS);
     const salaryDetails = calculateSalaryHike(grossSalary, average, DEFAULT_HIKE_SLABS);
 

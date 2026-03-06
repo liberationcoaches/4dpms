@@ -21,16 +21,10 @@ function Home() {
         </div>
         <nav className={styles.headerNav}>
           <button
-            className={`${styles.headerBtn} ${styles.headerBtnLogin}`}
-            onClick={() => navigate('/auth/login')}
-          >
-            Log In
-          </button>
-          <button
             className={`${styles.headerBtn} ${styles.headerBtnSignup}`}
-            onClick={() => navigate('/auth/signup')}
+            onClick={() => navigate('/auth/enquiry-or-signup')}
           >
-            Sign Up
+            Enquiry
           </button>
         </nav>
       </header>
@@ -40,15 +34,12 @@ function Home() {
         <p className={styles.heroTagline}>By Liberation Coaches</p>
         <h1 className={styles.heroTitle}>
           The Most Powerful{' '}
-          <span className={styles.heroTitleHighlight}>
-            Performance Management System
-          </span>{' '}
-          In The World
+          <span className={styles.heroTitleHighlight}>Performance Management System</span> In The
+          World
         </h1>
         <p className={styles.heroSubtitle}>
-          A comprehensive, simple, dynamic and fair method of Performance
-          Management that measures and rewards performance across 4 key
-          dimensions.
+          A comprehensive, simple, dynamic and fair method of Performance Management that measures
+          and rewards performance across 4 key dimensions.
         </p>
 
         {/* CTA Buttons — side by side, enlarge on hover */}
@@ -90,8 +81,7 @@ function Home() {
 
       {/* Footer */}
       <footer className={styles.footer}>
-        © {new Date().getFullYear()} Liberation Coaches Private Limited. All
-        rights reserved.
+        © {new Date().getFullYear()} Liberation Coaches Private Limited. All rights reserved.
       </footer>
     </div>
   );

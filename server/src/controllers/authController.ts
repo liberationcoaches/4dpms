@@ -255,8 +255,8 @@ export async function verifySingleOTPEndpoint(
       let userId = null;
       if (markAsUsed) {
         const verifiedUser = user || await getUserByIdentifier(
-          type === 'email' ? normalizedIdentifier : undefined,
-          type === 'mobile' ? normalizedIdentifier : undefined
+          undefined,
+          normalizedIdentifier
         );
         userId = verifiedUser?._id.toString();
       }
@@ -497,7 +497,7 @@ export async function resendOTP(req: Request, res: Response, next: NextFunction)
  */
 export async function setPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, mobile, accessCode, otp, name } = req.body;
+    const { mobile, accessCode, otp, name } = req.body;
 
     if (!mobile || !accessCode || !otp) {
       res.status(400).json({

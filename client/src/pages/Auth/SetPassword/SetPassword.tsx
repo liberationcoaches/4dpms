@@ -31,7 +31,6 @@ const SetPassword = () => {
       if (res.ok) {
         setStep(2);
         if (data.data?.otp) {
-          console.log('DEV ONLY OTP:', data.data.otp);
           alert(`DEV ONLY OTP: ${data.data.otp}`);
         }
       } else {

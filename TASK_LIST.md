@@ -17,8 +17,308 @@
 | Scoring System | ✅ Fixed (calculations corrected) |
 | 4D Data Input | ✅ All 3 issues fixed (Issue 19-21) |
 | 4D Data Ownership | ✅ Self-service model implemented |
-| Testing Issues | 19 Fixed, 0 Pending |
-| Code Cleanup | 7 console.logs, 4 auth TODOs, salary hardcode (Low Priority) |
+| 4D Dimension UX | ✅ Implemented - List + detail view per dimension |
+| Navigation Consistency | ✅ Implemented - Role-consistent notifications + deep-link fallback |
+| Field Coverage vs Excel Spec | ⏳ Pending - missing fields rollout plan added |
+| Testing Issues | 19 Fixed, 2 Manual Verifications Pending |
+| Code Cleanup | Debug logs removed, 4 auth TODOs remain (Low Priority) |
+
+---
+
+## ⏳ PENDING: Refactored Field Coverage Rollout (Excel Spec Alignment)
+
+> **Status:** PENDING  
+> **Priority:** HIGH - Core product alignment with source Excel logic  
+> **Scope:** Add missing fields from `4D_PMS_App_Input_Fields.md` with role-consistent UX
+
+### Objective
+
+Align implementation with Excel-driven input-field spec while preserving the current architecture:
+- same `KRAEditor`-based flow for 4D input,
+- consistent dashboard behavior across Employee, Manager, Boss, and Client Admin experiences,
+- no unintended scoring logic regressions.
+
+### Critical Domain Rule (Must Apply During Rollout)
+
+- `R1`–`R4` = **Review rounds** (used for scoring progression and review completion)
+- `Q1`–`Q4` = **Quarters** (used for date/reporting/filter contexts)
+- These are not interchangeable.
+
+### Missing Fields to Add (Backlog by Spec Section)
+
+#### A) Employee Header (Section 1)
+- `emp_client_name`
+- `emp_doj`
+- `emp_department`
+- `emp_location`
+- `emp_kra_date`
+- `emp_review_year`
+
+#### B) Review Period Dates / Facilitators (Sections 2–3)
+- `date_pilot` (pilot review date)
+- `facilitator_pilot`
+
+#### C) Functional Dimension Comments (Section 4)
+- Explicit comment fields per period:
+  - `fd_comment_pilot`
+  - `fd_comment_q1`
+  - `fd_comment_q2`
+  - `fd_comment_q3`
+  - `fd_comment_q4`
+
+#### D) Remarks & Actionables (Section 8)
+- `remarks_pilot`
+- `remarks_q1`
+- `remarks_q2`
+- `remarks_q3`
+- `remarks_q4`
+
+#### E) Score Summary Materialization (Section 9)
+- Add explicit summary outputs expected by spec (functional/org/self/dev totals per period and final average)
+- Can be computed on-demand and/or persisted based on implementation decision.
+
+### Cross-Role Consistency Requirement (Important)
+
+Because all role dashboards are now aligned in navigation and 4D workflow, any new/missing field added for one role context must be reflected consistently across relevant role views:
+- Employee self-entry views
+- Manager/Boss review views
+- Client Admin oversight/finalization/report views
+
+No partial role-only UI for a core field unless explicitly documented as role-restricted.
+
+### Refactored Execution Plan
+
+1. **Data Contract Pass**
+   - Finalize canonical field names for model/API/UI mapping.
+   - Separate Review (`R*`) and Quarter (`Q*`) semantics in contracts.
+
+2. **Schema + Controller Pass**
+   - Add missing storage fields (where needed).
+   - Wire validation and read/write paths.
+
+3. **UI Pass (All Dashboards/Tabs)**
+   - Add missing inputs in relevant tabs/sections.
+   - Keep layout and interactions consistent per role.
+
+4. **Reporting/Filter Pass**
+   - Ensure quarter-based filters and date windows consume `Q*` context.
+   - Keep score progression tied to `R*`.
+
+5. **Score Summary Pass**
+   - Expose full summary fields expected by spec.
+   - Verify parity with existing score outputs.
+
+6. **Regression Validation**
+   - Ensure no existing 4D save/finalize/review flow breaks.
+
+### Scoring Impact Note
+
+- **Expected formula changes:** **None** (unless explicitly requested later).
+- This rollout is primarily field coverage + semantics cleanup.
+- Validate that existing score calculations remain review-based (`R1`–`R4`).
+
+### Affected System Areas
+
+| Area | Required Action |
+|------|------------------|
+| `server/src/models/*` | Add missing schema fields and types |
+| `server/src/controllers/*` | Accept/store/return new fields |
+| `client/src/pages/Dashboard/Employee/KRAEditor.tsx` | Add/edit missing 4D inputs in same component |
+| `client/src/pages/Dashboard/*Dashboard.tsx` | Ensure new fields are visible/usable consistently by role |
+| Reporting/export services | Include added fields in report/filter payloads where applicable |
+| Docs (`4D_PMS_App_Input_Fields.md`, `TASK_LIST.md`) | Keep implemented mapping updated |
+
+### Acceptance Checklist
+
+- [x] Missing Section 1 header fields added and usable
+- [x] Pilot date/facilitator added and usable
+- [x] Functional per-period comment fields present and mapped
+- [x] Remarks section fields present and mapped
+- [ ] Section 9 score summary outputs available per spec
+- [ ] R vs Q terminology is unambiguous across UI/API/docs
+- [x] New fields are reflected consistently across role dashboards/tabs
+- [x] Existing scoring behavior remains correct (no unintended formula changes)
+
+---
+
+## ✅ IMPLEMENTED: Notification Page Navigation Consistency
+
+> **Status:** ✅ IMPLEMENTED
+> **Priority:** HIGH - UX consistency across role dashboards
+> **Reported Issue:** Left menu changes when opening notifications
+
+### Problem Summary
+
+From role dashboards (Employee, Manager, Boss), clicking the notification bell navigates to:
+- `/dashboard/notifications`
+
+This route is rendered under the generic `Dashboard` layout, so the left menu and navigation experience differ from the role-specific dashboards.
+
+### Current Behavior (Before Fix)
+
+- Notification bell opened a generic notifications route
+- Generic route rendered a different sidebar/menu than role dashboards
+- Notification card click-through had weak/no visible navigation in same-route cases
+
+### Implementation Applied
+
+- Embedded notifications view inside Employee, Manager, and Boss dashboards to preserve role-specific menu context
+- Added role-aware route resolution in `Notifications.tsx` using notification type/metadata
+- Added safe fallback behavior for missing/invalid metadata
+- Kept mark-read behavior non-blocking for navigation
+- Added internal callback handling so same-route deep links still trigger visible in-dashboard navigation
+
+### Required Outcome
+
+No matter where the user clicks notifications from, sidebar/menu pattern should remain consistent with that user's dashboard context.
+
+Additionally, clicking a notification should open the exact screen/item that notification is about.
+
+### Implementation Options
+
+1. **Preferred:** Add role-aware notification routes/components using existing role dashboard shells.
+   - Example:
+     - `/dashboard/employee/notifications`
+     - `/dashboard/manager/notifications`
+     - `/dashboard/boss/notifications`
+   - Keep notification content shared, but render inside each role dashboard layout.
+
+2. **Alternative:** Refactor to a common shared shell so notifications and role pages use one unified navigation system.
+
+### Notification Click-Through (Deep Link) Requirement
+
+When a notification card is clicked:
+- Mark as read (existing behavior)
+- Navigate to the relevant destination (new behavior)
+- If metadata is missing/invalid, stay on notifications page with safe fallback
+
+### Notification Type -> Route Mapping (Implementation Spec)
+
+| Notification Type | Metadata Expected | Destination Route | Notes |
+|-------------------|-------------------|-------------------|-------|
+| `review_period_start` | `reviewPeriod` | Role-specific performance/review section | Open matching review period context where possible |
+| `kra_finalized` | `teamId`, `managerId`/`bossId` | Team member/supervisor KRA view | Land on finalized context for the user role |
+| `mid_cycle_feedback` | `memberId` or employee reference | Employee feedback page / manager feedback view | Role-aware mapping |
+| `action_plan` | `memberId` (optional) | Role-specific performance/action-plan section | Fallback to role dashboard home if missing |
+| `organization_update` | `organizationId` | Admin/client-admin organization view | Respect role access boundaries |
+| `system_announcement` | none | Stay on notifications list | Informational only |
+| `success` / `warning` / `error` / `info` (generic) | optional | Resolve by metadata subtype; fallback to list | Backward-compatible |
+
+### Route Resolution Rules
+
+1. Resolve by `metadata.type` first, then top-level `type`.
+2. Build role-aware target base:
+   - Employee -> `/dashboard/employee/...`
+   - Manager -> `/dashboard/manager/...`
+   - Boss -> `/dashboard/boss/...`
+   - Client Admin -> `/client-admin/dashboard...`
+3. If required entity ID is missing/not found -> fallback to role dashboard home.
+4. Mark-read failure should not block navigation.
+
+### Affected Files
+
+| File | Change Needed |
+|------|---------------|
+| `client/src/pages/Dashboard/Employee/EmployeeDashboard.tsx` | Update notification click route to role-consistent path |
+| `client/src/pages/Dashboard/Manager/ManagerDashboard.tsx` | Update notification click route to role-consistent path |
+| `client/src/pages/Dashboard/Boss/BossDashboard.tsx` | Update notification click route to role-consistent path |
+| `client/src/App.tsx` | Add/update route mapping for role-consistent notification paths |
+| `client/src/pages/Dashboard/Notifications/Notifications.tsx` | Add deep-link route resolution from notification metadata |
+| `client/src/utils/navigationConfig.tsx` | Ensure route map supports deep-link destinations |
+
+### Acceptance Checklist
+
+- [x] Employee notification page shows Employee-style left menu
+- [x] Manager notification page shows Manager-style left menu
+- [x] Boss notification page shows Boss-style left menu
+- [x] Notification content/behavior remains unchanged (read/unread/mark all)
+- [x] Clicking notification opens related destination (deep-link)
+- [x] Fallback works when notification metadata is incomplete/invalid
+- [x] No broken back-navigation or route regressions
+
+---
+
+## ✅ IMPLEMENTED: "My 4 Dimensions" List + Detail UX
+
+> **Status:** ✅ IMPLEMENTED
+> **Priority:** HIGH - Usability and navigation clarity
+> **Reference:** Mobile wireframe shared by user
+
+### Goal
+
+For each 4D dimension, show a **clean list view first** (minimum key info), then open a **detailed view** when the user clicks a list item.
+
+This must apply to all dimensions:
+- Functional
+- Organizational
+- Self-Development
+- Developing Others
+
+### Already Implemented (Do Not Rework)
+
+- Menu renamed to **"My 4 Dimensions"**
+- Collapsible parent behavior is already implemented
+- Expand/collapse animation is already implemented
+- 4 dimension sub-tabs already exist
+
+### Implementation Scope (Completed)
+
+- Keep using existing `KRAEditor` (no new files)
+- Implement per-dimension **list view -> detail view** UX only ✅
+
+### UX Requirements (New)
+
+For each dimension sub-tab:
+- Show a scrollable list of entries/cards with only key summary fields.
+- Each list row should have a clear click target (row tap or chevron icon) to open details.
+- Clicking a row opens a detailed view for that selected entry.
+- Detailed view should show all fields relevant to that dimension (scores, comments, evidence, review data, etc.).
+- Provide a clear way to go back from detail view to list view.
+
+### Minimum List Fields by Dimension
+
+| Dimension | List should show at minimum |
+|----------|------------------------------|
+| Functional | KRA title, KPI summary, average/summary score |
+| Organizational | Core value title, latest score snapshot |
+| Self-Development | Area of concern, latest progress/review snapshot |
+| Developing Others | Person name, development area, latest score snapshot |
+
+### Detailed View Expectations
+
+| Dimension | Detail should include |
+|----------|------------------------|
+| Functional | KPI lines, weightage, pilot score, R1-R4 scores, comments/actual performance, proof/report |
+| Organizational | Core value, pilot + R1-R4 scores, incidents/comments, reviewer context |
+| Self-Development | Area of concern, action plan/initiative, pilot + R1-R4 scores, reasons/notes |
+| Developing Others | Person, area of development, pilot + R1-R4 scores, reasons/notes, evidence if available |
+
+### Files Updated
+
+| File | Changes Applied |
+|------|----------------|
+| `client/src/pages/Dashboard/Employee/KRAEditor.tsx` | Added `activeDimension` mode, list cards, detail view, and back navigation |
+| `client/src/pages/Dashboard/Employee/EmployeeDashboard.tsx` | Dimension sub-tabs now route to `KRAEditor` with `activeDimension` |
+| `client/src/pages/Dashboard/Manager/ManagerDashboard.tsx` | Dimension sub-tabs now route to `KRAEditor` with `activeDimension` |
+| `client/src/pages/Dashboard/Boss/BossDashboard.tsx` | Dimension sub-tabs now route to `KRAEditor` with `activeDimension` |
+| `client/src/styles/DashboardBase.module.css` | Existing collapsible nav styling reused (no rework required) |
+
+### Implementation Constraints
+
+- Do not create extra pages/components for this feature unless required later.
+- Keep the implementation centralized in `KRAEditor`.
+- Preserve existing save/update logic and API contracts.
+- Ensure responsive behavior for mobile-like layout shown in mockup.
+
+### Acceptance Checklist
+
+- [x] "My 4D Data" renamed to "My 4 Dimensions" everywhere
+- [x] Parent item collapses/expands with arrow indicator
+- [x] All 4 dimension sub-tabs are available and clickable
+- [x] Each sub-tab opens to a clean list view (summary only)
+- [x] Clicking list item opens full detail view for that item
+- [x] Back navigation from detail to list works consistently
+- [x] Existing edit/save behavior remains intact
 
 ---
 
@@ -42,7 +342,7 @@ Changed the 4D data entry model so that **every user enters their own 4D data**.
 
 ### Self-Service 4D Data Entry (All Roles)
 
-Each dashboard has a "My 4D Data" tab where users can:
+Each dashboard has a "My 4 Dimensions" menu with dimension-specific sub-tabs where users can:
 - Add/edit their own Functional KRAs (with KPIs, weights, pilot scores)
 - Add/edit their own Organizational KRAs (Core Values)
 - Add/edit their own Self Development KRAs (Areas of Concern)
@@ -587,7 +887,7 @@ The scoring calculation logic was cross-verified against actual Excel files used
 
 | # | Task | File | Notes |
 |---|------|------|-------|
-| 1 | Add salary field to User model | `exportService.ts` | Lines 186, 328 - `grossSalary` hardcoded to 0 in both `getPersonalExportData()` and `getOrganizationExportData()` |
+| 1 | ~~Add salary field to User model~~ | `User.ts`, `exportService.ts` | ✅ Added `grossSalary` to User schema and replaced hardcoded values in exports |
 | 2 | ~~Clean up placeholder boss logic~~ | ~~`organizationController.ts`~~ | ✅ DONE - Placeholder logic removed; links existing user if found, no ghost creation |
 
 ---
@@ -622,9 +922,9 @@ The scoring calculation logic was cross-verified against actual Excel files used
 - [x] ✅ ~~HIGH: Fix score input max value bug~~ (Issue 19 - COMPLETED February 2026)
 - [x] ✅ ~~MEDIUM: Add weight sum validation~~ (Issue 20 - COMPLETED February 2026)
 - [x] ✅ ~~LOW: Add pilotActualPerf to KRAForm~~ (Issue 21 - COMPLETED February 2026)
-- [ ] Remove debug console.logs (7 items)
+- [x] ✅ ~~Remove debug console.logs (7 items)~~
 - [ ] Implement JWT authentication
-- [ ] Add salary field to User model
+- [x] ✅ ~~Add salary field to User model~~
 - [ ] Set up environment variables for production
 - [ ] Configure cloud storage for file uploads
 - [ ] Set up SMS provider for OTPs
@@ -710,7 +1010,7 @@ All core functionality is implemented and working:
 4. ✅ ~~LOW: Add pilotActualPerf to KRAForm (Issue 21)~~ (COMPLETED February 2026)
 
 **Remaining planned work (enhancements, not bugs):**
-- Code cleanup (7 console.logs, 4 auth TODOs, salary hardcode)
+- Code cleanup (4 auth TODOs remain)
 - Production auth (JWT)
 - Per-person dimension weights (move from team-level to per-member)
 - Supervisor/Member architecture (`reportsTo` field + dual-tab UI)

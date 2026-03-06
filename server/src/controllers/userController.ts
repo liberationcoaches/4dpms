@@ -111,10 +111,8 @@ export async function getUserByEmail(req: Request, res: Response, next: NextFunc
  * Fix user roles based on accessCode and team membership
  * POST /api/user/fix-roles
  */
-export async function fixUserRoles(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function fixUserRoles(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { Team } = await import('../models/Team');
-
     // Get all users with accessCode
     const allUsers = await User.find({}).select('+accessCode');
 
@@ -124,13 +122,13 @@ export async function fixUserRoles(req: Request, res: Response, next: NextFuncti
     const changes: string[] = [];
 
     for (const user of allUsers) {
-      const originalRole = user.role;
+      const originalRole = user.role as string;
       let newRole: string | null = null;
 
       // Migrate old roles to new roles
-      if (user.role === 'admin') {
+      if (originalRole === 'admin') {
         newRole = 'manager';
-      } else if (user.role === 'member') {
+      } else if (originalRole === 'member') {
         newRole = 'employee';
       }
 

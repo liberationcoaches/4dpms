@@ -6,31 +6,49 @@ interface KPI {
 }
 
 interface FunctionalKRA {
+    [key: string]: any;
     kra: string;
     kpis: KPI[];
     weight: number;      // Maps to r1Weight...r4Weight
     pilotScore: number;  // Maps to pilotScore (0-5)
+    fdCommentPilot?: string;
+    fdCommentQ1?: string;
+    fdCommentQ2?: string;
+    fdCommentQ3?: string;
+    fdCommentQ4?: string;
 }
 
 interface OrgKRA {
+    [key: string]: any;
     coreValues: string;
 }
 
 interface SelfDevKRA {
+    [key: string]: any;
     areaOfConcern: string;
     actionPlanInitiative: string;
 }
 
 interface DevOthersKRA {
+    [key: string]: any;
     person: string;
     areaOfDevelopment: string;
 }
 
 interface KRAEditorProps {
     userId: string;
+    activeDimension?: 'functional' | 'organizational' | 'selfDevelopment' | 'developingOthers';
 }
 
-export default function KRAEditor({ userId }: KRAEditorProps) {
+interface RemarksFields {
+    remarksPilot: string;
+    remarksQ1: string;
+    remarksQ2: string;
+    remarksQ3: string;
+    remarksQ4: string;
+}
+
+export default function KRAEditor({ userId, activeDimension }: KRAEditorProps) {
     const [functionalKRAs, setFunctionalKRAs] = useState<FunctionalKRA[]>([]);
     const [orgKRAs, setOrgKRAs] = useState<OrgKRA[]>([]);
     const [selfDevKRAs, setSelfDevKRAs] = useState<SelfDevKRA[]>([]);
@@ -39,6 +57,24 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
     const [loading, setLoading] = useState(true);
     const [openDimension, setOpenDimension] = useState<string | null>(null);
+    const [remarks, setRemarks] = useState<RemarksFields>({
+        remarksPilot: '',
+        remarksQ1: '',
+        remarksQ2: '',
+        remarksQ3: '',
+        remarksQ4: '',
+    });
+    const [selectedDetailIndex, setSelectedDetailIndex] = useState<{
+        functional: number | null;
+        organizational: number | null;
+        selfDevelopment: number | null;
+        developingOthers: number | null;
+    }>({
+        functional: null,
+        organizational: null,
+        selfDevelopment: null,
+        developingOthers: null,
+    });
 
     useEffect(() => {
         const load = async () => {
@@ -48,27 +84,42 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                 if (data.status === 'success' && data.data) {
                     setFunctionalKRAs(
                         (data.data.functionalKRAs || []).map((k: any) => ({
+                            ...k,
                             kra: k.kra || '',
                             kpis: Array.isArray(k.kpis) ? k.kpis.map((kp: any) => ({ kpi: kp.kpi || '', target: kp.target || '' })) : [],
                             weight: k.r1Weight || 0, // Assume R1 weight represents the standard weight
-                            pilotScore: k.pilotScore || 0
+                            pilotScore: k.pilotScore || 0,
+                            fdCommentPilot: k.fdCommentPilot || '',
+                            fdCommentQ1: k.fdCommentQ1 || '',
+                            fdCommentQ2: k.fdCommentQ2 || '',
+                            fdCommentQ3: k.fdCommentQ3 || '',
+                            fdCommentQ4: k.fdCommentQ4 || '',
                         }))
                     );
                     setOrgKRAs(
-                        (data.data.organizationalKRAs || []).map((k: any) => ({ coreValues: k.coreValues || '' }))
+                        (data.data.organizationalKRAs || []).map((k: any) => ({ ...k, coreValues: k.coreValues || '' }))
                     );
                     setSelfDevKRAs(
                         (data.data.selfDevelopmentKRAs || []).map((k: any) => ({
+                            ...k,
                             areaOfConcern: k.areaOfConcern || '',
                             actionPlanInitiative: k.actionPlanInitiative || '',
                         }))
                     );
                     setDevOthersKRAs(
                         (data.data.developingOthersKRAs || []).map((k: any) => ({
+                            ...k,
                             person: k.person || '',
                             areaOfDevelopment: k.areaOfDevelopment || '',
                         }))
                     );
+                    setRemarks({
+                        remarksPilot: data.data.remarksPilot || '',
+                        remarksQ1: data.data.remarksQ1 || '',
+                        remarksQ2: data.data.remarksQ2 || '',
+                        remarksQ3: data.data.remarksQ3 || '',
+                        remarksQ4: data.data.remarksQ4 || '',
+                    });
                 }
             } catch (err) {
                 console.error('Failed to load KRAs:', err);
@@ -78,6 +129,18 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
         };
         load();
     }, [userId]);
+
+    useEffect(() => {
+        if (activeDimension) {
+            setOpenDimension(activeDimension);
+        }
+        setSelectedDetailIndex({
+            functional: null,
+            organizational: null,
+            selfDevelopment: null,
+            developingOthers: null,
+        });
+    }, [activeDimension]);
 
     const calculateTotalWeight = () => {
         return functionalKRAs.reduce((sum, kra) => sum + (Number(kra.weight) || 0), 0);
@@ -126,6 +189,11 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                     organizationalKRAs: orgKRAs,
                     selfDevelopmentKRAs: selfDevKRAs,
                     developingOthersKRAs: devOthersKRAs,
+                    remarksPilot: remarks.remarksPilot,
+                    remarksQ1: remarks.remarksQ1,
+                    remarksQ2: remarks.remarksQ2,
+                    remarksQ3: remarks.remarksQ3,
+                    remarksQ4: remarks.remarksQ4,
                 }),
             });
             const data = await res.json();
@@ -142,8 +210,35 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
     };
 
     // Functional helpers
-    const addFunctionalKRA = () => setFunctionalKRAs([...functionalKRAs, { kra: '', kpis: [{ kpi: '', target: '' }], weight: 0, pilotScore: 0 }]);
-    const removeFunctionalKRA = (i: number) => setFunctionalKRAs(functionalKRAs.filter((_, idx) => idx !== i));
+    const addFunctionalKRA = () => {
+        setFunctionalKRAs((prev) => {
+            const next = [...prev, {
+                kra: '',
+                kpis: [{ kpi: '', target: '' }],
+                weight: 0,
+                pilotScore: 0,
+                fdCommentPilot: '',
+                fdCommentQ1: '',
+                fdCommentQ2: '',
+                fdCommentQ3: '',
+                fdCommentQ4: '',
+            }];
+            if (activeDimension === 'functional') {
+                setSelectedDetailIndex((curr) => ({ ...curr, functional: next.length - 1 }));
+            }
+            return next;
+        });
+    };
+    const removeFunctionalKRA = (i: number) => {
+        setFunctionalKRAs((prev) => prev.filter((_, idx) => idx !== i));
+        setSelectedDetailIndex((curr) => {
+            const current = curr.functional;
+            if (current === null) return curr;
+            if (current === i) return { ...curr, functional: null };
+            if (current > i) return { ...curr, functional: current - 1 };
+            return curr;
+        });
+    };
     const updateFunctionalKRA = (i: number, field: string, value: string | number) => {
         const copy = [...functionalKRAs];
         (copy[i] as any)[field] = value;
@@ -166,22 +261,76 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
     };
 
     // Org helpers
-    const addOrgKRA = () => setOrgKRAs([...orgKRAs, { coreValues: '' }]);
-    const removeOrgKRA = (i: number) => setOrgKRAs(orgKRAs.filter((_, idx) => idx !== i));
+    const addOrgKRA = () => {
+        setOrgKRAs((prev) => {
+            const next = [...prev, { coreValues: '' }];
+            if (activeDimension === 'organizational') {
+                setSelectedDetailIndex((curr) => ({ ...curr, organizational: next.length - 1 }));
+            }
+            return next;
+        });
+    };
+    const removeOrgKRA = (i: number) => {
+        setOrgKRAs((prev) => prev.filter((_, idx) => idx !== i));
+        setSelectedDetailIndex((curr) => {
+            const current = curr.organizational;
+            if (current === null) return curr;
+            if (current === i) return { ...curr, organizational: null };
+            if (current > i) return { ...curr, organizational: current - 1 };
+            return curr;
+        });
+    };
 
     // Self dev helpers
-    const addSelfDevKRA = () => setSelfDevKRAs([...selfDevKRAs, { areaOfConcern: '', actionPlanInitiative: '' }]);
-    const removeSelfDevKRA = (i: number) => setSelfDevKRAs(selfDevKRAs.filter((_, idx) => idx !== i));
+    const addSelfDevKRA = () => {
+        setSelfDevKRAs((prev) => {
+            const next = [...prev, { areaOfConcern: '', actionPlanInitiative: '' }];
+            if (activeDimension === 'selfDevelopment') {
+                setSelectedDetailIndex((curr) => ({ ...curr, selfDevelopment: next.length - 1 }));
+            }
+            return next;
+        });
+    };
+    const removeSelfDevKRA = (i: number) => {
+        setSelfDevKRAs((prev) => prev.filter((_, idx) => idx !== i));
+        setSelectedDetailIndex((curr) => {
+            const current = curr.selfDevelopment;
+            if (current === null) return curr;
+            if (current === i) return { ...curr, selfDevelopment: null };
+            if (current > i) return { ...curr, selfDevelopment: current - 1 };
+            return curr;
+        });
+    };
 
     // Dev others helpers
-    const addDevOthersKRA = () => setDevOthersKRAs([...devOthersKRAs, { person: '', areaOfDevelopment: '' }]);
-    const removeDevOthersKRA = (i: number) => setDevOthersKRAs(devOthersKRAs.filter((_, idx) => idx !== i));
+    const addDevOthersKRA = () => {
+        setDevOthersKRAs((prev) => {
+            const next = [...prev, { person: '', areaOfDevelopment: '' }];
+            if (activeDimension === 'developingOthers') {
+                setSelectedDetailIndex((curr) => ({ ...curr, developingOthers: next.length - 1 }));
+            }
+            return next;
+        });
+    };
+    const removeDevOthersKRA = (i: number) => {
+        setDevOthersKRAs((prev) => prev.filter((_, idx) => idx !== i));
+        setSelectedDetailIndex((curr) => {
+            const current = curr.developingOthers;
+            if (current === null) return curr;
+            if (current === i) return { ...curr, developingOthers: null };
+            if (current > i) return { ...curr, developingOthers: current - 1 };
+            return curr;
+        });
+    };
 
     if (loading) return <div style={{ padding: '2rem', color: '#999' }}>Loading your 4D data...</div>;
 
     const toggleDimension = (key: string) => {
         setOpenDimension(openDimension === key ? null : key);
     };
+
+    const shouldShowDimension = (key: string) => !activeDimension || activeDimension === key;
+    const isDimensionOpen = (key: string) => (activeDimension ? activeDimension === key : openDimension === key);
 
     const inputStyle: React.CSSProperties = {
         width: '100%',
@@ -208,6 +357,11 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
         cursor: 'pointer',
         fontSize: '13px',
         fontWeight: 600,
+    };
+
+    const saveDimensionBtnStyle: React.CSSProperties = {
+        ...addBtnStyle,
+        backgroundColor: '#4CAF50',
     };
 
     const removeBtnStyle: React.CSSProperties = {
@@ -265,14 +419,56 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
     ];
 
     const totalFunctionalWeight = calculateTotalWeight();
+    const activeDetailIndex = activeDimension ? selectedDetailIndex[activeDimension] : null;
+    const isListView = !!activeDimension && activeDetailIndex === null;
+    const isDetailView = !!activeDimension && activeDetailIndex !== null;
+
+    const getLatestScoreSnapshot = (kra: any) => {
+        const scoreFields = [
+            { key: 'r4Score', label: 'R4' },
+            { key: 'r3Score', label: 'R3' },
+            { key: 'r2Score', label: 'R2' },
+            { key: 'r1Score', label: 'R1' },
+            { key: 'pilotScore', label: 'Pilot' },
+        ];
+        for (const field of scoreFields) {
+            const value = kra?.[field.key];
+            if (value !== undefined && value !== null && value !== '') {
+                const numeric = Number(value);
+                if (!Number.isNaN(numeric)) {
+                    return `${field.label}: ${numeric.toFixed(1)}`;
+                }
+            }
+        }
+        return 'No score snapshot yet';
+    };
+
+    const getFunctionalSummaryScore = (kra: FunctionalKRA) => {
+        const values = [kra.pilotScore, kra.r1Score, kra.r2Score, kra.r3Score, kra.r4Score]
+            .filter((v) => v !== undefined && v !== null && v !== '')
+            .map((v) => Number(v))
+            .filter((v) => !Number.isNaN(v));
+        if (values.length === 0) return 'No score snapshot yet';
+        const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+        return `Avg: ${avg.toFixed(1)}`;
+    };
+
+    const listCardStyle: React.CSSProperties = {
+        ...kraCardStyle,
+        cursor: 'pointer',
+        border: '1px solid #dce7f3',
+        transition: 'all 0.2s ease',
+    };
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '20px' }}>My 4D Data</h2>
+                    <h2 style={{ margin: 0, fontSize: '20px' }}>My 4 Dimensions</h2>
                     <p style={{ margin: '4px 0 0', color: '#666', fontSize: '14px' }}>
-                        Tap a dimension card to add or edit your KRAs. Save when done — your supervisor will be notified.
+                        {activeDimension
+                            ? 'Add or edit entries for this dimension. Save when done — your supervisor will be notified.'
+                            : 'Tap a dimension card to add or edit your KRAs. Save when done — your supervisor will be notified.'}
                     </p>
                 </div>
                 <button
@@ -308,46 +504,58 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                 </div>
             )}
 
-            {/* Dimension Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                {dimensionCards.map((dim) => (
-                    <div
-                        key={dim.key}
-                        onClick={() => toggleDimension(dim.key)}
-                        style={{
-                            padding: '1.25rem',
-                            borderRadius: '12px',
-                            border: openDimension === dim.key ? `2px solid ${dim.color}` : '1px solid #e0e0e0',
-                            backgroundColor: openDimension === dim.key ? `${dim.color}08` : '#fff',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            boxShadow: openDimension === dim.key ? `0 4px 12px ${dim.color}20` : '0 1px 3px rgba(0,0,0,0.08)',
-                        }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '28px' }}>{dim.emoji}</span>
-                            <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '12px',
-                                backgroundColor: dim.color,
-                                color: 'white',
-                                fontSize: '12px',
-                                fontWeight: 700,
-                            }}>
-                                {dim.count} {dim.count === 1 ? 'item' : 'items'}
-                            </span>
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', color: '#222' }}>{dim.label}</div>
-                        <div style={{ fontSize: '13px', color: '#888' }}>{dim.description}</div>
-                        <div style={{ marginTop: '8px', textAlign: 'right', color: dim.color, fontSize: '13px', fontWeight: 600 }}>
-                            {openDimension === dim.key ? '▲ Close' : '▼ Open'}
-                        </div>
-                    </div>
-                ))}
+            <div style={{ padding: '1rem', border: '1px solid #e0e0e0', borderRadius: '12px', background: '#fff', marginBottom: '1rem' }}>
+                <h3 style={{ margin: '0 0 10px', fontSize: '15px' }}>Comments</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                    <textarea style={{ ...inputStyle, minHeight: '64px' }} placeholder="Comments - Pilot" value={remarks.remarksPilot} onChange={(e) => setRemarks((p) => ({ ...p, remarksPilot: e.target.value }))} />
+                    <textarea style={{ ...inputStyle, minHeight: '64px' }} placeholder="Comments - Q1" value={remarks.remarksQ1} onChange={(e) => setRemarks((p) => ({ ...p, remarksQ1: e.target.value }))} />
+                    <textarea style={{ ...inputStyle, minHeight: '64px' }} placeholder="Comments - Q2" value={remarks.remarksQ2} onChange={(e) => setRemarks((p) => ({ ...p, remarksQ2: e.target.value }))} />
+                    <textarea style={{ ...inputStyle, minHeight: '64px' }} placeholder="Comments - Q3" value={remarks.remarksQ3} onChange={(e) => setRemarks((p) => ({ ...p, remarksQ3: e.target.value }))} />
+                    <textarea style={{ ...inputStyle, minHeight: '64px' }} placeholder="Comments - Q4" value={remarks.remarksQ4} onChange={(e) => setRemarks((p) => ({ ...p, remarksQ4: e.target.value }))} />
+                </div>
             </div>
 
+            {!activeDimension && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    {dimensionCards.map((dim) => (
+                        <div
+                            key={dim.key}
+                            onClick={() => toggleDimension(dim.key)}
+                            style={{
+                                padding: '1.25rem',
+                                borderRadius: '12px',
+                                border: openDimension === dim.key ? `2px solid ${dim.color}` : '1px solid #e0e0e0',
+                                backgroundColor: openDimension === dim.key ? `${dim.color}08` : '#fff',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: openDimension === dim.key ? `0 4px 12px ${dim.color}20` : '0 1px 3px rgba(0,0,0,0.08)',
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '28px' }}>{dim.emoji}</span>
+                                <span style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    backgroundColor: dim.color,
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                }}>
+                                    {dim.count} {dim.count === 1 ? 'item' : 'items'}
+                                </span>
+                            </div>
+                            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', color: '#222' }}>{dim.label}</div>
+                            <div style={{ fontSize: '13px', color: '#888' }}>{dim.description}</div>
+                            <div style={{ marginTop: '8px', textAlign: 'right', color: dim.color, fontSize: '13px', fontWeight: 600 }}>
+                                {openDimension === dim.key ? '▲ Close' : '▼ Open'}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Expanded Dimension Content */}
-            {openDimension === 'functional' && (
+            {shouldShowDimension('functional') && isDimensionOpen('functional') && (
                 <div style={{ padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '12px', borderLeft: '4px solid #2196F3', backgroundColor: '#fafafa', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <div>
@@ -356,10 +564,45 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                                 Total Weight: {totalFunctionalWeight}% / 100%
                             </div>
                         </div>
-                        <button style={addBtnStyle} onClick={addFunctionalKRA}>+ Add KRA</button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            {activeDimension === 'functional' && isDetailView && (
+                                <button
+                                    style={{ ...addBtnStyle, backgroundColor: '#607D8B' }}
+                                    onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, functional: null }))}
+                                >
+                                    ← Back to List
+                                </button>
+                            )}
+                            <button style={saveDimensionBtnStyle} onClick={handleSave} disabled={saving}>
+                                {saving ? 'Saving...' : 'Save Functional'}
+                            </button>
+                            <button style={addBtnStyle} onClick={addFunctionalKRA}>+ Add KRA</button>
+                        </div>
                     </div>
                     {functionalKRAs.length === 0 && <p style={{ color: '#999', fontSize: '14px' }}>No functional KRAs yet. Click "+ Add KRA" to get started.</p>}
-                    {functionalKRAs.map((kra, i) => (
+                    {activeDimension === 'functional' && isListView && functionalKRAs.map((kra, i) => (
+                        <div
+                            key={`functional-list-${i}`}
+                            style={listCardStyle}
+                            onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, functional: i }))}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700, color: '#1f2937' }}>{kra.kra || `Functional KRA ${i + 1}`}</div>
+                                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
+                                        KPIs: {kra.kpis?.length || 0} | {getFunctionalSummaryScore(kra)}
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '18px', color: '#2196F3', fontWeight: 700 }}>›</div>
+                            </div>
+                        </div>
+                    ))}
+                    {(activeDimension !== 'functional' || isDetailView) && functionalKRAs
+                        .map((_, idx) => idx)
+                        .filter((idx) => activeDimension !== 'functional' || idx === selectedDetailIndex.functional)
+                        .map((i) => {
+                            const kra = functionalKRAs[i];
+                            return (
                         <div key={i} style={kraCardStyle}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '12px' }}>
                                 <div style={{ flex: 1 }}>
@@ -439,20 +682,63 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                                 >
                                     + KPI
                                 </button>
+                                <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                                    <textarea style={{ ...inputStyle, minHeight: '56px' }} placeholder="Functional comment - Pilot" value={kra.fdCommentPilot || ''} onChange={(e) => updateFunctionalKRA(i, 'fdCommentPilot', e.target.value)} />
+                                    <textarea style={{ ...inputStyle, minHeight: '56px' }} placeholder="Functional comment - Q1" value={kra.fdCommentQ1 || ''} onChange={(e) => updateFunctionalKRA(i, 'fdCommentQ1', e.target.value)} />
+                                    <textarea style={{ ...inputStyle, minHeight: '56px' }} placeholder="Functional comment - Q2" value={kra.fdCommentQ2 || ''} onChange={(e) => updateFunctionalKRA(i, 'fdCommentQ2', e.target.value)} />
+                                    <textarea style={{ ...inputStyle, minHeight: '56px' }} placeholder="Functional comment - Q3" value={kra.fdCommentQ3 || ''} onChange={(e) => updateFunctionalKRA(i, 'fdCommentQ3', e.target.value)} />
+                                    <textarea style={{ ...inputStyle, minHeight: '56px' }} placeholder="Functional comment - Q4" value={kra.fdCommentQ4 || ''} onChange={(e) => updateFunctionalKRA(i, 'fdCommentQ4', e.target.value)} />
+                                </div>
                             </div>
                         </div>
-                    ))}
+                            );
+                        })}
                 </div>
             )}
 
-            {openDimension === 'organizational' && (
+            {shouldShowDimension('organizational') && isDimensionOpen('organizational') && (
                 <div style={{ padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '12px', borderLeft: '4px solid #4CAF50', backgroundColor: '#fafafa', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3 style={{ margin: 0, fontSize: '16px' }}>🟢 Organizational — Core Values</h3>
-                        <button style={{ ...addBtnStyle, backgroundColor: '#4CAF50' }} onClick={addOrgKRA}>+ Add Core Value</button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            {activeDimension === 'organizational' && isDetailView && (
+                                <button
+                                    style={{ ...addBtnStyle, backgroundColor: '#607D8B' }}
+                                    onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, organizational: null }))}
+                                >
+                                    ← Back to List
+                                </button>
+                            )}
+                            <button style={saveDimensionBtnStyle} onClick={handleSave} disabled={saving}>
+                                {saving ? 'Saving...' : 'Save Organizational'}
+                            </button>
+                            <button style={{ ...addBtnStyle, backgroundColor: '#4CAF50' }} onClick={addOrgKRA}>+ Add Core Value</button>
+                        </div>
                     </div>
                     {orgKRAs.length === 0 && <p style={{ color: '#999', fontSize: '14px' }}>No core values yet.</p>}
-                    {orgKRAs.map((kra, i) => (
+                    {activeDimension === 'organizational' && isListView && orgKRAs.map((kra, i) => (
+                        <div
+                            key={`org-list-${i}`}
+                            style={listCardStyle}
+                            onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, organizational: i }))}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700, color: '#1f2937' }}>{kra.coreValues || `Core Value ${i + 1}`}</div>
+                                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
+                                        {getLatestScoreSnapshot(kra)}
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '18px', color: '#4CAF50', fontWeight: 700 }}>›</div>
+                            </div>
+                        </div>
+                    ))}
+                    {(activeDimension !== 'organizational' || isDetailView) && orgKRAs
+                        .map((_, idx) => idx)
+                        .filter((idx) => activeDimension !== 'organizational' || idx === selectedDetailIndex.organizational)
+                        .map((i) => {
+                            const kra = orgKRAs[i];
+                            return (
                         <div key={i} style={kraCardStyle}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <input
@@ -467,19 +753,60 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                                 />
                                 <button style={removeBtnStyle} onClick={() => removeOrgKRA(i)}>✕</button>
                             </div>
+                            <div style={{ marginTop: '10px', fontSize: '12px', color: '#6b7280', display: 'grid', gap: '4px' }}>
+                                <span>Pilot Score: {kra.pilotScore ?? '-'}</span>
+                                <span>R1: {kra.r1Score ?? '-'} | R2: {kra.r2Score ?? '-'} | R3: {kra.r3Score ?? '-'} | R4: {kra.r4Score ?? '-'}</span>
+                                <span>Incidents: {kra.r1CriticalIncident || kra.r2CriticalIncident || kra.r3CriticalIncident || kra.r4CriticalIncident || kra.pilotCriticalIncident || 'No incident notes yet'}</span>
+                            </div>
                         </div>
-                    ))}
+                            );
+                        })}
                 </div>
             )}
 
-            {openDimension === 'selfDevelopment' && (
+            {shouldShowDimension('selfDevelopment') && isDimensionOpen('selfDevelopment') && (
                 <div style={{ padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '12px', borderLeft: '4px solid #FF9800', backgroundColor: '#fafafa', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3 style={{ margin: 0, fontSize: '16px' }}>🟠 Self Development</h3>
-                        <button style={{ ...addBtnStyle, backgroundColor: '#FF9800' }} onClick={addSelfDevKRA}>+ Add Area</button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            {activeDimension === 'selfDevelopment' && isDetailView && (
+                                <button
+                                    style={{ ...addBtnStyle, backgroundColor: '#607D8B' }}
+                                    onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, selfDevelopment: null }))}
+                                >
+                                    ← Back to List
+                                </button>
+                            )}
+                            <button style={saveDimensionBtnStyle} onClick={handleSave} disabled={saving}>
+                                {saving ? 'Saving...' : 'Save Self-Development'}
+                            </button>
+                            <button style={{ ...addBtnStyle, backgroundColor: '#FF9800' }} onClick={addSelfDevKRA}>+ Add Area</button>
+                        </div>
                     </div>
                     {selfDevKRAs.length === 0 && <p style={{ color: '#999', fontSize: '14px' }}>No self-development areas yet.</p>}
-                    {selfDevKRAs.map((kra, i) => (
+                    {activeDimension === 'selfDevelopment' && isListView && selfDevKRAs.map((kra, i) => (
+                        <div
+                            key={`self-list-${i}`}
+                            style={listCardStyle}
+                            onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, selfDevelopment: i }))}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700, color: '#1f2937' }}>{kra.areaOfConcern || `Area ${i + 1}`}</div>
+                                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
+                                        {getLatestScoreSnapshot(kra)}
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '18px', color: '#FF9800', fontWeight: 700 }}>›</div>
+                            </div>
+                        </div>
+                    ))}
+                    {(activeDimension !== 'selfDevelopment' || isDetailView) && selfDevKRAs
+                        .map((_, idx) => idx)
+                        .filter((idx) => activeDimension !== 'selfDevelopment' || idx === selectedDetailIndex.selfDevelopment)
+                        .map((i) => {
+                            const kra = selfDevKRAs[i];
+                            return (
                         <div key={i} style={kraCardStyle}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                 <div style={{ flex: 1 }}>
@@ -506,19 +833,60 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                                 </div>
                                 <button style={removeBtnStyle} onClick={() => removeSelfDevKRA(i)}>✕</button>
                             </div>
+                            <div style={{ marginTop: '10px', fontSize: '12px', color: '#6b7280', display: 'grid', gap: '4px' }}>
+                                <span>Pilot: {kra.pilotScore ?? '-'} | Reason: {kra.pilotReason || '-'}</span>
+                                <span>R1: {kra.r1Score ?? '-'} | R2: {kra.r2Score ?? '-'} | R3: {kra.r3Score ?? '-'} | R4: {kra.r4Score ?? '-'}</span>
+                                <span>Latest notes: {kra.r4Reason || kra.r3Reason || kra.r2Reason || kra.r1Reason || 'No review notes yet'}</span>
+                            </div>
                         </div>
-                    ))}
+                            );
+                        })}
                 </div>
             )}
 
-            {openDimension === 'developingOthers' && (
+            {shouldShowDimension('developingOthers') && isDimensionOpen('developingOthers') && (
                 <div style={{ padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '12px', borderLeft: '4px solid #9C27B0', backgroundColor: '#fafafa', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3 style={{ margin: 0, fontSize: '16px' }}>🟣 Developing Others</h3>
-                        <button style={{ ...addBtnStyle, backgroundColor: '#9C27B0' }} onClick={addDevOthersKRA}>+ Add Person</button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            {activeDimension === 'developingOthers' && isDetailView && (
+                                <button
+                                    style={{ ...addBtnStyle, backgroundColor: '#607D8B' }}
+                                    onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, developingOthers: null }))}
+                                >
+                                    ← Back to List
+                                </button>
+                            )}
+                            <button style={saveDimensionBtnStyle} onClick={handleSave} disabled={saving}>
+                                {saving ? 'Saving...' : 'Save Developing Others'}
+                            </button>
+                            <button style={{ ...addBtnStyle, backgroundColor: '#9C27B0' }} onClick={addDevOthersKRA}>+ Add Person</button>
+                        </div>
                     </div>
                     {devOthersKRAs.length === 0 && <p style={{ color: '#999', fontSize: '14px' }}>No developing others entries yet.</p>}
-                    {devOthersKRAs.map((kra, i) => (
+                    {activeDimension === 'developingOthers' && isListView && devOthersKRAs.map((kra, i) => (
+                        <div
+                            key={`dev-list-${i}`}
+                            style={listCardStyle}
+                            onClick={() => setSelectedDetailIndex((curr) => ({ ...curr, developingOthers: i }))}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700, color: '#1f2937' }}>{kra.person || `Person ${i + 1}`}</div>
+                                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
+                                        {(kra.areaOfDevelopment || 'No development area')} | {getLatestScoreSnapshot(kra)}
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '18px', color: '#9C27B0', fontWeight: 700 }}>›</div>
+                            </div>
+                        </div>
+                    ))}
+                    {(activeDimension !== 'developingOthers' || isDetailView) && devOthersKRAs
+                        .map((_, idx) => idx)
+                        .filter((idx) => activeDimension !== 'developingOthers' || idx === selectedDetailIndex.developingOthers)
+                        .map((i) => {
+                            const kra = devOthersKRAs[i];
+                            return (
                         <div key={i} style={kraCardStyle}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                 <div style={{ flex: 1 }}>
@@ -545,8 +913,14 @@ export default function KRAEditor({ userId }: KRAEditorProps) {
                                 </div>
                                 <button style={removeBtnStyle} onClick={() => removeDevOthersKRA(i)}>✕</button>
                             </div>
+                            <div style={{ marginTop: '10px', fontSize: '12px', color: '#6b7280', display: 'grid', gap: '4px' }}>
+                                <span>Pilot: {kra.pilotScore ?? '-'} | Reason: {kra.pilotReason || '-'}</span>
+                                <span>R1: {kra.r1Score ?? '-'} | R2: {kra.r2Score ?? '-'} | R3: {kra.r3Score ?? '-'} | R4: {kra.r4Score ?? '-'}</span>
+                                <span>Latest notes: {kra.r4Reason || kra.r3Reason || kra.r2Reason || kra.r1Reason || 'No review notes yet'}</span>
+                            </div>
                         </div>
-                    ))}
+                            );
+                        })}
                 </div>
             )}
 

@@ -70,10 +70,7 @@ function SignUp({ onSubmit }: SignUpProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    console.log('Form submission started', formData);
-
     if (!validateForm()) {
-      console.log('Form validation failed', errors);
       return;
     }
 
@@ -111,8 +108,6 @@ function SignUp({ onSubmit }: SignUpProps) {
         }),
       };
 
-      console.log('Sending signup request:', signupData);
-
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -121,10 +116,7 @@ function SignUp({ onSubmit }: SignUpProps) {
         body: JSON.stringify(signupData),
       });
 
-      console.log('Signup response status:', response.status);
-
       const data = await response.json();
-      console.log('Signup response data:', data);
 
       if (response.ok) {
         // Save userId for dashboard access
@@ -337,7 +329,7 @@ function SignUp({ onSubmit }: SignUpProps) {
               disabled={isSubmitting}
               aria-busy={isSubmitting}
             >
-              {isSubmitting ? 'Signing up...' : 'Create organization'}
+              {isSubmitting ? 'Signing up...' : 'Sign up'}
             </button>
 
             <p className={styles.linkRow}>

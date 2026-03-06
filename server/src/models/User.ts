@@ -20,6 +20,7 @@ export interface IUser extends Document {
   bossId?: mongoose.Types.ObjectId; // Organization boss
   createdBy?: mongoose.Types.ObjectId; // User who created this user (for hierarchy visibility)
   designation?: string; // Job title/designation
+  grossSalary?: number; // Annual/Monthly gross salary used for hike calculations
   aboutMe?: string;
   educationalQualification?: string;
   skills?: string[];
@@ -141,6 +142,11 @@ const UserSchema = new Schema<IUser>(
       type: String,
       trim: true,
       maxlength: [100, 'Designation cannot exceed 100 characters'],
+    },
+    grossSalary: {
+      type: Number,
+      default: 0,
+      min: [0, 'Gross salary cannot be negative'],
     },
     aboutMe: {
       type: String,

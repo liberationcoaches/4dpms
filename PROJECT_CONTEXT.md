@@ -126,7 +126,7 @@ The current system has fixed role dashboards (Boss, Manager, Employee). The plan
 - Visibility = entire subtree (your reports + their reports + ...)
 - Works for any org structure without code changes
 
-### Deployment Plans
+### Deployment Plans    
 - Deployment strategy TBD (pending stakeholder meeting)
 - Currently version-controlled on GitHub
 

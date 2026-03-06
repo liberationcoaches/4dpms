@@ -31,30 +31,35 @@ export interface IFunctionalKRA {
   // Pilot Period (Starting score)
   pilotWeight?: number; // Weight in pilot period
   pilotScore?: number; // Score 0-5 (can be decimal)
+  fdCommentPilot?: string; // Functional dimension comment - Pilot
 
   // Review Period 1
   r1Weight?: number; // Can be different from pilot
   r1Score?: number; // Score 0-5 (can be decimal)
   r1ActualPerf?: string; // Actual performance notes
   r1ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R1
+  fdCommentQ1?: string; // Functional dimension comment - Q1/R1
 
   // Review Period 2
   r2Weight?: number;
   r2Score?: number;
   r2ActualPerf?: string;
   r2ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R2
+  fdCommentQ2?: string; // Functional dimension comment - Q2/R2
 
   // Review Period 3
   r3Weight?: number;
   r3Score?: number;
   r3ActualPerf?: string;
   r3ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R3
+  fdCommentQ3?: string; // Functional dimension comment - Q3/R3
 
   // Review Period 4
   r4Weight?: number;
   r4Score?: number;
   r4ActualPerf?: string;
   r4ReviewedBy?: mongoose.Types.ObjectId; // Reviewer for R4
+  fdCommentQ4?: string; // Functional dimension comment - Q4/R4
 
   // Calculated
   averageScore?: number; // Average across all review periods
@@ -152,6 +157,22 @@ export interface ITeamMemberDetail {
   name: string;
   role: string;
   mobile: string;
+  // Section 1 header fields
+  empClientName?: string;
+  empDoj?: Date;
+  empDepartment?: string;
+  empLocation?: string;
+  empKraDate?: Date;
+  empReviewYear?: string;
+  // Pilot metadata
+  datePilot?: Date;
+  facilitatorPilot?: string;
+  // Remarks section
+  remarksPilot?: string;
+  remarksQ1?: string;
+  remarksQ2?: string;
+  remarksQ3?: string;
+  remarksQ4?: string;
   // KRA finalization tracking
   krasReadyForReview?: boolean; // Set when member saves KRAs
   krasFinalized?: boolean; // Set when supervisor/admin finalizes
@@ -213,6 +234,19 @@ const TeamSchema = new Schema<ITeam>(
         name: { type: String, required: true, trim: true },
         role: { type: String, required: true, trim: true },
         mobile: { type: String, required: true, trim: true },
+        empClientName: { type: String, trim: true },
+        empDoj: { type: Date },
+        empDepartment: { type: String, trim: true },
+        empLocation: { type: String, trim: true },
+        empKraDate: { type: Date },
+        empReviewYear: { type: String, trim: true },
+        datePilot: { type: Date },
+        facilitatorPilot: { type: String, trim: true },
+        remarksPilot: { type: String, trim: true },
+        remarksQ1: { type: String, trim: true },
+        remarksQ2: { type: String, trim: true },
+        remarksQ3: { type: String, trim: true },
+        remarksQ4: { type: String, trim: true },
         // KRA finalization tracking
         krasReadyForReview: { type: Boolean, default: false },
         krasFinalized: { type: Boolean, default: false },
@@ -250,26 +284,31 @@ const TeamSchema = new Schema<ITeam>(
             // Pilot Period
             pilotWeight: { type: Number, min: 0, max: 100, default: 0 },
             pilotScore: { type: Number, min: 0, max: 5, default: 0 },
+            fdCommentPilot: { type: String, trim: true },
             // Review Period 1
             r1Weight: { type: Number, min: 0, max: 100, default: 0 },
             r1Score: { type: Number, min: 0, max: 5, default: 0 },
             r1ActualPerf: { type: String, trim: true },
             r1ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            fdCommentQ1: { type: String, trim: true },
             // Review Period 2
             r2Weight: { type: Number, min: 0, max: 100, default: 0 },
             r2Score: { type: Number, min: 0, max: 5, default: 0 },
             r2ActualPerf: { type: String, trim: true },
             r2ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            fdCommentQ2: { type: String, trim: true },
             // Review Period 3
             r3Weight: { type: Number, min: 0, max: 100, default: 0 },
             r3Score: { type: Number, min: 0, max: 5, default: 0 },
             r3ActualPerf: { type: String, trim: true },
             r3ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            fdCommentQ3: { type: String, trim: true },
             // Review Period 4
             r4Weight: { type: Number, min: 0, max: 100, default: 0 },
             r4Score: { type: Number, min: 0, max: 5, default: 0 },
             r4ActualPerf: { type: String, trim: true },
             r4ReviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+            fdCommentQ4: { type: String, trim: true },
             // Calculated
             averageScore: { type: Number, default: 0 },
           },

@@ -8,6 +8,7 @@ import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 import KRAEditorSelfService from '@/pages/Dashboard/Employee/KRAEditor';
 import DimensionWeightsEditor from '@/pages/Dashboard/Employee/DimensionWeightsEditor';
 import ProfileEditor from '@/pages/Dashboard/Employee/ProfileEditor';
+import Notifications from '@/pages/Dashboard/Notifications/Notifications';
 
 interface Employee {
   _id: string;
@@ -48,11 +49,21 @@ interface Proof {
   uploadedAt: string;
 }
 
-type ActiveTab = 'dashboard' | 'team' | 'performance' | 'my4DData' | 'settings';
+type ActiveTab =
+  | 'dashboard'
+  | 'team'
+  | 'performance'
+  | 'settings'
+  | 'notifications'
+  | 'my4DFunctional'
+  | 'my4DOrganizational'
+  | 'my4DSelfDevelopment'
+  | 'my4DDevelopingOthers';
 
 function ManagerDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [is4DMenuExpanded, setIs4DMenuExpanded] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [teamPerformance, setTeamPerformance] = useState<TeamPerformance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +122,13 @@ function ManagerDashboard() {
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const is4DTabActive =
+    activeTab === 'my4DFunctional' ||
+    activeTab === 'my4DOrganizational' ||
+    activeTab === 'my4DSelfDevelopment' ||
+    activeTab === 'my4DDevelopingOthers';
+  const KRAEditorSelfServiceAny = KRAEditorSelfService as any;
+  const NotificationsAny = Notifications as any;
 
   const showNotificationMessage = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
@@ -443,7 +461,8 @@ function ManagerDashboard() {
   };
 
   const handleNotificationClick = () => {
-    navigate('/dashboard/notifications');
+    setActiveTab('notifications');
+    setShowMenu(false);
   };
 
   const handleProfileClick = () => {
@@ -767,6 +786,57 @@ function ManagerDashboard() {
                 </svg>
                 <span>Dashboard</span>
               </button>
+              <div className={`${baseStyles.dropdownWrapper} ${is4DMenuExpanded ? baseStyles.dropdownOpen : ''}`}>
+                <button
+                  className={`${baseStyles.menuItem} ${baseStyles.dropdownTrigger} ${is4DTabActive ? baseStyles.menuItemActive : ''}`}
+                  onClick={() => setIs4DMenuExpanded((prev) => !prev)}
+                >
+                  <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                  </svg>
+                  <span>My 4 Dimensions</span>
+                  <span className={`${baseStyles.subMenuArrow} ${baseStyles.dropdownChevron}`}>▼</span>
+                </button>
+                <div className={baseStyles.subMenu}>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DFunctional' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DFunctional');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Functional
+                  </button>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DOrganizational' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DOrganizational');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Organizational
+                  </button>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DSelfDevelopment' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DSelfDevelopment');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Self-Development
+                  </button>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DDevelopingOthers' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DDevelopingOthers');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Developing Others
+                  </button>
+                </div>
+              </div>
 
               <button
                 className={`${baseStyles.menuItem} ${activeTab === 'team' ? baseStyles.menuItemActive : ''}`}
@@ -806,19 +876,6 @@ function ManagerDashboard() {
 
             <div className={baseStyles.sidebarFooter}>
               <div className={baseStyles.navDivider}></div>
-              <button
-                className={`${baseStyles.menuItem} ${activeTab === 'my4DData' ? baseStyles.menuItemActive : ''}`}
-                onClick={() => {
-                  setActiveTab('my4DData');
-                  setShowMenu(false);
-                }}
-              >
-                <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 11l3 3L22 4"></path>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                </svg>
-                <span>My 4D Data</span>
-              </button>
               <button
                 className={`${baseStyles.menuItem} ${activeTab === 'settings' ? baseStyles.menuItemActive : ''}`}
                 onClick={() => {
@@ -1534,9 +1591,27 @@ function ManagerDashboard() {
             </div>
           )}
 
-          {activeTab === 'my4DData' && (
+          {activeTab === 'my4DFunctional' && (
             <div className={baseStyles.tabContent}>
-              <KRAEditorSelfService userId={localStorage.getItem('userId') || ''} />
+              <KRAEditorSelfServiceAny userId={localStorage.getItem('userId') || ''} activeDimension="functional" />
+            </div>
+          )}
+
+          {activeTab === 'my4DOrganizational' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditorSelfServiceAny userId={localStorage.getItem('userId') || ''} activeDimension="organizational" />
+            </div>
+          )}
+
+          {activeTab === 'my4DSelfDevelopment' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditorSelfServiceAny userId={localStorage.getItem('userId') || ''} activeDimension="selfDevelopment" />
+            </div>
+          )}
+
+          {activeTab === 'my4DDevelopingOthers' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditorSelfServiceAny userId={localStorage.getItem('userId') || ''} activeDimension="developingOthers" />
             </div>
           )}
 
@@ -1553,6 +1628,22 @@ function ManagerDashboard() {
               <div style={{ marginTop: '2rem' }}>
                 <DimensionWeightsEditor userId={localStorage.getItem('userId') || ''} />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <div className={baseStyles.tabContent}>
+              <NotificationsAny
+                roleContext="manager"
+                embedded
+                onNavigateToResolvedRoute={(route: string) => {
+                  if (route === '/dashboard/manager') {
+                    setActiveTab('dashboard');
+                    return true;
+                  }
+                  return false;
+                }}
+              />
             </div>
           )}
         </div>

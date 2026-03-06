@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './EmployeeDashboard.module.css';
@@ -8,6 +8,7 @@ import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 import KRAEditor from './KRAEditor';
 import DimensionWeightsEditor from './DimensionWeightsEditor';
 import ProfileEditor from './ProfileEditor';
+import Notifications from '@/pages/Dashboard/Notifications/Notifications';
 
 interface PerformanceData {
   employee: {
@@ -26,12 +27,6 @@ interface PerformanceData {
   kras: any;
 }
 
-interface UserProfile {
-  name: string;
-  email: string;
-  mobile: string;
-}
-
 interface Proof {
   type: 'drive_link' | 'file_upload';
   value: string;
@@ -39,12 +34,13 @@ interface Proof {
   uploadedAt: string;
 }
 
-type ActiveTab = 'dashboard' | 'my4DData' | 'settings';
+type ActiveTab = 'dashboard' | 'settings' | 'notifications' | 'my4DFunctional' | 'my4DOrganizational' | 'my4DSelfDevelopment' | 'my4DDevelopingOthers';
 
 function EmployeeDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [is4DMenuExpanded, setIs4DMenuExpanded] = useState(false);
   const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showActionPlan, setShowActionPlan] = useState(false);
@@ -52,14 +48,6 @@ function EmployeeDashboard() {
   const [user, setUser] = useState<{ name: string; email: string; mobile?: string } | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>({
-    name: '',
-    email: '',
-    mobile: '',
-  });
-  const [profileErrors, setProfileErrors] = useState<Partial<UserProfile>>({});
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [profileSuccessMessage, setProfileSuccessMessage] = useState('');
   const [selectedKRA, setSelectedKRA] = useState<{ kra: any; index: number; type: 'self' } | null>(null);
   const [showKRADetailModal, setShowKRADetailModal] = useState(false);
   const [showProofDialog, setShowProofDialog] = useState<{ kraIndex: number; isOpen: boolean }>({
@@ -106,7 +94,6 @@ function EmployeeDashboard() {
           mobile: (data.data.mobile as string) || '',
         };
         setUser(userData);
-        setProfile(userData);
       }
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
@@ -158,77 +145,21 @@ function EmployeeDashboard() {
   };
 
   const handleNotificationClick = () => {
-    navigate('/dashboard/notifications');
+    setActiveTab('notifications');
+    setShowMenu(false);
   };
 
   const handleProfileClick = () => {
     setActiveTab('settings');
   };
 
-  const handleProfileChange = (field: keyof UserProfile, value: string) => {
-    setProfile((prev) => ({ ...prev, [field]: value }));
-    if (profileErrors[field]) {
-      setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-    setProfileSuccessMessage('');
-  };
-
-  const validateProfile = (): boolean => {
-    const newErrors: Partial<UserProfile> = {};
-
-    if (!profile.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-
-    if (!profile.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-
-    if (!profile.mobile.trim()) {
-      newErrors.mobile = 'Mobile number is required';
-    } else if (!/^[0-9]{10}$/.test(profile.mobile.replace(/\D/g, ''))) {
-      newErrors.mobile = 'Invalid mobile number (10 digits required)';
-    }
-
-    setProfileErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSaveProfile = async (e: FormEvent) => {
-    e.preventDefault();
-    setProfileSuccessMessage('');
-
-    if (!validateProfile()) {
-      return;
-    }
-
-    setIsSavingProfile(true);
-    const userId = localStorage.getItem('userId') || '';
-
-    try {
-      const response = await fetch(`/api/user/profile?userId=${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setProfileSuccessMessage('Profile saved.');
-        setUser(profile);
-        setTimeout(() => setProfileSuccessMessage(''), 3000);
-      } else {
-        setProfileErrors({ email: data.message || 'Failed to update profile' });
-      }
-    } catch (error) {
-      setProfileErrors({ email: 'Network error. Please try again.' });
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
+  const is4DTabActive =
+    activeTab === 'my4DFunctional' ||
+    activeTab === 'my4DOrganizational' ||
+    activeTab === 'my4DSelfDevelopment' ||
+    activeTab === 'my4DDevelopingOthers';
+  const KRAEditorAny = KRAEditor as any;
+  const NotificationsAny = Notifications as any;
 
   const handleLogoClick = () => {
     navigate('/dashboard/employee');
@@ -542,23 +473,61 @@ function EmployeeDashboard() {
                   </button>
                 );
               })}
+              <div className={`${baseStyles.dropdownWrapper} ${is4DMenuExpanded ? baseStyles.dropdownOpen : ''}`}>
+                <button
+                  className={`${baseStyles.menuItem} ${baseStyles.dropdownTrigger} ${is4DTabActive ? baseStyles.menuItemActive : ''}`}
+                  onClick={() => setIs4DMenuExpanded((prev) => !prev)}
+                >
+                  <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                  </svg>
+                  <span>My 4 Dimensions</span>
+                  <span className={`${baseStyles.subMenuArrow} ${baseStyles.dropdownChevron}`}>▼</span>
+                </button>
+                <div className={baseStyles.subMenu}>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DFunctional' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DFunctional');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Functional
+                  </button>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DOrganizational' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DOrganizational');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Organizational
+                  </button>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DSelfDevelopment' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DSelfDevelopment');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Self-Development
+                  </button>
+                  <button
+                    className={`${baseStyles.subMenuItem} ${activeTab === 'my4DDevelopingOthers' ? baseStyles.subMenuItemActive : ''}`}
+                    onClick={() => {
+                      setActiveTab('my4DDevelopingOthers');
+                      setShowMenu(false);
+                    }}
+                  >
+                    Developing Others
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className={baseStyles.sidebarFooter}>
               <div className={baseStyles.navDivider}></div>
-              <button
-                className={`${baseStyles.menuItem} ${activeTab === 'my4DData' ? baseStyles.menuItemActive : ''}`}
-                onClick={() => {
-                  setActiveTab('my4DData');
-                  setShowMenu(false);
-                }}
-              >
-                <svg className={baseStyles.navIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 11l3 3L22 4"></path>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                </svg>
-                <span>My 4D Data</span>
-              </button>
               <button
                 className={`${baseStyles.menuItem} ${activeTab === 'settings' ? baseStyles.menuItemActive : ''}`}
                 onClick={() => {
@@ -1010,9 +979,27 @@ function EmployeeDashboard() {
             </>
           )}
 
-          {activeTab === 'my4DData' && (
+          {activeTab === 'my4DFunctional' && (
             <div className={baseStyles.tabContent}>
-              <KRAEditor userId={localStorage.getItem('userId') || ''} />
+              <KRAEditorAny userId={localStorage.getItem('userId') || ''} activeDimension="functional" />
+            </div>
+          )}
+
+          {activeTab === 'my4DOrganizational' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditorAny userId={localStorage.getItem('userId') || ''} activeDimension="organizational" />
+            </div>
+          )}
+
+          {activeTab === 'my4DSelfDevelopment' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditorAny userId={localStorage.getItem('userId') || ''} activeDimension="selfDevelopment" />
+            </div>
+          )}
+
+          {activeTab === 'my4DDevelopingOthers' && (
+            <div className={baseStyles.tabContent}>
+              <KRAEditorAny userId={localStorage.getItem('userId') || ''} activeDimension="developingOthers" />
             </div>
           )}
 
@@ -1028,6 +1015,22 @@ function EmployeeDashboard() {
               <div style={{ marginTop: '2rem' }}>
                 <DimensionWeightsEditor userId={localStorage.getItem('userId') || ''} />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <div className={baseStyles.tabContent}>
+              <NotificationsAny
+                roleContext="employee"
+                embedded
+                onNavigateToResolvedRoute={(route: string) => {
+                  if (route === '/dashboard/employee') {
+                    setActiveTab('dashboard');
+                    return true;
+                  }
+                  return false;
+                }}
+              />
             </div>
           )}
         </div>

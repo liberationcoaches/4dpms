@@ -210,11 +210,6 @@ function TeamMemberKRAs() {
               : (kra.reportsGenerated ? [kra.reportsGenerated] : []),
           }));
           
-          console.log('Fetched member data:', {
-            functionalKRAs,
-            memberData: memberData.functionalKRAs,
-          });
-          
           setMember({
             ...memberData,
             kras: functionalKRAs,

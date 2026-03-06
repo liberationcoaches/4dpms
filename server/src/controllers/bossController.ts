@@ -4,7 +4,7 @@ import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA } from './notificationController';
 import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
-import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
+import { updateFunctionalKRAAverageScore } from '../utils/kraCalculations';
 import { calculateMemberScores, DEFAULT_DIMENSION_WEIGHTS } from '../utils/calculations';
 import { z } from 'zod';
 

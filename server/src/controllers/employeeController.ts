@@ -297,6 +297,19 @@ export async function getEmployeeKRAs(
         organizationalKRAs: memberDetails?.organizationalKRAs || [],
         selfDevelopmentKRAs: memberDetails?.selfDevelopmentKRAs || [],
         developingOthersKRAs: memberDetails?.developingOthersKRAs || [],
+        empClientName: memberDetails?.empClientName || '',
+        empDoj: memberDetails?.empDoj || null,
+        empDepartment: memberDetails?.empDepartment || '',
+        empLocation: memberDetails?.empLocation || '',
+        empKraDate: memberDetails?.empKraDate || null,
+        empReviewYear: memberDetails?.empReviewYear || '',
+        datePilot: memberDetails?.datePilot || null,
+        facilitatorPilot: memberDetails?.facilitatorPilot || '',
+        remarksPilot: memberDetails?.remarksPilot || '',
+        remarksQ1: memberDetails?.remarksQ1 || '',
+        remarksQ2: memberDetails?.remarksQ2 || '',
+        remarksQ3: memberDetails?.remarksQ3 || '',
+        remarksQ4: memberDetails?.remarksQ4 || '',
         krasFinalized: memberDetails?.krasFinalized || false,
         krasFinalizedAt: memberDetails?.krasFinalizedAt || null,
       },
@@ -317,7 +330,25 @@ export async function saveEmployeeKRAs(
 ): Promise<void> {
   try {
     const employeeId = req.query.userId as string;
-    const { functionalKRAs, organizationalKRAs, selfDevelopmentKRAs, developingOthersKRAs } = req.body;
+    const {
+      functionalKRAs,
+      organizationalKRAs,
+      selfDevelopmentKRAs,
+      developingOthersKRAs,
+      empClientName,
+      empDoj,
+      empDepartment,
+      empLocation,
+      empKraDate,
+      empReviewYear,
+      datePilot,
+      facilitatorPilot,
+      remarksPilot,
+      remarksQ1,
+      remarksQ2,
+      remarksQ3,
+      remarksQ4,
+    } = req.body;
 
     if (!employeeId) {
       res.status(400).json({ status: 'error', message: 'User ID is required' });
@@ -382,6 +413,11 @@ export async function saveEmployeeKRAs(
         r4Weight: kra.r4Weight || 0,
         pilotWeight: kra.pilotWeight || 0,
         pilotScore: kra.pilotScore || 0,
+        fdCommentPilot: kra.fdCommentPilot || '',
+        fdCommentQ1: kra.fdCommentQ1 || '',
+        fdCommentQ2: kra.fdCommentQ2 || '',
+        fdCommentQ3: kra.fdCommentQ3 || '',
+        fdCommentQ4: kra.fdCommentQ4 || '',
       }));
     }
 
@@ -407,6 +443,21 @@ export async function saveEmployeeKRAs(
         editCount: 0,
       }));
     }
+
+    // Section 1 + pilot metadata + remarks fields
+    team.membersDetails[memberIndex].empClientName = empClientName || '';
+    team.membersDetails[memberIndex].empDepartment = empDepartment || '';
+    team.membersDetails[memberIndex].empLocation = empLocation || '';
+    team.membersDetails[memberIndex].empReviewYear = empReviewYear || '';
+    team.membersDetails[memberIndex].facilitatorPilot = facilitatorPilot || '';
+    team.membersDetails[memberIndex].remarksPilot = remarksPilot || '';
+    team.membersDetails[memberIndex].remarksQ1 = remarksQ1 || '';
+    team.membersDetails[memberIndex].remarksQ2 = remarksQ2 || '';
+    team.membersDetails[memberIndex].remarksQ3 = remarksQ3 || '';
+    team.membersDetails[memberIndex].remarksQ4 = remarksQ4 || '';
+    team.membersDetails[memberIndex].empDoj = empDoj ? new Date(empDoj) : undefined;
+    team.membersDetails[memberIndex].empKraDate = empKraDate ? new Date(empKraDate) : undefined;
+    team.membersDetails[memberIndex].datePilot = datePilot ? new Date(datePilot) : undefined;
 
     // Mark as ready for review
     team.membersDetails[memberIndex].krasReadyForReview = true;
@@ -445,6 +496,19 @@ export async function saveEmployeeKRAs(
         organizationalKRAs: team.membersDetails[memberIndex].organizationalKRAs,
         selfDevelopmentKRAs: team.membersDetails[memberIndex].selfDevelopmentKRAs,
         developingOthersKRAs: team.membersDetails[memberIndex].developingOthersKRAs,
+        empClientName: team.membersDetails[memberIndex].empClientName || '',
+        empDoj: team.membersDetails[memberIndex].empDoj || null,
+        empDepartment: team.membersDetails[memberIndex].empDepartment || '',
+        empLocation: team.membersDetails[memberIndex].empLocation || '',
+        empKraDate: team.membersDetails[memberIndex].empKraDate || null,
+        empReviewYear: team.membersDetails[memberIndex].empReviewYear || '',
+        datePilot: team.membersDetails[memberIndex].datePilot || null,
+        facilitatorPilot: team.membersDetails[memberIndex].facilitatorPilot || '',
+        remarksPilot: team.membersDetails[memberIndex].remarksPilot || '',
+        remarksQ1: team.membersDetails[memberIndex].remarksQ1 || '',
+        remarksQ2: team.membersDetails[memberIndex].remarksQ2 || '',
+        remarksQ3: team.membersDetails[memberIndex].remarksQ3 || '',
+        remarksQ4: team.membersDetails[memberIndex].remarksQ4 || '',
       },
     });
   } catch (error) {
