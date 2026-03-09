@@ -438,7 +438,7 @@ function Scoring() {
           <div className={styles.quarterDatesRow}>
             {([1, 2, 3, 4] as const).map((n) => (
               <span key={n} className={n === reviewCycle.currentReviewPeriod ? styles.quarterDateCurrent : styles.quarterDate}>
-                R{n}: {reviewCycle[`r${n}Date`] ? new Date(reviewCycle[`r${n}Date`]).toLocaleDateString() : '—'}
+                R{n}: {reviewCycle[`r${n}Date`] ? new Date(reviewCycle[`r${n}Date`] ?? '').toLocaleDateString() : '—'}
                 {reviewCycle[`r${n}Facilitator`] && ` · ${reviewCycle[`r${n}Facilitator`]}`}
               </span>
             ))}

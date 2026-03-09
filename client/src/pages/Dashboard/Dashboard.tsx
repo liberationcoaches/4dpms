@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import logo from '@/assets/logo.png';
 import { getNavigationItems } from '@/utils/navigationConfig';
-import { getDashboardPath } from '@/utils/dashboardRoutes';
+import { getDashboardPath, type UserRole } from '@/utils/dashboardRoutes';
 import { fetchUserProfile } from '@/utils/userProfile';
 
 function Dashboard() {
@@ -30,7 +30,7 @@ function Dashboard() {
         setUserRole(role as typeof userRole);
         localStorage.setItem('userRole', role);
         if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
-          navigate(getDashboardPath(role));
+          navigate(getDashboardPath(role as UserRole));
         }
       }
     }).catch(console.error);

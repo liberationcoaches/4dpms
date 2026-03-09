@@ -27,7 +27,7 @@ function Settings() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
-  const [userRole, setUserRole] = useState<'platform_admin' | 'reviewer' | 'boss' | 'manager' | 'employee'>('employee');
+  const [userRole, setUserRole] = useState<'platform_admin' | 'client_admin' | 'reviewer' | 'boss' | 'manager' | 'employee'>('employee');
   const [dimensionWeights, setDimensionWeights] = useState<DimensionWeights>({
     functional: 0,
     organizational: 0,

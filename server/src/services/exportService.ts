@@ -4,12 +4,9 @@
  */
 
 import * as XLSX from 'xlsx';
-import { createRequire } from 'module';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
-import type PdfPrinterType from 'pdfmake/src/printer.js';
-
-const require = createRequire(import.meta.url);
-const PdfPrinter = require('pdfmake/src/printer') as typeof PdfPrinterType;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PdfPrinter = require('pdfmake/src/printer') as import('pdfmake/src/printer').default;
 import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team, IDimensionWeights } from '../models/Team';

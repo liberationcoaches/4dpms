@@ -43,12 +43,8 @@ export default function Onboarding() {
     const isBoss = userRole === 'boss';
     const STEPS = isBoss ? BOSS_STEPS : [{ label: 'Introduction', number: 1 }];
 
-    // Get the correct dashboard path for the user's role
-    const getDashboardPath = () => {
-        if (userRole === 'boss') return '/dashboard/boss';
-        if (userRole === 'manager') return '/dashboard/manager';
-        return '/dashboard/employee';
-    };
+    // Get the correct dashboard path for the user's role (uses imported getDashboardPath)
+    const getRoleDashboardPath = () => getDashboardPath(userRole as UserRole);
 
     // Check onboarding status on mount
     useEffect(() => {
@@ -62,7 +58,7 @@ export default function Onboarding() {
                 const data = await res.json();
                 if (data.status === 'success') {
                     if (data.data.onboardingCompleted) {
-                        navigate(getDashboardPath(userRole as UserRole));
+                        navigate(getRoleDashboardPath());
                         return;
                     }
                     // For boss, restore their saved step; for others, always start at 0
@@ -136,10 +132,10 @@ export default function Onboarding() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
             });
-            navigate(getDashboardPath(userRole as UserRole));
+            navigate(getRoleDashboardPath());
         } catch (err) {
             console.error('Failed to complete onboarding:', err);
-            navigate(getDashboardPath(userRole as UserRole));
+            navigate(getRoleDashboardPath());
         }
     };
 

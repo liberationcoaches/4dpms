@@ -20,11 +20,10 @@ type RoleContext = 'employee' | 'manager' | 'boss' | 'client_admin' | 'platform_
 
 interface NotificationsProps {
   roleContext?: RoleContext;
-  embedded?: boolean;
   onNavigateToResolvedRoute?: (route: string) => boolean;
 }
 
-function Notifications({ roleContext = 'generic', embedded = false, onNavigateToResolvedRoute }: NotificationsProps) {
+function Notifications({ roleContext = 'generic', onNavigateToResolvedRoute }: NotificationsProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [notifications, setNotifications] = useState<Notification[]>([]);

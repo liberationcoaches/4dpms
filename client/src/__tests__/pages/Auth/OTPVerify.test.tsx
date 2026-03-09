@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import OTPVerify from '../../../pages/Auth/OTPVerify/OTPVerify';
 
 const renderOTPVerify = (initialState?: { email?: string; mobile?: string }) => {
