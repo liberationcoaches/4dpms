@@ -116,7 +116,23 @@ function SignUp({ onSubmit }: SignUpProps) {
         body: JSON.stringify(signupData),
       });
 
-      const data = await response.json();
+      interface SignupResponse {
+        data?: { userId?: string; orgCode?: string; teamCode?: string; mobileOTP?: string };
+        message?: string;
+        errors?: Array<{ field: string; message: string }>;
+        issues?: Array<{ path?: string[]; message: string }>;
+      }
+      let data: SignupResponse;
+      try {
+        const text = await response.text();
+        data = (text ? JSON.parse(text) : {}) as SignupResponse;
+      } catch {
+        throw new Error(
+          response.ok
+            ? 'Invalid response from server'
+            : `Server error (${response.status}). Please ensure the backend is running and try again.`
+        );
+      }
 
       if (response.ok) {
         // Save userId for dashboard access

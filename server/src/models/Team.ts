@@ -173,11 +173,11 @@ export interface ITeamMemberDetail {
   remarksQ2?: string;
   remarksQ3?: string;
   remarksQ4?: string;
-  // KRA finalization tracking
-  krasReadyForReview?: boolean; // Set when member saves KRAs
-  krasFinalized?: boolean; // Set when supervisor/admin finalizes
-  krasFinalizedAt?: Date;
-  krasFinalizedBy?: mongoose.Types.ObjectId;
+  // KRA status tracking
+  kraStatus?: 'draft' | 'pending_approval' | 'active' | 'locked';
+  kraStatusUpdatedAt?: Date;
+  kraStatusUpdatedBy?: mongoose.Types.ObjectId;
+  kraStatusNote?: string; // supervisor rejection reason
   // Functional Dimension KRAs (D1) - Only Dimension with KRAs
   functionalKRAs?: IFunctionalKRA[];
   // Note: Other dimensions (Organizational, Self Development, Developing Others) 
@@ -247,11 +247,15 @@ const TeamSchema = new Schema<ITeam>(
         remarksQ2: { type: String, trim: true },
         remarksQ3: { type: String, trim: true },
         remarksQ4: { type: String, trim: true },
-        // KRA finalization tracking
-        krasReadyForReview: { type: Boolean, default: false },
-        krasFinalized: { type: Boolean, default: false },
-        krasFinalizedAt: { type: Date },
-        krasFinalizedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        // KRA status tracking
+        kraStatus: {
+          type: String,
+          enum: ['draft', 'pending_approval', 'active', 'locked'],
+          default: 'draft',
+        },
+        kraStatusUpdatedAt: { type: Date },
+        kraStatusUpdatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        kraStatusNote: { type: String, trim: true },
         // Functional Dimension KRAs (D1) - Only Dimension with KRAs
         functionalKRAs: [
           {

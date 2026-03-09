@@ -5,26 +5,22 @@ import {
   getBossOrganization,
   getBossAnalytics,
   addManagerFunctionalKRA,
-  addManagerOrganizationalKRA,
-  addManagerSelfDevelopmentKRA,
   getManagerKRAs,
   getMyKRAs,
   finalizeManagerKRAs,
 } from '../controllers/bossController';
+import { checkSubscription } from '../middleware/checkSubscription';
 
 const router = Router();
 
 // Boss routes
-router.post('/managers', createManager);
-router.get('/managers', getManagers);
-router.get('/organization', getBossOrganization);
-router.get('/analytics', getBossAnalytics);
-router.post('/managers/:managerId/kras/functional', addManagerFunctionalKRA);
-router.post('/managers/:managerId/kras/organizational', addManagerOrganizationalKRA);
-router.post('/managers/:managerId/kras/self-development', addManagerSelfDevelopmentKRA);
-router.get('/managers/:managerId/kras', getManagerKRAs);
-router.put('/managers/:managerId/kras/finalize', finalizeManagerKRAs);
-router.get('/my-kras', getMyKRAs);
+router.post('/managers', checkSubscription, createManager);
+router.get('/managers', checkSubscription, getManagers);
+router.get('/organization', checkSubscription, getBossOrganization);
+router.get('/analytics', checkSubscription, getBossAnalytics);
+router.post('/managers/:managerId/kras/functional', checkSubscription, addManagerFunctionalKRA);
+router.get('/managers/:managerId/kras', checkSubscription, getManagerKRAs);
+router.put('/managers/:managerId/kras/finalize', checkSubscription, finalizeManagerKRAs);
+router.get('/my-kras', checkSubscription, getMyKRAs);
 
 export default router;
-

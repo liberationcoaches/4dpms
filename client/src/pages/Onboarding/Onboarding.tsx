@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getDashboardPath, type UserRole } from '@/utils/dashboardRoutes';
 import styles from './Onboarding.module.css';
 import logo from '@/assets/logo.png';
 import IntroVideos from './IntroVideos';
@@ -61,7 +62,7 @@ export default function Onboarding() {
                 const data = await res.json();
                 if (data.status === 'success') {
                     if (data.data.onboardingCompleted) {
-                        navigate(getDashboardPath());
+                        navigate(getDashboardPath(userRole as UserRole));
                         return;
                     }
                     // For boss, restore their saved step; for others, always start at 0
@@ -135,10 +136,10 @@ export default function Onboarding() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
             });
-            navigate(getDashboardPath());
+            navigate(getDashboardPath(userRole as UserRole));
         } catch (err) {
             console.error('Failed to complete onboarding:', err);
-            navigate(getDashboardPath());
+            navigate(getDashboardPath(userRole as UserRole));
         }
     };
 

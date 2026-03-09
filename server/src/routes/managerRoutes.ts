@@ -4,25 +4,21 @@ import {
   getEmployees,
   getTeamPerformance,
   addEmployeeFunctionalKRA,
-  addEmployeeOrganizationalKRA,
-  addEmployeeSelfDevelopmentKRA,
   getEmployeeKRAs,
   getMyKRAs,
   finalizeEmployeeKRAs,
 } from '../controllers/managerController';
+import { checkSubscription } from '../middleware/checkSubscription';
 
 const router = Router();
 
 // Manager routes
-router.post('/employees', createEmployee);
-router.get('/employees', getEmployees);
-router.get('/team-performance', getTeamPerformance);
-router.post('/employees/:employeeId/kras/functional', addEmployeeFunctionalKRA);
-router.post('/employees/:employeeId/kras/organizational', addEmployeeOrganizationalKRA);
-router.post('/employees/:employeeId/kras/self-development', addEmployeeSelfDevelopmentKRA);
-router.get('/employees/:employeeId/kras', getEmployeeKRAs);
-router.put('/employees/:employeeId/kras/finalize', finalizeEmployeeKRAs);
-router.get('/my-kras', getMyKRAs);
+router.post('/employees', checkSubscription, createEmployee);
+router.get('/employees', checkSubscription, getEmployees);
+router.get('/team-performance', checkSubscription, getTeamPerformance);
+router.post('/employees/:employeeId/kras/functional', checkSubscription, addEmployeeFunctionalKRA);
+router.get('/employees/:employeeId/kras', checkSubscription, getEmployeeKRAs);
+router.put('/employees/:employeeId/kras/finalize', checkSubscription, finalizeEmployeeKRAs);
+router.get('/my-kras', checkSubscription, getMyKRAs);
 
 export default router;
-

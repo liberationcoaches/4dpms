@@ -7,19 +7,20 @@ import {
   getDimensionWeights,
   saveDimensionWeights,
 } from '../controllers/employeeController';
+import { checkSubscription } from '../middleware/checkSubscription';
 
 const router = Router();
 
 // Employee routes
-router.get('/performance', getEmployeePerformance);
-router.post('/acknowledge', acknowledgeReview);
+router.get('/performance', checkSubscription, getEmployeePerformance);
+router.post('/acknowledge', checkSubscription, acknowledgeReview);
 
 // Self-service KRA management
-router.get('/kras', getEmployeeKRAs);
-router.put('/kras', saveEmployeeKRAs);
+router.get('/kras', checkSubscription, getEmployeeKRAs);
+router.put('/kras', checkSubscription, saveEmployeeKRAs);
 
 // Dimension weights
-router.get('/dimension-weights', getDimensionWeights);
-router.put('/dimension-weights', saveDimensionWeights);
+router.get('/dimension-weights', checkSubscription, getDimensionWeights);
+router.put('/dimension-weights', checkSubscription, saveDimensionWeights);
 
 export default router;

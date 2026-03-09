@@ -177,7 +177,7 @@ export async function createUserFromInvite(
       role: 'manager',
       hierarchyLevel: 2,
       organizationId: org._id,
-      bossId: org.bossId,
+      reportsTo: org.bossId ?? null, // Manager reports to the org boss
       teamId: null as any,
     });
     await user.save();
@@ -206,8 +206,7 @@ export async function createUserFromInvite(
       role: 'employee',
       hierarchyLevel: 3,
       organizationId: org._id,
-      bossId: org.bossId,
-      managerId: manager._id,
+      reportsTo: manager._id, // Employee reports directly to their team manager
       teamId: team._id,
     });
     await user.save();

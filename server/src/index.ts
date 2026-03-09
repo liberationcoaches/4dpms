@@ -32,9 +32,11 @@ import managerRoutes from './routes/managerRoutes';
 import reviewCycleRoutes from './routes/reviewCycleRoutes';
 import reviewerRoutes from './routes/reviewerRoutes';
 import employeeRoutes from './routes/employeeRoutes';
+import memberRoutes from './routes/memberRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 import enquiryRoutes from './routes/enquiryRoutes';
 import onboardingRoutes from './routes/onboardingRoutes';
+import orgAdminRoutes from './routes/orgAdminRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
@@ -48,9 +50,11 @@ app.use('/api/manager', managerRoutes);
 app.use('/api/review-cycles', reviewCycleRoutes);
 app.use('/api/reviewer', reviewerRoutes);
 app.use('/api/employee', employeeRoutes);
+app.use('/api/member', memberRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/enquiry', enquiryRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/org-admin', orgAdminRoutes);
 
 // Error handler
 app.use(errorHandler);

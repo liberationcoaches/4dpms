@@ -3,7 +3,7 @@ import { User } from '../models/User';
 import { Organization } from '../models/Organization';
 import { Team } from '../models/Team';
 import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificationToCSA, sendNewMemberNotificationToSupervisor } from './notificationController';
-import { IFunctionalKRA, IOrganizationalKRA, ISelfDevelopmentKRA } from '../models/Team';
+import { IFunctionalKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
 import { calculateMemberScores, DEFAULT_DIMENSION_WEIGHTS } from '../utils/calculations';
 import { z } from 'zod';
@@ -39,34 +39,6 @@ const functionalKRASchema = z.object({
   r4Weight: z.number().int().min(10).max(100).multipleOf(10).optional(),
   r4Score: z.number().min(0).max(5).optional(),
   r4ActualPerf: z.string().optional(),
-});
-
-const organizationalKRASchema = z.object({
-  coreValues: z.string().min(1),
-  pilotCriticalIncident: z.string().optional(),
-  r1Score: z.number().optional(),
-  r1CriticalIncident: z.string().optional(),
-  r2Score: z.number().optional(),
-  r2CriticalIncident: z.string().optional(),
-  r3Score: z.number().optional(),
-  r3CriticalIncident: z.string().optional(),
-  r4Score: z.number().optional(),
-  r4CriticalIncident: z.string().optional(),
-});
-
-const selfDevelopmentKRASchema = z.object({
-  areaOfConcern: z.string().min(1),
-  actionPlanInitiative: z.string().optional(),
-  pilotScore: z.number().optional(),
-  pilotReason: z.string().optional(),
-  r1Score: z.number().optional(),
-  r1Reason: z.string().optional(),
-  r2Score: z.number().optional(),
-  r2Reason: z.string().optional(),
-  r3Score: z.number().optional(),
-  r3Reason: z.string().optional(),
-  r4Score: z.number().optional(),
-  r4Reason: z.string().optional(),
 });
 
 /**
@@ -121,9 +93,6 @@ export async function createEmployee(
       return;
     }
 
-    // Get boss ID from manager
-    const bossId = manager.bossId || manager.organizationId;
-
     // Create employee user
     const employee = new User({
       name: name.trim(),
@@ -132,8 +101,7 @@ export async function createEmployee(
       role: 'employee',
       hierarchyLevel: 3,
       organizationId: manager.organizationId,
-      managerId: manager._id,
-      bossId: bossId,
+      reportsTo: manager._id, // Employee reports directly to their manager
       reviewerId: manager.reviewerId, // Inherit reviewer from organization
       isMobileVerified: false,
       isActive: false, // Users start as Pending, activated on first login
@@ -211,7 +179,7 @@ export async function createEmployee(
         mobile: employee.mobile,
         role: employee.role,
         designation: designation || 'Employee',
-        managerId: manager._id,
+        reportsTo: manager._id,
       },
     });
   } catch (error) {
@@ -248,9 +216,9 @@ export async function getEmployees(
       return;
     }
 
-    // Get all employees under this manager
+    // Get all direct reports (employees) under this manager
     const employees = await User.find({
-      managerId: manager._id,
+      reportsTo: manager._id,
       role: 'employee',
     }).select('name email mobile role createdAt');
 
@@ -302,9 +270,9 @@ export async function getTeamPerformance(
       }
     }
 
-    // Get all employees under this manager
+    // Get all direct reports (employees) under this manager
     const employees = await User.find({
-      managerId: manager._id,
+      reportsTo: manager._id,
       role: 'employee',
     }).select('name email mobile role');
 
@@ -443,9 +411,9 @@ export async function addEmployeeFunctionalKRA(
       return;
     }
 
-    // Validate employee belongs to this manager
+    // Validate employee reports to this manager
     const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee' || employee.managerId?.toString() !== manager._id.toString()) {
+    if (!employee || employee.role !== 'employee' || employee.reportsTo?.toString() !== manager._id.toString()) {
       res.status(403).json({
         status: 'error',
         message: 'Employee not found or does not belong to you',
@@ -556,187 +524,9 @@ export async function addEmployeeFunctionalKRA(
   }
 }
 
-/**
- * Add Organizational KRA to an employee (Manager only)
- */
-export async function addEmployeeOrganizationalKRA(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const managerId = req.query.userId as string;
-    const employeeId = req.params.employeeId;
 
-    if (!managerId || !employeeId) {
-      res.status(400).json({
-        status: 'error',
-        message: 'User ID and Employee ID are required',
-      });
-      return;
-    }
 
-    // Validate manager
-    const manager = await User.findById(managerId);
-    if (!manager || manager.role !== 'manager') {
-      res.status(403).json({
-        status: 'error',
-        message: 'Only Supervisors can add KRAs for Members',
-      });
-      return;
-    }
 
-    // Validate employee
-    const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee' || employee.managerId?.toString() !== manager._id.toString()) {
-      res.status(403).json({
-        status: 'error',
-        message: 'Employee not found or does not belong to you',
-      });
-      return;
-    }
-
-    const validatedKRA = organizationalKRASchema.parse(req.body);
-
-    // Get manager's team
-    let team = await Team.findById(manager.teamId);
-    if (!team) {
-      res.status(404).json({
-        status: 'error',
-        message: 'Team not found',
-      });
-      return;
-    }
-
-    // Find employee in membersDetails or create entry
-    let memberIndex = team.membersDetails.findIndex(
-      (m: any) => m.mobile === employee.mobile
-    );
-
-    if (memberIndex === -1) {
-      team.membersDetails.push({
-        name: employee.name,
-        role: 'Employee',
-        mobile: employee.mobile,
-        functionalKRAs: [],
-        organizationalKRAs: [],
-        selfDevelopmentKRAs: [],
-        developingOthersKRAs: [],
-      });
-      memberIndex = team.membersDetails.length - 1;
-    }
-
-    // Add KRA
-    if (!team.membersDetails[memberIndex].organizationalKRAs) {
-      team.membersDetails[memberIndex].organizationalKRAs = [];
-    }
-    team.membersDetails[memberIndex].organizationalKRAs!.push(validatedKRA as IOrganizationalKRA);
-
-    await team.save();
-
-    // Send notification to employee
-    await sendKRANotification(employee._id, 'organizational', manager.name);
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Organizational KRA added successfully',
-      data: validatedKRA,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-/**
- * Add Self Development KRA to an employee (Manager only)
- */
-export async function addEmployeeSelfDevelopmentKRA(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const managerId = req.query.userId as string;
-    const employeeId = req.params.employeeId;
-
-    if (!managerId || !employeeId) {
-      res.status(400).json({
-        status: 'error',
-        message: 'User ID and Employee ID are required',
-      });
-      return;
-    }
-
-    // Validate manager
-    const manager = await User.findById(managerId);
-    if (!manager || manager.role !== 'manager') {
-      res.status(403).json({
-        status: 'error',
-        message: 'Only Supervisors can add KRAs for Members',
-      });
-      return;
-    }
-
-    // Validate employee
-    const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee' || employee.managerId?.toString() !== manager._id.toString()) {
-      res.status(403).json({
-        status: 'error',
-        message: 'Employee not found or does not belong to you',
-      });
-      return;
-    }
-
-    const validatedKRA = selfDevelopmentKRASchema.parse(req.body);
-
-    // Get manager's team
-    let team = await Team.findById(manager.teamId);
-    if (!team) {
-      res.status(404).json({
-        status: 'error',
-        message: 'Team not found',
-      });
-      return;
-    }
-
-    // Find employee in membersDetails or create entry
-    let memberIndex = team.membersDetails.findIndex(
-      (m: any) => m.mobile === employee.mobile
-    );
-
-    if (memberIndex === -1) {
-      team.membersDetails.push({
-        name: employee.name,
-        role: 'Employee',
-        mobile: employee.mobile,
-        functionalKRAs: [],
-        organizationalKRAs: [],
-        selfDevelopmentKRAs: [],
-        developingOthersKRAs: [],
-      });
-      memberIndex = team.membersDetails.length - 1;
-    }
-
-    // Add KRA
-    if (!team.membersDetails[memberIndex].selfDevelopmentKRAs) {
-      team.membersDetails[memberIndex].selfDevelopmentKRAs = [];
-    }
-    team.membersDetails[memberIndex].selfDevelopmentKRAs!.push(validatedKRA as ISelfDevelopmentKRA);
-
-    await team.save();
-
-    // Send notification to employee
-    await sendKRANotification(employee._id, 'self-development', manager.name);
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Self Development KRA added successfully',
-      data: validatedKRA,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
 
 /**
  * Get employee KRAs (Manager only)
@@ -768,9 +558,9 @@ export async function getEmployeeKRAs(
       return;
     }
 
-    // Validate employee
+    // Validate employee reports to this manager
     const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee' || employee.managerId?.toString() !== manager._id.toString()) {
+    if (!employee || employee.role !== 'employee' || employee.reportsTo?.toString() !== manager._id.toString()) {
       res.status(403).json({
         status: 'error',
         message: 'Employee not found or does not belong to you',
@@ -908,7 +698,7 @@ export async function finalizeEmployeeKRAs(
     }
 
     const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee' || employee.managerId?.toString() !== manager._id.toString()) {
+    if (!employee || employee.role !== 'employee' || employee.reportsTo?.toString() !== manager._id.toString()) {
       res.status(403).json({
         status: 'error',
         message: 'Employee not found or does not belong to you',

@@ -53,7 +53,7 @@ export async function addMidCycleNote(
     }
 
     // Verify employee is under this manager
-    if (employee.managerId?.toString() !== managerId) {
+    if (employee.reportsTo?.toString() !== managerId) {
       res.status(403).json({
         status: 'error',
         message: 'Employee is not under your management',
@@ -146,36 +146,38 @@ export async function getEmployeeFeedback(
       return;
     }
 
-    // Get employee
+    // Get target user (subject of feedback)
     const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee') {
+    if (!employee) {
       res.status(404).json({
         status: 'error',
-        message: 'Employee not found',
+        message: 'User not found',
       });
       return;
     }
 
-    // Check access: employee can see their own feedback, manager can see their team's feedback
-    if (user.role === 'employee' && user._id.toString() !== employeeId) {
-      res.status(403).json({
-        status: 'error',
-        message: 'You can only view your own feedback',
-      });
-      return;
-    }
-
-    if (user.role === 'manager' && employee.managerId?.toString() !== userId) {
-      res.status(403).json({
-        status: 'error',
-        message: 'You can only view feedback for your team members',
-      });
-      return;
+    // Check access: user can see their own feedback; manager can see their team's feedback
+    const isOwnFeedback = userId === employeeId;
+    if (!isOwnFeedback) {
+      if (user.role === 'employee') {
+        res.status(403).json({
+          status: 'error',
+          message: 'You can only view your own feedback',
+        });
+        return;
+      }
+      if (user.role === 'manager' && employee.reportsTo?.toString() !== userId) {
+        res.status(403).json({
+          status: 'error',
+          message: 'You can only view feedback for your team members',
+        });
+        return;
+      }
     }
 
     // Build query based on user role
     const query: any = { employeeId: employee._id };
-    
+
     // Employees can only see non-private feedback
     if (user.role === 'employee') {
       query.isPrivate = false;
@@ -254,7 +256,7 @@ export async function addFeedback(
     }
 
     // Verify access
-    if (user.role === 'manager' && employee.managerId?.toString() !== userId) {
+    if (user.role === 'manager' && employee.reportsTo?.toString() !== userId) {
       res.status(403).json({
         status: 'error',
         message: 'Employee is not under your management',

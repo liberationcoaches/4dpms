@@ -1,0 +1,362 @@
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3B82F6",
+                        "primary-dark": "#2563EB",
+                        "surface": "#F9FAFB",
+                        "border-light": "#E5E7EB",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.375rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body { 
+                @apply font-sans bg-white text-slate-900; 
+            }
+        }
+        .material-symbols-outlined { 
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; 
+        }
+        .fill-1 { font-variation-settings: 'FILL' 1; }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="flex flex-col h-screen overflow-hidden lg:flex-row">
+<input class="hidden peer" id="nav-toggle" type="checkbox"/>
+<aside class="fixed inset-y-0 left-0 z-50 w-72 transform -translate-x-full transition-transform duration-300 peer-checked:translate-x-0 lg:translate-x-0 lg:static lg:inset-0 border-r border-border-light bg-surface">
+<div class="p-6 flex flex-col h-full">
+<div class="flex items-center justify-between mb-10 px-2 lg:block">
+<div class="flex items-center gap-3">
+<div class="bg-primary p-2 rounded-lg shadow-sm">
+<span class="material-symbols-outlined text-white text-2xl">insights</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-slate-900 text-lg font-extrabold leading-none tracking-tight">4DPMS</h1>
+<p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mt-1">Manager Hub</p>
+</div>
+</div>
+<label class="lg:hidden p-2 text-slate-500 hover:text-primary cursor-pointer" for="nav-toggle">
+<span class="material-symbols-outlined">close</span>
+</label>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white text-primary shadow-sm border border-border-light font-semibold" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm">Team Insights</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-white hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">diversity_3</span>
+<span class="text-sm font-medium">My Team</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-white hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">calendar_today</span>
+<span class="text-sm font-medium">1-on-1s</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-white hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">flag</span>
+<span class="text-sm font-medium">Team OKRs</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-white hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">psychology</span>
+<span class="text-sm font-medium">Growth Plans</span>
+</a>
+<div class="pt-4 mt-4 border-t border-border-light">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-white hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</div>
+</nav>
+<div class="mt-auto pt-6 border-t border-border-light">
+<button class="w-full bg-primary hover:bg-primary-dark text-white py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+                    Create Review
+                </button>
+<div class="mt-8 flex items-center gap-3 px-2">
+<div class="size-11 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Manager headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAO-Pr1mzzTDjn7W9c-IoHkwdw1Nq1C8a_4Zu_GZe0HXPeag54xYm5jZuY0ovhliV2bbYZ7dkd8LBJM0ZQURiodpva-GNg-6ZyB2OLFSicLwXc_MPg38ukIN36UOAmTy9C2Tu62TSNG3ze8NG-WHqvIriCU5fcDZM_2kWc0cm4pQJ9HrxlBvIiO38aQsVZswaU9R80V6KcKxPKA0qsnSH-xhESUeYf1YOzPWRTJs7B3hGdFHQaHPP2lSterWsvQbsq1RPJhUK2_Et06"/>
+</div>
+<div class="overflow-hidden">
+<p class="text-sm font-bold text-slate-900 truncate">Elena Rodriguez</p>
+<p class="text-[10px] text-slate-500 font-medium truncate uppercase tracking-wider">Engineering Manager</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<label class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden hidden peer-checked:block transition-all" for="nav-toggle"></label>
+<main class="flex-1 flex flex-col overflow-y-auto bg-white">
+<header class="flex items-center justify-between px-4 lg:px-10 py-4 bg-white border-b border-border-light sticky top-0 z-30">
+<div class="flex items-center gap-4">
+<label class="lg:hidden p-2 -ml-2 text-slate-600 hover:text-primary transition-colors cursor-pointer" for="nav-toggle">
+<span class="material-symbols-outlined">menu</span>
+</label>
+<div class="lg:hidden flex items-center gap-2">
+<div class="bg-primary p-1.5 rounded-md shadow-sm">
+<span class="material-symbols-outlined text-white text-base">insights</span>
+</div>
+<span class="text-slate-900 text-base font-extrabold tracking-tight">4DPMS</span>
+</div>
+<div class="hidden lg:block flex-1 max-w-xl">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface border-border-light border rounded-xl pl-12 pr-4 py-2.5 text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all" placeholder="Search team members, goals..." type="text"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 lg:gap-6">
+<button class="size-10 flex items-center justify-center rounded-xl hover:bg-surface text-slate-500 hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="hidden lg:block h-8 w-px bg-border-light mx-2"></div>
+<div class="hidden lg:flex items-center gap-2">
+<span class="size-2 rounded-full bg-green-500"></span>
+<span class="text-xs font-bold text-slate-600">Q3 ACTIVE</span>
+</div>
+</div>
+</header>
+<div class="p-4 lg:p-10 space-y-6 lg:space-y-10 max-w-7xl mx-auto w-full">
+<div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+<div>
+<h2 class="text-2xl lg:text-4xl font-black tracking-tight text-slate-900">Manager Insights</h2>
+<p class="text-slate-500 mt-1 lg:mt-2 font-medium text-sm lg:text-base">Team performance &amp; operational health</p>
+</div>
+<div class="flex gap-2 lg:gap-3">
+<button class="flex-1 lg:flex-none px-4 py-2.5 border border-border-light rounded-lg text-xs lg:text-sm font-bold text-slate-600 hover:bg-surface transition-colors">Team Analytics</button>
+<button class="flex-1 lg:flex-none px-4 py-2.5 bg-primary text-white rounded-lg text-xs lg:text-sm font-bold hover:bg-primary-dark shadow-sm transition-colors">Manage Reports</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+<div class="bg-white p-6 rounded-2xl border border-border-light shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 bg-blue-50 rounded-lg">
+<span class="material-symbols-outlined text-primary">groups</span>
+</div>
+</div>
+<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Direct Reports</p>
+<p class="text-3xl lg:text-4xl font-black mt-1 text-slate-900">8</p>
+<p class="text-[10px] font-medium text-slate-400 mt-3 italic tracking-tight">2 New hires this quarter</p>
+</div>
+<div class="bg-white p-6 rounded-2xl border border-border-light shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 bg-blue-50 rounded-lg">
+<span class="material-symbols-outlined text-primary">grade</span>
+</div>
+<span class="bg-green-100 text-green-700 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 uppercase">
+<span class="material-symbols-outlined text-xs">trending_up</span> 0.2
+                        </span>
+</div>
+<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Team Average Score</p>
+<div class="flex items-baseline gap-1 mt-1">
+<p class="text-3xl lg:text-4xl font-black text-slate-900">4.0</p>
+<p class="text-lg lg:text-xl font-bold text-slate-300">/5.0</p>
+</div>
+<div class="flex gap-1 mt-3">
+<span class="material-symbols-outlined text-primary fill-1 text-lg">star</span>
+<span class="material-symbols-outlined text-primary fill-1 text-lg">star</span>
+<span class="material-symbols-outlined text-primary fill-1 text-lg">star</span>
+<span class="material-symbols-outlined text-primary fill-1 text-lg">star</span>
+<span class="material-symbols-outlined text-slate-200 text-lg">star</span>
+</div>
+</div>
+<div class="bg-white p-6 rounded-2xl border border-border-light shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-2 bg-blue-50 rounded-lg">
+<span class="material-symbols-outlined text-primary">calendar_check</span>
+</div>
+<span class="bg-green-100 text-green-700 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 uppercase">On Track</span>
+</div>
+<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">1-on-1 Completion Rate</p>
+<p class="text-3xl lg:text-4xl font-black mt-1 text-slate-900">92%</p>
+<div class="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full w-[92%]"></div>
+</div>
+<p class="text-[10px] font-medium text-slate-400 mt-3">11/12 meetings completed</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+<div class="lg:col-span-2 bg-white p-6 lg:p-8 rounded-2xl border border-border-light shadow-sm">
+<div class="flex justify-between items-center mb-8">
+<div>
+<h3 class="text-xl font-black text-slate-900">OKR Progress by Individual</h3>
+<p class="text-slate-500 font-medium text-sm">Target vs Achievement</p>
+</div>
+</div>
+<div class="space-y-6">
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-600">
+<span>Marcus Lee</span>
+<span>88%</span>
+</div>
+<div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 88%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-600">
+<span>Sarah Jenkins</span>
+<span>74%</span>
+</div>
+<div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 74%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-600">
+<span>David Miller</span>
+<span>95%</span>
+</div>
+<div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 95%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-600">
+<span>Elena Sofia</span>
+<span>62%</span>
+</div>
+<div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary/60 rounded-full" style="width: 62%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-6 lg:p-8 rounded-2xl border border-border-light shadow-sm">
+<div class="mb-6">
+<h3 class="text-xl font-black text-slate-900">Upcoming 1-on-1s</h3>
+<p class="text-slate-500 font-medium text-sm">This week's schedule</p>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:border-border-light transition-all">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-100 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYIftHKbxMCCE9qBmGc1VvjoFhhc7ookkmaizrd_KWsHb6y9eQ4XxVwZN8-_cwlncWXGghx6sf3gqzx50hbYUxuRmFn3EwOt2YDBer_jj5PPOL2WbCK0HeEPPJaD8-0nunzg4A6Sq4iErpLMils4WQ29r_dBZQc8j1r8R6D0j5bJxgluS6X1BVPpxYuMszY9Ym6pQHGdDuGmL-DcUd2FOA-hd1Rd9qdItAv5jtjyxDGvFrxSxv8Hfu3Aqohkq6OogjicYR58lTwa4f"/>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-slate-900">Sarah J.</span>
+<span class="text-[10px] text-slate-500 font-medium uppercase">Today, 2:00 PM</span>
+</div>
+</div>
+<button class="px-3 py-1.5 bg-primary/5 text-primary text-xs font-black rounded-lg hover:bg-primary hover:text-white transition-all">Prepare</button>
+</div>
+<div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:border-border-light transition-all">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-100 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOcRyUT0JTA4Crb7_1uMnLwF8n5DLtby1aArMZRMP8Wg2teJ101XaQEPa89KjrHCtc3zcFZZ01uaAgD9aZNuoC0xJG1L1WlqkpzMQ8aLEH04ntszOd22vUFIdCdkaau5utAJLMYUxG4iOF_y3XWO1Hu2crj4qMBm3vx_1ewjbYd64uQTRDgqZz4QJ6GNpKiLvcdo9dbzirjma-QGAc7NBUcKx-EIHSfPq_eBypqia0a2JYYKAobKgblanpDeOcHeE8aQOrzPV6mBHt"/>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-slate-900">David M.</span>
+<span class="text-[10px] text-slate-500 font-medium uppercase">Tomorrow, 10:30 AM</span>
+</div>
+</div>
+<button class="px-3 py-1.5 bg-primary/5 text-primary text-xs font-black rounded-lg hover:bg-primary hover:text-white transition-all">Prepare</button>
+</div>
+<div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:border-border-light transition-all opacity-60">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-slate-100 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAO-Pr1mzzTDjn7W9c-IoHkwdw1Nq1C8a_4Zu_GZe0HXPeag54xYm5jZuY0ovhliV2bbYZ7dkd8LBJM0ZQURiodpva-GNg-6ZyB2OLFSicLwXc_MPg38ukIN36UOAmTy9C2Tu62TSNG3ze8NG-WHqvIriCU5fcDZM_2kWc0cm4pQJ9HrxlBvIiO38aQsVZswaU9R80V6KcKxPKA0qsnSH-xhESUeYf1YOzPWRTJs7B3hGdFHQaHPP2lSterWsvQbsq1RPJhUK2_Et06"/>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-slate-900">Marcus L.</span>
+<span class="text-[10px] text-slate-500 font-medium uppercase">Thu, 4:00 PM</span>
+</div>
+</div>
+<button class="px-3 py-1.5 bg-primary/5 text-primary text-xs font-black rounded-lg hover:bg-primary hover:text-white transition-all">Prepare</button>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+<div class="bg-white p-6 lg:p-8 rounded-2xl border border-border-light shadow-sm">
+<div class="mb-8">
+<h3 class="text-xl font-black text-slate-900">Development Radar</h3>
+<p class="text-slate-500 font-medium text-sm">Team core competency proficiency</p>
+</div>
+<div class="flex justify-center items-center py-4 relative">
+<div class="relative w-64 h-64">
+<svg class="w-full h-full transform -rotate-18" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" r="45" stroke="#E5E7EB" stroke-dasharray="2 2" stroke-width="1"></circle>
+<circle cx="50" cy="50" fill="none" r="30" stroke="#E5E7EB" stroke-dasharray="2 2" stroke-width="1"></circle>
+<circle cx="50" cy="50" fill="none" r="15" stroke="#E5E7EB" stroke-dasharray="2 2" stroke-width="1"></circle>
+<path d="M50 5 L50 95 M5 50 L95 50 M18 18 L82 82 M18 82 L82 18" stroke="#F1F5F9" stroke-width="0.5"></path>
+<polygon fill="#3B82F6" fill-opacity="0.15" points="50,20 80,40 70,75 30,70 20,45" stroke="#3B82F6" stroke-width="2"></polygon>
+</svg>
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-400 uppercase">Leadership</div>
+<div class="absolute top-1/2 -right-10 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase">Technical</div>
+<div class="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-400 uppercase">Soft Skills</div>
+<div class="absolute top-1/2 -left-10 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase">Strategic</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-6 lg:p-8 rounded-2xl border border-border-light shadow-sm flex flex-col">
+<div class="mb-6">
+<h3 class="text-xl font-black text-slate-900">Recent Feedback Activity</h3>
+<p class="text-slate-500 font-medium text-sm">Praise &amp; recognition</p>
+</div>
+<div class="flex-1 space-y-6 overflow-y-auto max-h-[300px] pr-2">
+<div class="flex gap-4 p-4 rounded-xl bg-surface/50 border border-slate-50">
+<div class="size-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">workspace_premium</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900">Sarah Jenkins <span class="text-slate-400 font-medium">received praise from</span> Alex Chen</p>
+<p class="text-xs text-slate-500 mt-1 italic">"Fantastic work leading the API migration. The documentation was impeccable!"</p>
+<p class="text-[10px] text-slate-400 font-bold uppercase mt-2">2 hours ago</p>
+</div>
+</div>
+<div class="flex gap-4 p-4 rounded-xl bg-surface/50 border border-slate-50">
+<div class="size-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">favorite</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900">David Miller <span class="text-slate-400 font-medium">earned recognition for</span> Collaboration</p>
+<p class="text-xs text-slate-500 mt-1 italic">"David stepped in to help the design team meet their deadline. Total team player."</p>
+<p class="text-[10px] text-slate-400 font-bold uppercase mt-2">Yesterday</p>
+</div>
+</div>
+<div class="flex gap-4 p-4 rounded-xl bg-surface/50 border border-slate-50">
+<div class="size-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">emoji_events</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900">Marcus Lee <span class="text-slate-400 font-medium">was celebrated for</span> Delivery</p>
+<p class="text-xs text-slate-500 mt-1 italic">"Project Delta launched on time thanks to Marcus's organizational skills."</p>
+<p class="text-[10px] text-slate-400 font-bold uppercase mt-2">3 days ago</p>
+</div>
+</div>
+</div>
+<button class="w-full mt-6 py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg border border-dashed border-primary/30 transition-all">View All Activity</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

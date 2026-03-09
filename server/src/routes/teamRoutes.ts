@@ -12,39 +12,39 @@ import {
   updateDevelopingOthers,
   lockDevelopingOthersScores,
 } from '../controllers/dimensionController';
+import { checkSubscription } from '../middleware/checkSubscription';
 
 const router = Router();
 
-router.get('/code', getTeamCode);
-router.get('/members', getTeamMembers);
-router.post('/members', addTeamMember);
-router.put('/members/:memberIndex', updateTeamMember);
-router.delete('/members/:memberIndex', deleteTeamMember);
+router.get('/code', checkSubscription, getTeamCode);
+router.get('/members', checkSubscription, getTeamMembers);
+router.post('/members', checkSubscription, addTeamMember);
+router.put('/members/:memberIndex', checkSubscription, updateTeamMember);
+router.delete('/members/:memberIndex', checkSubscription, deleteTeamMember);
 
 // Dimension Weights
-router.get('/dimension-weights', getDimensionWeights);
-router.put('/dimension-weights', updateDimensionWeights);
+router.get('/dimension-weights', checkSubscription, getDimensionWeights);
+router.put('/dimension-weights', checkSubscription, updateDimensionWeights);
 
 // Functional Dimension (KRA)
-router.post('/members/:memberIndex/kras', addKRA);
-router.put('/members/:memberIndex/kras/:kraIndex', updateKRA);
-router.delete('/members/:memberIndex/kras/:kraIndex', deleteKRA);
-router.post('/members/:memberIndex/kras/:kraIndex/lock', lockKRAScores); // Finalize/lock scores
+router.post('/members/:memberIndex/kras', checkSubscription, addKRA);
+router.put('/members/:memberIndex/kras/:kraIndex', checkSubscription, updateKRA);
+router.delete('/members/:memberIndex/kras/:kraIndex', checkSubscription, deleteKRA);
+router.post('/members/:memberIndex/kras/:kraIndex/lock', checkSubscription, lockKRAScores);
 
 // Organizational Dimension
-router.post('/members/:memberIndex/organizational', addOrganizational);
-router.put('/members/:memberIndex/organizational/:dimensionIndex', updateOrganizational);
-router.post('/members/:memberIndex/organizational/:dimensionIndex/lock', lockOrganizationalScores);
+router.post('/members/:memberIndex/organizational', checkSubscription, addOrganizational);
+router.put('/members/:memberIndex/organizational/:dimensionIndex', checkSubscription, updateOrganizational);
+router.post('/members/:memberIndex/organizational/:dimensionIndex/lock', checkSubscription, lockOrganizationalScores);
 
 // Self Development
-router.post('/members/:memberIndex/self-development', addSelfDevelopment);
-router.put('/members/:memberIndex/self-development/:developmentIndex', updateSelfDevelopment);
-router.post('/members/:memberIndex/self-development/:developmentIndex/lock', lockSelfDevelopmentScores);
+router.post('/members/:memberIndex/self-development', checkSubscription, addSelfDevelopment);
+router.put('/members/:memberIndex/self-development/:developmentIndex', checkSubscription, updateSelfDevelopment);
+router.post('/members/:memberIndex/self-development/:developmentIndex/lock', checkSubscription, lockSelfDevelopmentScores);
 
 // Developing Others
-router.post('/members/:memberIndex/developing-others', addDevelopingOthers);
-router.put('/members/:memberIndex/developing-others/:developingIndex', updateDevelopingOthers);
-router.post('/members/:memberIndex/developing-others/:developingIndex/lock', lockDevelopingOthersScores);
+router.post('/members/:memberIndex/developing-others', checkSubscription, addDevelopingOthers);
+router.put('/members/:memberIndex/developing-others/:developingIndex', checkSubscription, updateDevelopingOthers);
+router.post('/members/:memberIndex/developing-others/:developingIndex/lock', checkSubscription, lockDevelopingOthersScores);
 
 export default router;
-

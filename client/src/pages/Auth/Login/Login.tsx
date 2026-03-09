@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getDashboardPath } from '@/utils/dashboardRoutes';
 import styles from './Login.module.css';
 import logo from '@/assets/logo.png';
 
@@ -90,13 +91,7 @@ function Login() {
           }
 
           // Route to role-specific dashboard
-          if (role === 'boss') {
-            navigate('/dashboard/boss');
-          } else if (role === 'manager') {
-            navigate('/dashboard/manager');
-          } else {
-            navigate('/dashboard/employee');
-          }
+          navigate(getDashboardPath(role));
         } else {
           navigate('/dashboard');
         }

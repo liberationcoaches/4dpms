@@ -63,6 +63,7 @@ export async function setAccessCode(
       message: 'Access code set successfully',
       data: {
         userId: user._id.toString(),
+        role: user.role,
       },
     });
   } catch (error) {

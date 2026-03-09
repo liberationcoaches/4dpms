@@ -659,7 +659,7 @@ export async function updateOrganizationDimensionWeights(
     // Update all teams in this organization to use the same weights
     const { Team } = await import('../models/Team');
     const orgUsers = await User.find({ organizationId: organization._id }).distinct('_id');
-    const teams = await Team.find({ 
+    const teams = await Team.find({
       $or: [
         { members: { $in: orgUsers } },
         { createdBy: { $in: orgUsers } }
@@ -781,3 +781,51 @@ export async function deleteOrganization(
     next(error);
   }
 }
+
+/**
+ * Get the organization that belongs to the calling user
+ * GET /api/organizations/me?userId=
+ * Used by Org Admin dashboard (Settings page, sidebar, Review Cycles, etc.)
+ */
+export async function getMyOrganization(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'userId is required' });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ status: 'error', message: 'User not found' });
+      return;
+    }
+
+    if (!user.organizationId) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User is not associated with any organization',
+      });
+      return;
+    }
+
+    const organization = await Organization.findById(user.organizationId);
+    if (!organization) {
+      res.status(404).json({ status: 'error', message: 'Organization not found' });
+      return;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: organization,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

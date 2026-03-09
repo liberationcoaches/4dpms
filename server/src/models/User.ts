@@ -12,12 +12,11 @@ export interface IUser extends Document {
   accessCode?: string;
   useFingerprint?: boolean;
   teamId?: mongoose.Types.ObjectId;
-  role: 'platform_admin' | 'client_admin' | 'reviewer' | 'boss' | 'manager' | 'employee';
-  hierarchyLevel?: number; // 0=Platform Admin, 0.5=Client Admin, 1=Boss, 2=Manager, 3=Employee
+  role: 'platform_admin' | 'client_admin' | 'org_admin' | 'reviewer' | 'boss' | 'manager' | 'employee';
+  hierarchyLevel?: number; // 0=Platform Admin, 0.5=Client Admin/Org Admin, 1=Boss, 2=Manager, 3=Employee
   organizationId?: mongoose.Types.ObjectId; // Link to organization
   reviewerId?: mongoose.Types.ObjectId; // For employees being reviewed
-  managerId?: mongoose.Types.ObjectId; // Direct manager
-  bossId?: mongoose.Types.ObjectId; // Organization boss
+  reportsTo?: mongoose.Types.ObjectId; // Direct supervisor (replaces managerId + bossId)
   createdBy?: mongoose.Types.ObjectId; // User who created this user (for hierarchy visibility)
   designation?: string; // Job title/designation
   grossSalary?: number; // Annual/Monthly gross salary used for hike calculations
@@ -104,7 +103,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['platform_admin', 'client_admin', 'reviewer', 'boss', 'manager', 'employee'],
+      enum: ['platform_admin', 'client_admin', 'org_admin', 'reviewer', 'boss', 'manager', 'employee'],
       default: 'employee',
     },
     hierarchyLevel: {
@@ -123,15 +122,10 @@ const UserSchema = new Schema<IUser>(
       ref: 'User',
       required: false,
     },
-    managerId: {
+    reportsTo: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: false,
-    },
-    bossId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: false,
+      default: null,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -192,10 +186,8 @@ UserSchema.index({ mobile: 1 });
 UserSchema.index({ createdAt: -1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ organizationId: 1 });
-UserSchema.index({ managerId: 1 });
-UserSchema.index({ bossId: 1 });
+UserSchema.index({ reportsTo: 1 });
 UserSchema.index({ reviewerId: 1 });
 UserSchema.index({ createdBy: 1 });
 
 export const User = mongoose.model<IUser>('User', UserSchema);
-

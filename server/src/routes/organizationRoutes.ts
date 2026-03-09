@@ -12,6 +12,7 @@ import {
   getOrganizationDimensionWeights,
   updateOrganizationDimensionWeights,
   resolveOrgCode,
+  getMyOrganization,
 } from '../controllers/organizationController';
 
 const router = Router();
@@ -22,6 +23,7 @@ router.get('/', getAllOrganizations);
 router.get('/analytics', getAdminAnalytics);
 // Specific routes must come before parameterized routes
 router.get('/resolve', resolveOrgCode);
+router.get('/me', getMyOrganization);
 router.post('/client-admins', createClientAdmin);
 router.get('/client-admins', getClientAdmins);
 // Dimension weights routes (must come before /:id)

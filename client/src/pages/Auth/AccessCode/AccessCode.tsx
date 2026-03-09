@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getDashboardPath, type UserRole } from '@/utils/dashboardRoutes';
 import styles from './AccessCode.module.css';
 import logo from '@/assets/logo.png';
 
@@ -52,9 +53,13 @@ function AccessCode() {
       });
       const data = await response.json();
       if (response.ok) {
-        // Get user role for redirection
-        const userRole = localStorage.getItem('userRole');
-        const userId = localStorage.getItem('userId');
+        // Save fresh values from response, fall back to localStorage
+        const userRole = data.data?.role || localStorage.getItem('userRole');
+        const userId = data.data?.userId || localStorage.getItem('userId');
+        
+        // Always overwrite localStorage with latest values
+        if (userId) localStorage.setItem('userId', userId);
+        if (userRole) localStorage.setItem('userRole', userRole);
 
         // Admin/reviewer/CSA go to their specific dashboards
         if (userRole === 'platform_admin') {
@@ -85,13 +90,7 @@ function AccessCode() {
         }
 
         // Route to role-specific dashboard
-        if (userRole === 'boss') {
-          navigate('/dashboard/boss');
-        } else if (userRole === 'manager') {
-          navigate('/dashboard/manager');
-        } else {
-          navigate('/dashboard/employee');
-        }
+        navigate(getDashboardPath((userRole || 'employee') as UserRole));
       } else {
         setErrors({ accessCode: data.message || 'Failed to set access code' });
       }

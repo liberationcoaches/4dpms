@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "seed": "tsx src/scripts/seed.ts",
+    "seed:demo": "tsx src/scripts/seedDemo.ts",
     "seed:examples": "tsx src/scripts/seedExamples.ts",
     "seed:workflow": "tsx src/scripts/seedFullWorkflow.ts",
     "lint": "eslint . --ext .ts --report-unused-disable-directives --max-warnings 0"
@@ -22,6 +23,7 @@
     "joi": "^17.11.0",
     "mongodb": "^1.0.0",
     "mongoose": "^8.0.3",
+    "nodemailer": "^8.0.1",
     "pdfmake": "^0.2.23",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4"

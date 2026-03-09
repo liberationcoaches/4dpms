@@ -120,7 +120,7 @@ export async function createUser(data: SignUpInput): Promise<{ user: IUser; orgC
       role: 'manager',
       hierarchyLevel: 2,
       organizationId: org._id,
-      bossId: org.bossId,
+      reportsTo: org.bossId ?? null, // Manager self-registers → reports to org boss
       teamId: null as any, // Will be set after team creation
     });
 
@@ -166,8 +166,7 @@ export async function createUser(data: SignUpInput): Promise<{ user: IUser; orgC
       role: 'employee',
       hierarchyLevel: 3,
       organizationId: org._id,
-      bossId: org.bossId,
-      managerId: manager._id,
+      reportsTo: manager._id, // Employee self-registers → reports to team manager
       teamId: team._id,
     });
 
@@ -260,7 +259,7 @@ export async function verifySingleOTP(
   if (markAsUsed) {
     otpRecord.isUsed = true;
     await otpRecord.save();
-    
+
     // Update user verification status only when marking as used
     if (type === 'mobile') {
       const user = await User.findOne({ mobile: normalizedIdentifier });
@@ -270,7 +269,7 @@ export async function verifySingleOTP(
       }
     }
   }
-  
+
   return true;
 }
 
