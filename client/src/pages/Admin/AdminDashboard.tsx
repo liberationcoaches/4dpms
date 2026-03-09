@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './AdminDashboard.module.css';
 import logo from '@/assets/logo.png';
@@ -146,7 +147,7 @@ function AdminDashboard() {
   const fetchNotificationCount = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications/count?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/notifications/count?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setNotificationCount(data.data?.count || 0);
@@ -216,7 +217,7 @@ function AdminDashboard() {
     const userId = localStorage.getItem('userId') || '';
 
     try {
-      const response = await fetch(`/api/user/profile?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/user/profile?userId=${userId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profile),
@@ -249,7 +250,7 @@ function AdminDashboard() {
 
   const fetchOrganizations = async () => {
     try {
-      const res = await fetch('/api/organizations');
+      const res = await fetch(apiUrl('/api/organizations'));
       const data = await res.json();
       if (data.status === 'success') {
         setOrganizations(data.data);
@@ -263,7 +264,7 @@ function AdminDashboard() {
 
   const fetchReviewers = async () => {
     try {
-      const res = await fetch('/api/user/list?role=reviewer');
+      const res = await fetch(apiUrl('/api/user/list?role=reviewer'));
       const data = await res.json();
       if (data.status === 'success') {
         if (data.data.reviewers) {
@@ -277,7 +278,7 @@ function AdminDashboard() {
 
   const fetchClientAdmins = async () => {
     try {
-      const res = await fetch('/api/organizations/client-admins');
+      const res = await fetch(apiUrl('/api/organizations/client-admins'));
       const data = await res.json();
       if (data.status === 'success') {
         setClientAdmins(data.data || []);
@@ -290,7 +291,7 @@ function AdminDashboard() {
   const handleCreateReviewer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/auth/signup', {
+      const res = await fetch(apiUrl('/api/auth/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -320,7 +321,7 @@ function AdminDashboard() {
   const handleCreateClientAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/organizations/client-admins', {
+      const res = await fetch(apiUrl('/api/organizations/client-admins'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -347,7 +348,7 @@ function AdminDashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch('/api/organizations/analytics');
+      const res = await fetch(apiUrl('/api/organizations/analytics'));
       const data = await res.json();
       if (data.status === 'success') {
         setAnalytics(data.data);
@@ -360,7 +361,7 @@ function AdminDashboard() {
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/organizations', {
+      const res = await fetch(apiUrl('/api/organizations'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newOrg),
@@ -390,7 +391,7 @@ function AdminDashboard() {
   const fetchUsersByRole = async (role: string) => {
     setIsLoadingUsers(true);
     try {
-      const res = await fetch(`/api/user/list?role=${role}`);
+      const res = await fetch(apiUrl(`/api/user/list?role=${role}`));
       const data = await res.json();
       if (data.status === 'success') {
         let users: User[] = [];
@@ -448,7 +449,7 @@ function AdminDashboard() {
     if (!editingOrg) return;
 
     try {
-      const res = await fetch(`/api/organizations/${editingOrg._id}`, {
+      const res = await fetch(apiUrl(`/api/organizations/${editingOrg._id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -487,7 +488,7 @@ function AdminDashboard() {
     if (!deletingOrg) return;
 
     try {
-      const res = await fetch(`/api/organizations/${deletingOrg._id}`, {
+      const res = await fetch(apiUrl(`/api/organizations/${deletingOrg._id}`), {
         method: 'DELETE',
       });
       const data = await res.json();

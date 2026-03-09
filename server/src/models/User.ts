@@ -17,6 +17,8 @@ export interface IUser extends Document {
   organizationId?: mongoose.Types.ObjectId; // Link to organization
   reviewerId?: mongoose.Types.ObjectId; // For employees being reviewed
   reportsTo?: mongoose.Types.ObjectId; // Direct supervisor (replaces managerId + bossId)
+  bossId?: mongoose.Types.ObjectId; // Legacy: boss for this user (prefer reportsTo)
+  managerId?: mongoose.Types.ObjectId; // Legacy: manager for this user (prefer reportsTo)
   createdBy?: mongoose.Types.ObjectId; // User who created this user (for hierarchy visibility)
   designation?: string; // Job title/designation
   grossSalary?: number; // Annual/Monthly gross salary used for hike calculations
@@ -126,6 +128,16 @@ const UserSchema = new Schema<IUser>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       default: null,
+    },
+    bossId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    managerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

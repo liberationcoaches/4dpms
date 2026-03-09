@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './OrgAdminDashboard.module.css';
 import logo from '@/assets/logo.png';
 
@@ -266,8 +267,8 @@ export default function OrgAdminDashboard() {
         const fetchBase = async () => {
             try {
                 const [profRes, orgRes] = await Promise.all([
-                    fetch(`/api/user/profile?userId=${userId}`),
-                    fetch(`/api/organizations/me?userId=${userId}`),
+                    fetch(apiUrl(`/api/user/profile?userId=${userId}`)),
+                    fetch(apiUrl(`/api/organizations/me?userId=${userId}`)),
                 ]);
                 if (!await checkPaywall(profRes)) {
                     const pd = await profRes.json();
@@ -415,8 +416,8 @@ function DashboardPage({
         const load = async () => {
             try {
                 const [sRes, aRes] = await Promise.all([
-                    fetch(`/api/org-admin/stats?userId=${userId}`),
-                    fetch(`/api/org-admin/activity?userId=${userId}`),
+                    fetch(apiUrl(`/api/org-admin/stats?userId=${userId}`)),
+                    fetch(apiUrl(`/api/org-admin/activity?userId=${userId}`)),
                 ]);
                 if (await checkPaywall(sRes)) return;
                 const sd = await sRes.json();
@@ -533,7 +534,7 @@ function PeoplePage({
 
     const fetchMembers = useCallback(async () => {
         try {
-            const res = await fetch(`/api/org-admin/members?userId=${userId}`);
+            const res = await fetch(apiUrl(`/api/org-admin/members?userId=${userId}`));
             if (await checkPaywall(res)) return;
             const data = await res.json();
             if (data.status === 'success') setMembers(data.data ?? []);
@@ -577,7 +578,7 @@ function PeoplePage({
                 ? `/api/org-admin/members/${editMember._id}?userId=${userId}`
                 : `/api/org-admin/members?userId=${userId}`;
             const method = editMember ? 'PUT' : 'POST';
-            const res = await fetch(url, {
+            const res = await fetch(apiUrl(url), {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
@@ -604,7 +605,7 @@ function PeoplePage({
             body: `Remove ${m.name} from the organization?`,
             onConfirm: async () => {
                 try {
-                    const res = await fetch(`/api/org-admin/members/${m._id}?userId=${userId}`, { method: 'DELETE' });
+                    const res = await fetch(apiUrl(`/api/org-admin/members/${m._id}?userId=${userId}`), { method: 'DELETE' });
                     if (await checkPaywall(res)) return;
                     showToast('Member removed');
                     fetchMembers();
@@ -786,7 +787,7 @@ function OrgTreePage({
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`/api/org-admin/tree?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/org-admin/tree?userId=${userId}`));
                 if (await checkPaywall(res)) return;
                 const data = await res.json();
                 if (data.status === 'success') setTree(data.data);
@@ -863,7 +864,7 @@ function CoreValuesPage({
 
     const fetchValues = useCallback(async () => {
         try {
-            const res = await fetch(`/api/org-admin/core-values?userId=${userId}`);
+            const res = await fetch(apiUrl(`/api/org-admin/core-values?userId=${userId}`));
             if (await checkPaywall(res)) return;
             const data = await res.json();
             if (data.status === 'success') setValues(data.data ?? []);
@@ -896,7 +897,7 @@ function CoreValuesPage({
                 ? `/api/org-admin/core-values/${editing._id}?userId=${userId}`
                 : `/api/org-admin/core-values?userId=${userId}`;
             const method = editing ? 'PUT' : 'POST';
-            const res = await fetch(url, {
+            const res = await fetch(apiUrl(url), {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
@@ -923,7 +924,7 @@ function CoreValuesPage({
             body: `Delete "${v.title}"?`,
             onConfirm: async () => {
                 try {
-                    const res = await fetch(`/api/org-admin/core-values/${v._id}?userId=${userId}`, { method: 'DELETE' });
+                    const res = await fetch(apiUrl(`/api/org-admin/core-values/${v._id}?userId=${userId}`), { method: 'DELETE' });
                     if (await checkPaywall(res)) return;
                     showToast('Core value deleted');
                     fetchValues();
@@ -1015,12 +1016,12 @@ function ReviewCyclesPage({
     useEffect(() => {
         const load = async () => {
             try {
-                const orgRes = await fetch(`/api/organizations/me?userId=${userId}`);
+                const orgRes = await fetch(apiUrl(`/api/organizations/me?userId=${userId}`));
                 if (await checkPaywall(orgRes)) return;
                 const od = await orgRes.json();
                 const oid = od.data?._id ?? '';
                 if (oid) {
-                    const res = await fetch(`/api/review-cycles/organization/${oid}?userId=${userId}`);
+                    const res = await fetch(apiUrl(`/api/review-cycles/organization/${oid}?userId=${userId}`));
                     if (await checkPaywall(res)) return;
                     const data = await res.json();
                     if (data.status === 'success') setCycles(data.data ?? []);
@@ -1045,7 +1046,7 @@ function ReviewCyclesPage({
     const saveEdit = async (c: ReviewCycle) => {
         setSavingId(c._id);
         try {
-            const res = await fetch(`/api/review-cycles/${c._id}?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/review-cycles/${c._id}?userId=${userId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editDates),
@@ -1155,8 +1156,8 @@ function SettingsPage({
         const load = async () => {
             try {
                 const [pRes, oRes] = await Promise.all([
-                    fetch(`/api/user/profile?userId=${userId}`),
-                    fetch(`/api/organizations/me?userId=${userId}`),
+                    fetch(apiUrl(`/api/user/profile?userId=${userId}`)),
+                    fetch(apiUrl(`/api/organizations/me?userId=${userId}`)),
                 ]);
                 if (!await checkPaywall(pRes)) {
                     const pd = await pRes.json();
@@ -1185,7 +1186,7 @@ function SettingsPage({
         if (!org?._id) return;
         setSavingOrg(true);
         try {
-            const res = await fetch(`/api/organizations/${org._id}?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/organizations/${org._id}?userId=${userId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...orgForm, size: Number(orgForm.size) || undefined }),
@@ -1208,7 +1209,7 @@ function SettingsPage({
     const saveProfile = async () => {
         setSavingProf(true);
         try {
-            const res = await fetch(`/api/user/profile?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/user/profile?userId=${userId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(profForm),

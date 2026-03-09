@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ReviewerDashboard.module.css';
 import logo from '@/assets/logo.png';
@@ -82,7 +83,7 @@ function ReviewerDashboard() {
   const fetchNotificationCount = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications/count?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/notifications/count?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setNotificationCount(data.data?.count || 0);
@@ -152,7 +153,7 @@ function ReviewerDashboard() {
     const userId = localStorage.getItem('userId') || '';
 
     try {
-      const response = await fetch(`/api/user/profile?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/user/profile?userId=${userId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profile),
@@ -186,7 +187,7 @@ function ReviewerDashboard() {
   const fetchOrganizations = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/reviewer/organizations?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/reviewer/organizations?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setOrganizations(data.data);
@@ -203,7 +204,7 @@ function ReviewerDashboard() {
     setSelectedOrg(org);
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/reviewer/organizations/${org._id}/employees?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/reviewer/organizations/${org._id}/employees?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setEmployees(data.data);

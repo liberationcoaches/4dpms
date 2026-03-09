@@ -178,6 +178,10 @@ export interface ITeamMemberDetail {
   kraStatusUpdatedAt?: Date;
   kraStatusUpdatedBy?: mongoose.Types.ObjectId;
   kraStatusNote?: string; // supervisor rejection reason
+  krasFinalized?: boolean;
+  krasReadyForReview?: boolean;
+  krasFinalizedAt?: Date;
+  krasFinalizedBy?: mongoose.Types.ObjectId;
   // Functional Dimension KRAs (D1) - Only Dimension with KRAs
   functionalKRAs?: IFunctionalKRA[];
   // Note: Other dimensions (Organizational, Self Development, Developing Others) 

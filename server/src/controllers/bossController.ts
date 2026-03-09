@@ -6,7 +6,6 @@ import { sendInvitationNotification, sendKRANotification, sendNewMemberNotificat
 import { IFunctionalKRA } from '../models/Team';
 import { updateFunctionalKRAAverageScore } from '../utils/kraCalculations';
 import { calculateMemberScores, DEFAULT_DIMENSION_WEIGHTS } from '../utils/calculations';
-import { getUserSubtree } from '../utils/subtreeQuery';
 import { z } from 'zod';
 
 // KPI Schema

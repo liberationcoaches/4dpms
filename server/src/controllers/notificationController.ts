@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Notification } from '../models/Notification';
 import { User } from '../models/User';
-import { ReviewCycle } from '../models/ReviewCycle';
 import { Organization } from '../models/Organization';
 import mongoose from 'mongoose';
 

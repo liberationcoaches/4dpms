@@ -286,7 +286,7 @@ export async function submitScores(
 ): Promise<void> {
   try {
     const { employeeId } = req.params;
-    const { reviewPeriod, scores, comments } = req.body;
+    const { reviewPeriod, scores } = req.body;
     const reviewerId = req.query.userId as string;
 
     if (!reviewerId) {
@@ -416,13 +416,14 @@ export async function submitScores(
 
     // Update functional KRAs (D1 - Only Dimension with KRAs)
     if (scores.functionalKRAs && Array.isArray(scores.functionalKRAs)) {
+      const funcKRAs = member.functionalKRAs ?? [];
       scores.functionalKRAs.forEach((kraScore: any, index: number) => {
-        if (!member.functionalKRAs[index]) {
+        if (!funcKRAs[index]) {
           // Create new KRA if doesn't exist
           if (!kraScore.kra || !kraScore.kra.trim()) {
             return; // Skip creating KRA without required field
           }
-          member.functionalKRAs.push({
+          funcKRAs.push({
             kra: kraScore.kra.trim(),
             kpis: (kraScore.kpis && Array.isArray(kraScore.kpis)) 
               ? kraScore.kpis.map((kpi: any) => ({
@@ -435,7 +436,7 @@ export async function submitScores(
             pilotScore: 0,
           });
         }
-        const kra = member.functionalKRAs[index];
+        const kra = funcKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
 
         // Update KPIs if provided
@@ -501,23 +502,25 @@ export async function submitScores(
           ? scores.reduce((sum, s) => sum + s, 0) / scores.length
           : 0;
       });
+      member.functionalKRAs = funcKRAs;
     }
 
     // Update organizational KRAs
     if (scores.organizationalKRAs && Array.isArray(scores.organizationalKRAs)) {
+      const orgKRAs = member.organizationalKRAs ?? [];
       scores.organizationalKRAs.forEach((kraScore: any, index: number) => {
-        if (!member.organizationalKRAs[index]) {
+        if (!orgKRAs[index]) {
           // Only create new KRA if coreValues field is provided and not empty
           const coreValue = kraScore.coreValues || kraScore.coreValue;
           if (!coreValue || !coreValue.trim()) {
             // Skip creating KRA without required field
             return;
           }
-          member.organizationalKRAs.push({
+          orgKRAs.push({
             coreValues: coreValue.trim(),
           });
         }
-        const kra = member.organizationalKRAs[index];
+        const kra = orgKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
         
         // Use reviewPeriod (1-4) to set the correct period fields
@@ -535,23 +538,25 @@ export async function submitScores(
           kra.r4CriticalIncident = kraScore.criticalIncident || '';
         }
       });
+      member.organizationalKRAs = orgKRAs;
     }
 
     // Update self development KRAs
     if (scores.selfDevelopmentKRAs && Array.isArray(scores.selfDevelopmentKRAs)) {
+      const selfDevKRAs = member.selfDevelopmentKRAs ?? [];
       scores.selfDevelopmentKRAs.forEach((kraScore: any, index: number) => {
-        if (!member.selfDevelopmentKRAs[index]) {
+        if (!selfDevKRAs[index]) {
           // Only create new KRA if areaOfConcern field is provided and not empty
           if (!kraScore.areaOfConcern || !kraScore.areaOfConcern.trim()) {
             // Skip creating KRA without required field
             return;
           }
-          member.selfDevelopmentKRAs.push({
+          selfDevKRAs.push({
             areaOfConcern: kraScore.areaOfConcern.trim(),
             actionPlanInitiative: kraScore.actionPlanInitiative || '',
           });
         }
-        const kra = member.selfDevelopmentKRAs[index];
+        const kra = selfDevKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
         
         // Use reviewPeriod (1-4) to set the correct period fields
@@ -569,23 +574,25 @@ export async function submitScores(
           kra.r4Reason = kraScore.reason || '';
         }
       });
+      member.selfDevelopmentKRAs = selfDevKRAs;
     }
 
     // Update developing others KRAs
     if (scores.developingOthersKRAs && Array.isArray(scores.developingOthersKRAs)) {
+      const devOthersKRAs = member.developingOthersKRAs ?? [];
       scores.developingOthersKRAs.forEach((kraScore: any, index: number) => {
-        if (!member.developingOthersKRAs[index]) {
+        if (!devOthersKRAs[index]) {
           // Only create new KRA if person field is provided and not empty
           if (!kraScore.person || !kraScore.person.trim()) {
             // Skip creating KRA without required field
             return;
           }
-          member.developingOthersKRAs.push({
+          devOthersKRAs.push({
             person: kraScore.person.trim(),
             areaOfDevelopment: kraScore.areaOfDevelopment || '',
           });
         }
-        const kra = member.developingOthersKRAs[index];
+        const kra = devOthersKRAs[index];
         if (!kra) return; // Skip if KRA doesn't exist
         
         // Use reviewPeriod (1-4) to set the correct period fields
@@ -603,6 +610,7 @@ export async function submitScores(
           kra.r4Reason = kraScore.reason || '';
         }
       });
+      member.developingOthersKRAs = devOthersKRAs;
     }
 
     await team.save();

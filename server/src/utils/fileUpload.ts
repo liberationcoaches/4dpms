@@ -2,6 +2,16 @@ import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
 
+/** File shape from multer (memory storage) - avoids Express.Multer namespace issues */
+interface UploadedFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer?: Buffer;
+}
+
 // For now, using a simple file system
 // In production, you might want to use AWS S3, Google Cloud Storage, etc.
 
@@ -23,7 +33,7 @@ export async function ensureUploadDir(): Promise<void> {
 /**
  * Validate file before upload
  */
-export function validateFile(file: Express.Multer.File): { valid: boolean; error?: string } {
+export function validateFile(file: UploadedFile): { valid: boolean; error?: string } {
   if (!file) {
     return { valid: false, error: 'No file provided' };
   }
@@ -45,7 +55,7 @@ export function validateFile(file: Express.Multer.File): { valid: boolean; error
 /**
  * Save uploaded file and return public URL
  */
-export async function saveUploadedFile(file: Express.Multer.File): Promise<string> {
+export async function saveUploadedFile(file: UploadedFile): Promise<string> {
   await ensureUploadDir();
   
   const fileExt = path.extname(file.originalname);
@@ -55,6 +65,9 @@ export async function saveUploadedFile(file: Express.Multer.File): Promise<strin
   const fileName = `${timestamp}_${uniqueId}${fileExt}`;
   const filePath = path.join(UPLOAD_DIR, fileName);
 
+  if (!file.buffer) {
+    throw new Error('File buffer is required for upload');
+  }
   await fs.writeFile(filePath, file.buffer);
 
   // Return relative URL path (client will construct full URL)

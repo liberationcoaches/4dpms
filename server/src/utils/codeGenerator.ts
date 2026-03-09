@@ -5,7 +5,7 @@ import { Team } from '../models/Team';
  * Generate a unique organization code (6-8 characters)
  */
 export async function generateOrgCode(): Promise<string> {
-  let code: string;
+  let code = '';
   let isUnique = false;
   let attempts = 0;
   const maxAttempts = 10;
@@ -33,7 +33,7 @@ export async function generateOrgCode(): Promise<string> {
  * Generate a unique team code (4-8 characters)
  */
 export async function generateTeamCode(): Promise<string> {
-  let code: string;
+  let code = '';
   let isUnique = false;
   let attempts = 0;
   const maxAttempts = 10;

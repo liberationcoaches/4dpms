@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './MemberDashboard.module.css';
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -217,9 +218,9 @@ export default function MemberDashboard() {
         const init = async () => {
             try {
                 const [profileRes, countRes, drRes] = await Promise.all([
-                    fetch(`/api/user/profile?userId=${userId}`),
-                    fetch(`/api/notifications/count?userId=${userId}`),
-                    fetch(`/api/member/direct-reports?userId=${userId}`),
+                    fetch(apiUrl(`/api/user/profile?userId=${userId}`)),
+                    fetch(apiUrl(`/api/notifications/count?userId=${userId}`)),
+                    fetch(apiUrl(`/api/member/direct-reports?userId=${userId}`)),
                 ]);
 
                 await checkPaywall(profileRes);
@@ -430,8 +431,8 @@ function DashboardPage({
         const load = async () => {
             try {
                 const [dashRes, fbRes] = await Promise.all([
-                    fetch(`/api/member/dashboard?userId=${userId}`),
-                    fetch(`/api/feedback/employee/${userId}?userId=${userId}`),
+                    fetch(apiUrl(`/api/member/dashboard?userId=${userId}`)),
+                    fetch(apiUrl(`/api/feedback/employee/${userId}?userId=${userId}`)),
                 ]);
                 await checkPaywall(dashRes);
 
@@ -657,7 +658,7 @@ function DimensionsPage({
     const reload = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/member/kras?userId=${userId}`);
+            const res = await fetch(apiUrl(`/api/member/kras?userId=${userId}`));
             await checkPaywall(res);
             const d = await res.json().catch(() => ({}));
             if (d.status === 'success') setKraData(normalizeKraData(d.data as KraDataRaw));
@@ -674,7 +675,7 @@ function DimensionsPage({
     const handleSubmitForApproval = async () => {
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/member/kra-status?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/kra-status?userId=${userId}`), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'pending_approval' }),
@@ -696,7 +697,7 @@ function DimensionsPage({
     const handleUnsubmit = async () => {
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/member/kra-status?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/kra-status?userId=${userId}`), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'draft' }),
@@ -745,7 +746,7 @@ function DimensionsPage({
 
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/member/kras/functional?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/kras/functional?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ kra, kpis, pilotWeight }),
@@ -778,7 +779,7 @@ function DimensionsPage({
 
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/member/kras/self-development?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/kras/self-development?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -814,7 +815,7 @@ function DimensionsPage({
 
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/member/kras/developing-others?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/kras/developing-others?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -990,7 +991,7 @@ function DimensionsPage({
                                             onClick={async () => {
                                                 const link = proofInputs[kra._id || ki];
                                                 if (!link || !kra._id) return;
-                                                await fetch(`/api/member/kras/${kra._id}/proof?userId=${userId}`, {
+                                                await fetch(apiUrl(`/api/member/kras/${kra._id}/proof?userId=${userId}`), {
                                                     method: 'PATCH',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({ proofLink: link }),
@@ -1401,7 +1402,7 @@ function TeamPage({
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`/api/member/team?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/member/team?userId=${userId}`));
                 await checkPaywall(res);
                 const d = await res.json().catch(() => ({}));
                 if (d.status === 'success') {
@@ -1440,7 +1441,7 @@ function TeamPage({
 
     const loadFullTree = async () => {
         try {
-            const res = await fetch(`/api/member/subtree?userId=${userId}`);
+            const res = await fetch(apiUrl(`/api/member/subtree?userId=${userId}`));
             await checkPaywall(res);
             const d = await res.json().catch(() => ({}));
             if (d.status === 'success') setFullTree(d.data as TeamMember[]);
@@ -1449,7 +1450,7 @@ function TeamPage({
 
     const handleApproveKRAs = async (memberId: string) => {
         try {
-            const res = await fetch(`/api/member/team/${memberId}/approve?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/team/${memberId}/approve?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -1461,7 +1462,7 @@ function TeamPage({
 
     const handleRejectKRAs = async (memberId: string) => {
         try {
-            const res = await fetch(`/api/member/team/${memberId}/reject?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/member/team/${memberId}/reject?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ note: rejectNote }),
@@ -1640,7 +1641,7 @@ function FeedbackPage({
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`/api/feedback/employee/${userId}?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/feedback/employee/${userId}?userId=${userId}`));
                 await checkPaywall(res);
                 const d = await res.json().catch(() => ({}));
                 if (d.status === 'success') {
@@ -1706,7 +1707,7 @@ function NotificationsPage({
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`/api/notifications?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/notifications?userId=${userId}`));
                 await checkPaywall(res);
                 const d = await res.json().catch(() => ({}));
                 if (d.status === 'success')
@@ -1728,7 +1729,7 @@ function NotificationsPage({
         );
         onRead();
         try {
-            await fetch(`/api/notifications/${id}/read?userId=${userId}`, { method: 'PUT' });
+            await fetch(apiUrl(`/api/notifications/${id}/read?userId=${userId}`), { method: 'PUT' });
         } catch { /* ignore */ }
     };
 
@@ -1793,7 +1794,7 @@ function SettingsPage({
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`/api/user/profile?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/user/profile?userId=${userId}`));
                 await checkPaywall(res);
                 const d = await res.json().catch(() => ({}));
                 if (d.status === 'success' && d.data) {
@@ -1815,7 +1816,7 @@ function SettingsPage({
         setSaving(true);
         setError('');
         try {
-            const res = await fetch(`/api/user/profile?userId=${userId}`, {
+            const res = await fetch(apiUrl(`/api/user/profile?userId=${userId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),

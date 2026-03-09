@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { Team } from '../models/Team';
 import { Feedback } from '../models/Feedback';
-import mongoose from 'mongoose';
 
 /**
  * Add mid-cycle notes (Manager only)

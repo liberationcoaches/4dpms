@@ -168,8 +168,8 @@ If you didn't expect this email, you can safely ignore it.
 // ---------------------------------------------------------------------------
 export async function sendPasswordResetEmail({
     to,
-    recipientName,
-    resetLink, // eslint-disable-line @typescript-eslint/no-unused-vars
+    recipientName: _recipientName,
+    resetLink: _resetLink,
 }: PasswordResetEmailOptions): Promise<void> {
     // TODO: Implement password-reset email template.
     //       Follow the same pattern as sendInviteEmail above:

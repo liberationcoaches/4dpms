@@ -40,7 +40,7 @@ async function seedDemo() {
     // ─────────────────────────────────────────
     // STEP 2 — CREATE PLATFORM ADMIN (LCPL)
     // ─────────────────────────────────────────
-    const platformAdmin = await User.create({
+    await User.create({
       name: 'LCPL Admin',
       email: 'admin@lcpl.com',
       mobile: '9000000001',
@@ -233,7 +233,7 @@ async function seedDemo() {
     // ─────────────────────────────────────────
     // STEP 8 — CREATE TEAM WITH KRA DATA
     // ─────────────────────────────────────────
-    const team = await Team.create({
+    await Team.create({
       name: 'Engineering Team',
       code: 'ENGR01',
       members: [

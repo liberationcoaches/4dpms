@@ -3,7 +3,7 @@ import { Team, IFunctionalKRA } from '../models/Team';
 import { User } from '../models/User';
 import { ReviewCycle } from '../models/ReviewCycle';
 import { z } from 'zod';
-import { updateFunctionalKRAAverageScore, validateFunctionalKRA } from '../utils/kraCalculations';
+import { updateFunctionalKRAAverageScore } from '../utils/kraCalculations';
 
 // KPI Schema
 const kpiSchema = z.object({

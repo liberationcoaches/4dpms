@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ReviewCycle, IReviewCycle } from '../models/ReviewCycle';
-import { Organization } from '../models/Organization';
+import { ReviewCycle } from '../models/ReviewCycle';
 import { User } from '../models/User';
 import { sendReviewPeriodNotifications } from './notificationController';
 import mongoose from 'mongoose';
@@ -233,7 +232,7 @@ export async function getReviewCycle(
  * Check if review period should start and trigger if needed
  */
 export async function checkReviewPeriod(
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {

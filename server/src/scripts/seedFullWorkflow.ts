@@ -766,7 +766,7 @@ function createFunctionalKRA(index: number): any {
 }
 
 // Helper function to create Organizational KRA with scores
-function createOrganizationalKRA(index: number): any {
+function createOrganizationalKRA(_index: number): any {
   const coreValues = [
     'Integrity',
     'Innovation',
@@ -801,7 +801,7 @@ function createOrganizationalKRA(index: number): any {
 
   // Calculate average score
   const avgScore = calculateOrganizationalAverageScore(orgKRA);
-  orgKRA.averageScore = avgScore ?? undefined;
+  orgKRA.averageScore = avgScore ?? 0;
 
   return orgKRA;
 }
@@ -885,7 +885,7 @@ function createDevelopingOthersKRA(_index: number): any {
 
   // Calculate average score (includes pilot)
   const avgScore = calculateDevelopingOthersAverageScore(devOthers);
-  devOthers.averageScore = avgScore ?? undefined;
+  devOthers.averageScore = avgScore ?? 0;
 
   return devOthers;
 }

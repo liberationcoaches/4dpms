@@ -24,12 +24,12 @@ async function fixUserRoles() {
       const userObj = await User.findById(user._id);
       if (!userObj) continue;
 
-      // Check if user has accessCode (signed up) - should be admin
+      // Check if user has accessCode (signed up) - should be platform_admin
       if (userObj.accessCode) {
-        if (userObj.role !== 'admin') {
-          userObj.role = 'admin';
+        if (userObj.role !== 'platform_admin') {
+          userObj.role = 'platform_admin';
           await userObj.save();
-          console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> ADMIN (has accessCode)`);
+          console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> PLATFORM_ADMIN (has accessCode)`);
           adminsFixed++;
         } else {
           unchanged++;
@@ -41,32 +41,32 @@ async function fixUserRoles() {
           if (team) {
             // Check if user is the team creator
             if (team.createdBy && team.createdBy.toString() === userObj._id.toString()) {
-              // Team creator should be admin (they might not have set accessCode yet)
-              if (userObj.role !== 'admin') {
-                userObj.role = 'admin';
+            // Team creator should be platform_admin (they might not have set accessCode yet)
+            if (userObj.role !== 'platform_admin') {
+              userObj.role = 'platform_admin';
                 await userObj.save();
-                console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> ADMIN (team creator)`);
+                console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> PLATFORM_ADMIN (team creator)`);
                 adminsFixed++;
               } else {
                 unchanged++;
               }
             } else {
-              // User is in a team but not the creator - should be member
-              if (userObj.role !== 'member') {
-                userObj.role = 'member';
+              // User is in a team but not the creator - should be employee
+              if (userObj.role !== 'employee') {
+                userObj.role = 'employee';
                 await userObj.save();
-                console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> MEMBER (team member)`);
+                console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> EMPLOYEE (team member)`);
                 membersFixed++;
               } else {
                 unchanged++;
               }
             }
           } else {
-            // Has teamId but team doesn't exist - set to member
-            if (userObj.role !== 'member') {
-              userObj.role = 'member';
+            // Has teamId but team doesn't exist - set to employee
+            if (userObj.role !== 'employee') {
+              userObj.role = 'employee';
               await userObj.save();
-              console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> MEMBER (orphaned teamId)`);
+              console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> EMPLOYEE (orphaned teamId)`);
               membersFixed++;
             } else {
               unchanged++;
@@ -76,21 +76,21 @@ async function fixUserRoles() {
           // No accessCode and no teamId - check if they're in any team's membersDetails
           const teams = await Team.find({ 'membersDetails.mobile': userObj.mobile });
           if (teams.length > 0) {
-            // User is in membersDetails - should be member
-            if (userObj.role !== 'member') {
-              userObj.role = 'member';
+            // User is in membersDetails - should be employee
+            if (userObj.role !== 'employee') {
+              userObj.role = 'employee';
               await userObj.save();
-              console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> MEMBER (in membersDetails)`);
+              console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> EMPLOYEE (in membersDetails)`);
               membersFixed++;
             } else {
               unchanged++;
             }
           } else {
-            // No accessCode, no teamId, not in membersDetails - default to admin (might be old user)
-            if (userObj.role !== 'admin') {
-              userObj.role = 'admin';
+            // No accessCode, no teamId, not in membersDetails - default to platform_admin (might be old user)
+            if (userObj.role !== 'platform_admin') {
+              userObj.role = 'platform_admin';
               await userObj.save();
-              console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> ADMIN (default)`);
+              console.log(`✓ Fixed: ${userObj.name} (${userObj.email}) -> PLATFORM_ADMIN (default)`);
               adminsFixed++;
             } else {
               unchanged++;
