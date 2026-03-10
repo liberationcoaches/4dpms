@@ -27,6 +27,10 @@ app.use(cors({
   credentials: true
 }));
 
+// Body parsing middleware (MUST be before routes)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
