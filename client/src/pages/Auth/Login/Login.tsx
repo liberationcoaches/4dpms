@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardPath } from '@/utils/dashboardRoutes';
+import { apiUrl } from '@/utils/api';
 import styles from './Login.module.css';
 import logo from '@/assets/logo.png';
 
@@ -35,7 +36,7 @@ function Login() {
     if (!validate()) return;
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,7 +81,7 @@ function Login() {
 
           // Boss, manager, employee → check onboarding first
           try {
-            const onboardingRes = await fetch(`/api/onboarding/status?userId=${data.data.userId}`);
+            const onboardingRes = await fetch(apiUrl(`/api/onboarding/status?userId=${data.data.userId}`));
             const onboardingData = await onboardingRes.json();
             if (onboardingData.status === 'success' && !onboardingData.data.onboardingCompleted) {
               navigate('/onboarding');

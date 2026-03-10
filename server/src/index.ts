@@ -9,8 +9,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// CORS: Allow frontend URL when set (e.g. FRONTEND_URL on Railway); otherwise allow all
+const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+app.use(
+  cors({
+    origin: frontendUrl || true,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

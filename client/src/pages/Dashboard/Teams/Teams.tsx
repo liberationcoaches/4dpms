@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './Teams.module.css';
 
 interface TeamMember {
@@ -67,7 +68,7 @@ function Teams() {
   const fetchTeams = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/team/members?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/team/members?userId=${userId}`));
       const data = await res.json();
       
       if (data.status === 'success') {
@@ -141,7 +142,7 @@ function Teams() {
     const userId = localStorage.getItem('userId');
 
     try {
-      const response = await fetch(`/api/team/members/${editingMemberIndex}?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/team/members/${editingMemberIndex}?userId=${userId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
@@ -180,7 +181,7 @@ function Teams() {
     const userId = localStorage.getItem('userId');
 
     try {
-      const response = await fetch(`/api/team/members/${deletingMemberIndex}?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/team/members/${deletingMemberIndex}?userId=${userId}`), {
         method: 'DELETE',
       });
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './ClientAdminDashboard.module.css';
 import logo from '@/assets/logo.png';
@@ -139,7 +140,7 @@ function ClientAdminDashboard() {
   const fetchAnalytics = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/analytics?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/client-admin/analytics?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setAnalytics(data.data);
@@ -152,7 +153,7 @@ function ClientAdminDashboard() {
   const fetchDimensionWeights = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/organizations/dimension-weights?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/organizations/dimension-weights?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success' && data.data) {
         setDimensionWeights(data.data);
@@ -184,7 +185,7 @@ function ClientAdminDashboard() {
   const fetchNotificationCount = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications/count?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/notifications/count?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setNotificationCount(data.data?.count || 0);
@@ -197,7 +198,7 @@ function ClientAdminDashboard() {
   const fetchBosses = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/bosses?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/client-admin/bosses?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setBosses(data.data || []);
@@ -212,7 +213,7 @@ function ClientAdminDashboard() {
   const fetchOrganization = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/organization?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/client-admin/organization?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setOrganization(data.data);
@@ -225,7 +226,7 @@ function ClientAdminDashboard() {
   const fetchOrganizationUsers = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/users?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/client-admin/users?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setOrganizationUsers(data.data);
@@ -238,7 +239,7 @@ function ClientAdminDashboard() {
   const fetchTeamsForInvite = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/teams-for-invite?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/client-admin/teams-for-invite?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success' && data.data) {
         setTeamsForInvite(data.data);
@@ -264,7 +265,7 @@ function ClientAdminDashboard() {
         organizationId: organization._id,
       };
       if (inviteRole === 'employee') body.teamId = inviteTeamId;
-      const res = await fetch(`/api/invites?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/invites?userId=${userId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -306,7 +307,7 @@ function ClientAdminDashboard() {
     try {
       const csvText = await csvFile.text();
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/users/bulk-upload?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/client-admin/users/bulk-upload?userId=${userId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csv: csvText }),
@@ -332,7 +333,7 @@ function ClientAdminDashboard() {
     e.preventDefault();
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/bosses?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/client-admin/bosses?userId=${userId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -361,7 +362,7 @@ function ClientAdminDashboard() {
     try {
       setIsExporting(true);
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/export?userId=${userId}&format=${format}`, {
+      const res = await fetch(apiUrl(`/api/client-admin/export?userId=${userId}&format=${format}`), {
         method: 'GET',
       });
 
@@ -404,7 +405,7 @@ function ClientAdminDashboard() {
   const fetchBossKRAs = async (bossId: string) => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/bosses/${bossId}/kras?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/client-admin/bosses/${bossId}/kras?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setBossKRAs((prev) => ({ ...prev, [bossId]: data.data }));
@@ -474,7 +475,7 @@ function ClientAdminDashboard() {
     const userId = localStorage.getItem('userId') || '';
 
     try {
-      const response = await fetch(`/api/user/profile?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/user/profile?userId=${userId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profile),
@@ -564,7 +565,7 @@ function ClientAdminDashboard() {
     const userId = localStorage.getItem('userId') || '';
 
     try {
-      const response = await fetch(`/api/organizations/dimension-weights?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/organizations/dimension-weights?userId=${userId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -620,12 +621,12 @@ function ClientAdminDashboard() {
       if (!boss) return;
 
       // Fetch team to find member index
-      const teamRes = await fetch(`/api/team/members?userId=${userId}`);
+      const teamRes = await fetch(apiUrl(`/api/team/members?userId=${userId}`));
       const teamData = await teamRes.json();
       if (teamData.status === 'success' && teamData.data) {
         const memberIndex = teamData.data.findIndex((m: any) => m.mobile === boss.mobile);
         if (memberIndex !== -1) {
-          const updateRes = await fetch(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`, {
+          const updateRes = await fetch(apiUrl(`/api/team/members/${memberIndex}/kras/${kraIndex}?userId=${userId}`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reportsGenerated: updatedProofs }),
@@ -717,7 +718,7 @@ function ClientAdminDashboard() {
 
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/client-admin/bosses/${boss._id}/kras/functional/${kraIndex}/lock?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/client-admin/bosses/${boss._id}/kras/functional/${kraIndex}/lock?userId=${userId}`), {
         method: 'POST',
       });
 

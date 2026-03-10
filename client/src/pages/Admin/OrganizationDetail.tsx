@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './OrganizationDetail.module.css';
 import logo from '@/assets/logo.png';
 import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
@@ -66,7 +67,7 @@ function OrganizationDetail() {
   const fetchNotificationCount = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications/count?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/notifications/count?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setNotificationCount(data.data?.count || 0);
@@ -78,7 +79,7 @@ function OrganizationDetail() {
 
   const fetchOrganization = async () => {
     try {
-      const res = await fetch(`/api/organizations/${id}`);
+      const res = await fetch(apiUrl(`/api/organizations/${id}`));
       const data = await res.json();
       if (data.status === 'success') {
         setOrganization(data.data);
@@ -97,7 +98,7 @@ function OrganizationDetail() {
 
   const fetchReviewers = async () => {
     try {
-      const res = await fetch('/api/user/list?role=reviewer');
+      const res = await fetch(apiUrl('/api/user/list?role=reviewer'));
       const data = await res.json();
       if (data.status === 'success' && data.data.reviewers) {
         setReviewers(data.data.reviewers);
@@ -116,7 +117,7 @@ function OrganizationDetail() {
 
     setIsAssigning(true);
     try {
-      const res = await fetch(`/api/organizations/${id}/assign-reviewer`, {
+      const res = await fetch(apiUrl(`/api/organizations/${id}/assign-reviewer`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reviewerId: selectedReviewerId }),
@@ -145,7 +146,7 @@ function OrganizationDetail() {
     }
 
     try {
-      const res = await fetch(`/api/organizations/${id}`, {
+      const res = await fetch(apiUrl(`/api/organizations/${id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reviewerId: null }),

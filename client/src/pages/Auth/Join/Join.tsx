@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './Join.module.css';
 import logo from '@/assets/logo.png';
 
@@ -61,8 +62,8 @@ export default function Join() {
       
       // First, try as invite code/token
       const inviteUrl = isLikelyToken
-        ? `/api/invites/resolve?token=${encodeURIComponent(tokenOrCode)}`
-        : `/api/invites/resolve?code=${encodeURIComponent(tokenOrCode.toUpperCase())}`;
+        ? apiUrl(`/api/invites/resolve?token=${encodeURIComponent(tokenOrCode)}`)
+        : apiUrl(`/api/invites/resolve?code=${encodeURIComponent(tokenOrCode.toUpperCase())}`);
       const inviteRes = await fetch(inviteUrl);
       const inviteData = await inviteRes.json();
       
@@ -81,7 +82,7 @@ export default function Join() {
       }
       
       // If not an invite code, try as organization code
-      const orgUrl = `/api/organizations/resolve?code=${encodeURIComponent(tokenOrCode.toUpperCase())}`;
+      const orgUrl = apiUrl(`/api/organizations/resolve?code=${encodeURIComponent(tokenOrCode.toUpperCase())}`);
       const orgRes = await fetch(orgUrl);
       const orgData = await orgRes.json();
       
@@ -153,7 +154,7 @@ export default function Join() {
           (body as Record<string, string>).designation = formData.designation.trim();
         }
 
-        const res = await fetch('/api/auth/signup-with-org', {
+        const res = await fetch(apiUrl('/api/auth/signup-with-org'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -191,7 +192,7 @@ export default function Join() {
       if (token) body.inviteToken = token;
       if (code) body.inviteCode = code;
 
-      const res = await fetch('/api/auth/signup-with-invite', {
+      const res = await fetch(apiUrl('/api/auth/signup-with-invite'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

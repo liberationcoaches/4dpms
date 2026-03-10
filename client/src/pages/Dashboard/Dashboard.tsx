@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import logo from '@/assets/logo.png';
 import { getNavigationItems } from '@/utils/navigationConfig';
@@ -36,7 +37,7 @@ function Dashboard() {
     }).catch(console.error);
 
     // Fetch notification count
-    fetch(`/api/notifications/count?userId=${userId}`)
+    fetch(apiUrl(`/api/notifications/count?userId=${userId}`))
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 'success') {

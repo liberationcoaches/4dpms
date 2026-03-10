@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { apiUrl } from '@/utils/api';
 import styles from './Settings.module.css';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import { DIMENSION_COLORS } from '@/utils/dimensionColors';
@@ -65,7 +66,7 @@ function Settings() {
       });
 
     // Fetch dimension weights (for admins)
-    fetch(`/api/team/dimension-weights?userId=${userId}`)
+    fetch(apiUrl(`/api/team/dimension-weights?userId=${userId}`))
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 'success' && data.data) {
@@ -117,7 +118,7 @@ function Settings() {
     }
 
     try {
-      const response = await fetch(`/api/user/profile?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/user/profile?userId=${userId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +182,7 @@ function Settings() {
     const userId = localStorage.getItem('userId') || '';
 
     try {
-      const response = await fetch(`/api/team/dimension-weights?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/team/dimension-weights?userId=${userId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

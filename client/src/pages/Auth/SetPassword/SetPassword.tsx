@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './SetPassword.module.css';
 
 const SetPassword = () => {
@@ -21,7 +22,7 @@ const SetPassword = () => {
     setMessage(null);
 
     try {
-      const res = await fetch('/api/auth/resend-otp/mobile', {
+      const res = await fetch(apiUrl('/api/auth/resend-otp/mobile'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile }),
@@ -54,7 +55,7 @@ const SetPassword = () => {
     setMessage(null);
 
     try {
-      const res = await fetch('/api/auth/set-password', {
+      const res = await fetch(apiUrl('/api/auth/set-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, mobile, accessCode, otp, name }),

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import baseStyles from '@/styles/DashboardBase.module.css';
 import styles from './UnifiedDashboard.module.css';
 import logo from '@/assets/logo.png';
@@ -52,7 +53,7 @@ export default function UnifiedDashboard() {
         }).catch(console.error);
 
         // Fetch notification count
-        fetch(`/api/notifications/count?userId=${userId}`)
+        fetch(apiUrl(`/api/notifications/count?userId=${userId}`))
             .then((res) => res.json())
             .then((data) => {
                 if (data.status === 'success') {
@@ -274,7 +275,7 @@ function NotificationsList({ userId }: { userId: string }) {
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const res = await fetch(`/api/notifications?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/notifications?userId=${userId}`));
                 const data = await res.json();
                 if (data.status === 'success') {
                     setNotifications(data.data?.notifications || []);

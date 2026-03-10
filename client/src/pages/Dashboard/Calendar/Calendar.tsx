@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '@/utils/api';
 import styles from './Calendar.module.css';
 
 interface ReviewCycle {
@@ -26,11 +27,11 @@ function Calendar() {
     try {
       const userId = localStorage.getItem('userId');
       // Try to get review cycle via boss/organization endpoint
-      const orgRes = await fetch(`/api/boss/organization?userId=${userId}`);
+      const orgRes = await fetch(apiUrl(`/api/boss/organization?userId=${userId}`));
       const orgData = await orgRes.json();
       
       if (orgData.status === 'success' && orgData.data?._id) {
-        const cycleRes = await fetch(`/api/review-cycles?organizationId=${orgData.data._id}&userId=${userId}`);
+        const cycleRes = await fetch(apiUrl(`/api/review-cycles?organizationId=${orgData.data._id}&userId=${userId}`));
         const cycleData = await cycleRes.json();
         if (cycleData.status === 'success' && cycleData.data) {
           setReviewCycle(Array.isArray(cycleData.data) ? cycleData.data[0] : cycleData.data);

@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './OTPVerify.module.css';
 import logo from '@/assets/logo.png';
 
@@ -73,7 +74,7 @@ function OTPVerify({ onVerify }: OTPVerifyProps) {
     if (validateOTP(cleanValue)) {
       // Auto-validate when 6 digits entered (don't mark as used yet)
       try {
-        const response = await fetch('/api/auth/verify-otp/mobile', {
+        const response = await fetch(apiUrl('/api/auth/verify-otp/mobile'), {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -109,7 +110,7 @@ function OTPVerify({ onVerify }: OTPVerifyProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/auth/verify-otp/mobile', {
+      const response = await fetch(apiUrl('/api/auth/verify-otp/mobile'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile, otp: otpData.mobileOTP }),
@@ -151,7 +152,7 @@ function OTPVerify({ onVerify }: OTPVerifyProps) {
 
   const handleResendOTP = async () => {
     try {
-      const response = await fetch('/api/auth/resend-otp/mobile', {
+      const response = await fetch(apiUrl('/api/auth/resend-otp/mobile'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile }),

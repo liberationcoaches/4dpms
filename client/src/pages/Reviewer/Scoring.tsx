@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './Scoring.module.css';
 
 interface Employee {
@@ -99,7 +100,7 @@ function Scoring() {
   const fetchEmployeeData = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/reviewer/employees/${employeeId}?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/reviewer/employees/${employeeId}?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setEmployee(data.data.employee);
@@ -360,7 +361,7 @@ function Scoring() {
         }) || [],
       };
 
-      const res = await fetch(`/api/reviewer/employees/${employeeId}/scores?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/reviewer/employees/${employeeId}/scores?userId=${userId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -391,7 +392,7 @@ function Scoring() {
 
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/reviewer/employees/${employeeId}/lock?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/reviewer/employees/${employeeId}/lock?userId=${userId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reviewPeriod }),

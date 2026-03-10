@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '@/utils/api';
 import styles from './UnifiedDashboard.module.css';
 
 interface MyDimensionsProps {
@@ -41,7 +42,7 @@ export default function MyDimensions({ userId }: MyDimensionsProps) {
         const fetchDimensions = async () => {
             try {
                 // Fetch user's KRA data
-                const res = await fetch(`/api/employee/kras?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/employee/kras?userId=${userId}`));
                 const data = await res.json();
                 if (data.status === 'success' && data.data) {
                     // Map data to our dimension structure
@@ -103,7 +104,7 @@ export default function MyDimensions({ userId }: MyDimensionsProps) {
             for (const dimKey of Object.keys(dimensions) as (keyof DimensionData)[]) {
                 for (const kra of dimensions[dimKey].kras) {
                     if (kra._id) {
-                        await fetch(`/api/employee/kras/${kra._id}/self-score`, {
+                        await fetch(apiUrl(`/api/employee/kras/${kra._id}/self-score`), {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ selfScore: kra.score, userId }),
@@ -113,7 +114,7 @@ export default function MyDimensions({ userId }: MyDimensionsProps) {
             }
 
             // Notify manager that data was submitted
-            await fetch('/api/notifications', {
+            await fetch(apiUrl('/api/notifications'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

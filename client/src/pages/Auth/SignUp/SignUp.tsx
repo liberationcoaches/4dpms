@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './SignUp.module.css';
 import logo from '@/assets/logo.png';
 import { Link } from 'react-router-dom';
@@ -108,7 +109,7 @@ function SignUp({ onSubmit }: SignUpProps) {
         }),
       };
 
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch(apiUrl('/api/auth/signup'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

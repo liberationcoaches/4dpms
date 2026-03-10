@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './TeamCode.module.css';
 import logo from '@/assets/logo.png';
 
@@ -55,7 +56,7 @@ function TeamCode() {
     if (!validate()) return;
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/auth/team-code', {
+      const response = await fetch(apiUrl('/api/auth/team-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

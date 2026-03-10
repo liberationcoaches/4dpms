@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '@/utils/api';
 import styles from './UnifiedDashboard.module.css';
 
 interface TeamViewProps {
@@ -21,7 +22,7 @@ export default function TeamView({ userId, role }: TeamViewProps) {
     useEffect(() => {
         const fetchTeam = async () => {
             try {
-                const res = await fetch(`/api/team/members?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/team/members?userId=${userId}`));
                 const data = await res.json();
                 if (data.status === 'success' && data.data) {
                     setMembers(
@@ -48,14 +49,14 @@ export default function TeamView({ userId, role }: TeamViewProps) {
 
         try {
             // Mark member's data as finalized
-            await fetch(`/api/manager/finalize`, {
+            await fetch(apiUrl(`/api/manager/finalize`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ memberId, managerId: userId }),
             });
 
             // Create notification for the member
-            await fetch('/api/notifications', {
+            await fetch(apiUrl('/api/notifications'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -78,7 +79,7 @@ export default function TeamView({ userId, role }: TeamViewProps) {
         if (!confirm('Lock this member\'s data permanently? No further edits will be allowed.')) return;
 
         try {
-            await fetch(`/api/manager/lock`, {
+            await fetch(apiUrl(`/api/manager/lock`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ memberId, managerId: userId }),

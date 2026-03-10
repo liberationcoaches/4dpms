@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardPath, type UserRole } from '@/utils/dashboardRoutes';
+import { apiUrl } from '@/utils/api';
 import styles from './Onboarding.module.css';
 import logo from '@/assets/logo.png';
 import IntroVideos from './IntroVideos';
@@ -54,7 +55,7 @@ export default function Onboarding() {
                 return;
             }
             try {
-                const res = await fetch(`/api/onboarding/status?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/onboarding/status?userId=${userId}`));
                 const data = await res.json();
                 if (data.status === 'success') {
                     if (data.data.onboardingCompleted) {
@@ -78,7 +79,7 @@ export default function Onboarding() {
     // Save current step to backend (boss only)
     const saveStep = async (step: number) => {
         try {
-            await fetch(`/api/onboarding/step?userId=${userId}`, {
+            await fetch(apiUrl(`/api/onboarding/step?userId=${userId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ step }),
@@ -92,7 +93,7 @@ export default function Onboarding() {
     const savePYG = async () => {
         if (goals.length === 0) return;
         try {
-            await fetch(`/api/onboarding/pyg?userId=${userId}`, {
+            await fetch(apiUrl(`/api/onboarding/pyg?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -110,7 +111,7 @@ export default function Onboarding() {
         if (members.length === 0) return;
         try {
             for (const member of members) {
-                await fetch(`/api/team/members?userId=${userId}`, {
+                await fetch(apiUrl(`/api/team/members?userId=${userId}`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -128,7 +129,7 @@ export default function Onboarding() {
     // Complete onboarding
     const completeOnboarding = async () => {
         try {
-            await fetch(`/api/onboarding/complete?userId=${userId}`, {
+            await fetch(apiUrl(`/api/onboarding/complete?userId=${userId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
             });

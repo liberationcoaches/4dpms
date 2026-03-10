@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { apiUrl } from '@/utils/api';
 import styles from './Performance.module.css';
 
 interface DimensionScores {
@@ -42,7 +43,7 @@ function Performance() {
   const fetchPerformanceData = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/employee/performance?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/employee/performance?userId=${userId}`));
       const data = await res.json();
       
       if (data.status === 'success') {

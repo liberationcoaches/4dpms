@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './EnquiryOrSignUp.module.css';
 import logo from '@/assets/logo.png';
 
@@ -31,7 +32,7 @@ function EnquiryOrSignUp() {
     setError('');
 
     try {
-      const response = await fetch('/api/enquiry', {
+      const response = await fetch(apiUrl('/api/enquiry'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

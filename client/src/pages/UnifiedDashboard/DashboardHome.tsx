@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '@/utils/api';
 import styles from './UnifiedDashboard.module.css';
 
 interface DashboardHomeProps {
@@ -25,7 +26,7 @@ export default function DashboardHome({ userId, role }: DashboardHomeProps) {
         // Fetch dashboard stats
         const fetchStats = async () => {
             try {
-                const res = await fetch(`/api/user/profile?userId=${userId}`);
+                const res = await fetch(apiUrl(`/api/user/profile?userId=${userId}`));
                 const data = await res.json();
                 if (data.status === 'success' && data.data) {
                     setStats((prev) => ({
@@ -40,7 +41,7 @@ export default function DashboardHome({ userId, role }: DashboardHomeProps) {
             // Get team count for managers/bosses
             if (['manager', 'boss', 'client_admin'].includes(role)) {
                 try {
-                    const res = await fetch(`/api/team/members?userId=${userId}`);
+                    const res = await fetch(apiUrl(`/api/team/members?userId=${userId}`));
                     const data = await res.json();
                     if (data.status === 'success') {
                         setStats((prev) => ({

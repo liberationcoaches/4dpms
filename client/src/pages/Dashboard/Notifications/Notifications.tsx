@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { apiUrl } from '@/utils/api';
 import styles from './Notifications.module.css';
 
 interface Notification {
@@ -46,7 +47,7 @@ function Notifications({ roleContext = 'generic', onNavigateToResolvedRoute }: N
   const fetchNotifications = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications?userId=${userId}`);
+      const res = await fetch(apiUrl(`/api/notifications?userId=${userId}`));
       const data = await res.json();
       if (data.status === 'success') {
         setNotifications(data.data.notifications);
@@ -117,7 +118,7 @@ function Notifications({ roleContext = 'generic', onNavigateToResolvedRoute }: N
   const handleMarkAsRead = async (notificationId: string, refresh = true) => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications/${notificationId}/read?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/notifications/${notificationId}/read?userId=${userId}`), {
         method: 'PUT',
       });
 
@@ -140,7 +141,7 @@ function Notifications({ roleContext = 'generic', onNavigateToResolvedRoute }: N
   const handleMarkAllAsRead = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const res = await fetch(`/api/notifications/read-all?userId=${userId}`, {
+      const res = await fetch(apiUrl(`/api/notifications/read-all?userId=${userId}`), {
         method: 'PUT',
       });
 

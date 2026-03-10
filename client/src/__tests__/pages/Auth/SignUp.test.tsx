@@ -74,7 +74,10 @@ describe('SignUp Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/signup', expect.any(Object));
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/signup'),
+        expect.any(Object)
+      );
     });
   });
 

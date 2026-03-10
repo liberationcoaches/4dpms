@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardPath, type UserRole } from '@/utils/dashboardRoutes';
+import { apiUrl } from '@/utils/api';
 import styles from './AccessCode.module.css';
 import logo from '@/assets/logo.png';
 
@@ -46,7 +47,7 @@ function AccessCode() {
         return;
       }
 
-      const response = await fetch(`/api/auth/access-code?userId=${userId}`, {
+      const response = await fetch(apiUrl(`/api/auth/access-code?userId=${userId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -78,7 +79,7 @@ function AccessCode() {
         // All other roles: check onboarding status first
         if (userId) {
           try {
-            const onboardingRes = await fetch(`/api/onboarding/status?userId=${userId}`);
+            const onboardingRes = await fetch(apiUrl(`/api/onboarding/status?userId=${userId}`));
             const onboardingData = await onboardingRes.json();
             if (onboardingData.status === 'success' && !onboardingData.data.onboardingCompleted) {
               navigate('/onboarding');
