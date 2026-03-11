@@ -1,17 +1,6 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// ---------------------------------------------------------------------------
-// Transporter
-// ---------------------------------------------------------------------------
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT) || 587,
-    secure: Number(process.env.EMAIL_PORT) === 465, // true for port 465, false otherwise
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -137,24 +126,12 @@ export async function sendInviteEmail({
 </html>
   `.trim();
 
-    const text = `
-Hi ${recipientName},
-
-${inviterName} has added you to ${orgName} on the 4 Dimension Performance Management System.
-
-Accept your invitation and get started here:
-${inviteLink}
-
-If you didn't expect this email, you can safely ignore it.
-  `.trim();
-
     try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
+        await resend.emails.send({
+            from: 'onboarding@resend.dev',
             to,
             subject,
             html,
-            text,
         });
         console.log(`[emailService] Invite email sent to ${to}`);
     } catch (error) {

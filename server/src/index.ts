@@ -10,26 +10,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // CORS: Allow frontend URL when set (e.g. FRONTEND_URL on Railway); otherwise allow all
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.CLIENT_URL,
-  "https://4dpms-production.up.railway.app"
-].filter(Boolean);
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
-  credentials: true
-}));
-
-// Body parsing middleware (MUST be before routes)
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+app.use(
+  cors({
+    origin: frontendUrl || true,
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/api/health', (_req, res) => {
