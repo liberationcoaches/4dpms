@@ -8,6 +8,7 @@ import {
   resendOTP,
   login,
   setPassword,
+  testEmail,
 } from '../controllers/authController';
 import { setAccessCode } from '../controllers/accessCodeController';
 import { joinTeamByCode } from '../controllers/teamController';
@@ -24,6 +25,7 @@ router.post('/resend-otp/mobile', resendOTP);
 router.post('/access-code', setAccessCode);
 router.post('/team-code', joinTeamByCode);
 router.post('/set-password', setPassword);
+router.get('/test-email', testEmail);
 
 export default router;
 

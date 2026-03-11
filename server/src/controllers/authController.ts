@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { createUser, generateAndSaveOTP, verifyUserOTPs, verifySingleOTP } from '../services/authService';
 import { createUserFromInvite } from '../services/inviteService';
+import { sendInviteEmail } from '../utils/emailService';
 import {
   signUpSchema,
   signupWithInviteSchema,
@@ -561,6 +562,25 @@ export async function setPassword(req: Request, res: Response, next: NextFunctio
         role: user.role,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Test email endpoint (for development - remove in production)
+ * GET /api/auth/test-email
+ */
+export async function testEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await sendInviteEmail({
+      to: 'no.reply4dpms@gmail.com',
+      recipientName: 'Test User',
+      orgName: 'Test Org',
+      inviterName: 'Admin',
+      inviteLink: 'https://google.com',
+    });
+    res.status(200).json({ success: true, message: 'Test email sent' });
   } catch (error) {
     next(error);
   }
