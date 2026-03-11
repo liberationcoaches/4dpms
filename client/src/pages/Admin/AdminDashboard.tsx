@@ -9,6 +9,7 @@ import { fetchUserProfile as fetchUserProfileApi } from '@/utils/userProfile';
 interface Organization {
   _id: string;
   name: string;
+  code?: string;
   industry: string;
   size: number;
   contact: string;
@@ -1032,6 +1033,9 @@ function AdminDashboard() {
                         </span>
                       </div>
                       <div className={styles.orgDetails}>
+                        {org.code && (
+                          <p><strong>Org Code:</strong> <span className={styles.orgCodeBadge} title="Click to copy" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(org.code!); }}>{org.code}</span></p>
+                        )}
                         <p><strong>Industry:</strong> {org.industry}</p>
                         <p><strong>Size:</strong> {org.size} employees</p>
                         <p><strong>Contact:</strong> {org.contact}</p>

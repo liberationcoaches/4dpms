@@ -6,6 +6,7 @@ export interface IInvite extends Document {
   role: 'boss' | 'manager' | 'employee';
   organizationId: mongoose.Types.ObjectId;
   teamId?: mongoose.Types.ObjectId; // required for employee
+  invitedUserId?: mongoose.Types.ObjectId; // pre-created user (org_admin invite flow)
   createdBy: mongoose.Types.ObjectId;
   expiresAt: Date;
   usedAt?: Date;
@@ -42,6 +43,11 @@ const InviteSchema = new Schema<IInvite>(
     teamId: {
       type: Schema.Types.ObjectId,
       ref: 'Team',
+      required: false,
+    },
+    invitedUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
       required: false,
     },
     createdBy: {

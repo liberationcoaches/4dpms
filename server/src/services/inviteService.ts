@@ -1,3 +1,4 @@
+import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { Invite, IInvite } from '../models/Invite';
 import { User } from '../models/User';
@@ -92,6 +93,8 @@ export async function resolveInvite(tokenOrCode: string): Promise<{
   teamName?: string;
   managerName?: string;
   token?: string;
+  invitedUserId?: string;
+  invitedUserEmail?: string;
   message?: string;
 }> {
   const trimmed = tokenOrCode.trim();
@@ -113,6 +116,7 @@ export async function resolveInvite(tokenOrCode: string): Promise<{
   const org = invite.organizationId as any;
   let teamName: string | undefined;
   let managerName: string | undefined;
+  let invitedUserEmail: string | undefined;
   if (invite.teamId) {
     const team = invite.teamId as any;
     teamName = team?.name;
@@ -120,6 +124,10 @@ export async function resolveInvite(tokenOrCode: string): Promise<{
       const manager = await User.findById(team.createdBy).select('name');
       managerName = manager?.name;
     }
+  }
+  if (invite.invitedUserId) {
+    const invitedUser = await User.findById(invite.invitedUserId).select('email name');
+    invitedUserEmail = invitedUser?.email;
   }
 
   return {
@@ -129,15 +137,18 @@ export async function resolveInvite(tokenOrCode: string): Promise<{
     teamName,
     managerName,
     token: invite.token,
+    invitedUserId: invite.invitedUserId?.toString(),
+    invitedUserEmail,
   };
 }
 
 /**
  * Create user from invite (sign up with invite). No role selection – role from invite.
+ * When invite has invitedUserId (pre-created user), update that user with password and activate.
  */
 export async function createUserFromInvite(
   data: SignupWithInviteInput
-): Promise<{ user: IUser; teamCode?: string }> {
+): Promise<{ user: IUser; teamCode?: string; isPreCreated?: boolean }> {
   const tokenOrCode = data.inviteToken || data.inviteCode;
   if (!tokenOrCode) throw new Error('Invite link or code is required');
 
@@ -148,6 +159,23 @@ export async function createUserFromInvite(
   if (invite.usedAt) throw new Error('Invite already used');
   if (new Date() > invite.expiresAt) throw new Error('Invite expired');
 
+  if (invite.invitedUserId) {
+    const user = await User.findById(invite.invitedUserId).select('+password');
+    if (!user) throw new Error('Invited user not found');
+    if (!data.password || data.password.length < 6) throw new Error('Password must be at least 6 characters');
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    (user as any).password = hashedPassword;
+    user.isActive = true;
+    user.isMobileVerified = true;
+    if (data.name?.trim()) user.name = data.name.trim();
+    await user.save();
+    invite.usedAt = new Date();
+    invite.usedBy = user._id;
+    await invite.save();
+    return { user, isPreCreated: true as const };
+  }
+
+  if (!data.name?.trim() || !data.email || !data.mobile) throw new Error('Name, email, and mobile are required');
   const existing = await User.findOne({ $or: [{ email: data.email }, { mobile: data.mobile.replace(/\D/g, '') }] });
   if (existing) throw new Error('User with this email or mobile already exists');
 
@@ -157,6 +185,8 @@ export async function createUserFromInvite(
   const mobile = data.mobile.replace(/\D/g, '');
   let user: IUser;
   let teamCode: string | undefined;
+
+  const hasPassword = data.password && data.password.length >= 6;
 
   if (invite.role === 'manager') {
     const teamCodeGenerated = await generateTeamCode();
@@ -173,13 +203,17 @@ export async function createUserFromInvite(
       mobile,
       companyName: org.name,
       industry: org.type || 'Other',
-      isMobileVerified: false,
+      isMobileVerified: hasPassword,
       role: 'manager',
       hierarchyLevel: 2,
       organizationId: org._id,
       reportsTo: org.bossId ?? null, // Manager reports to the org boss
       teamId: null as any,
+      isActive: hasPassword,
     });
+    if (hasPassword) {
+      (user as any).password = await bcrypt.hash(data.password!, 10);
+    }
     await user.save();
     team.createdBy = user._id;
     team.members = [user._id];
@@ -202,13 +236,17 @@ export async function createUserFromInvite(
       mobile,
       companyName: org.name,
       industry: org.type || 'Other',
-      isMobileVerified: false,
+      isMobileVerified: hasPassword,
       role: 'employee',
       hierarchyLevel: 3,
       organizationId: org._id,
       reportsTo: manager._id, // Employee reports directly to their team manager
       teamId: team._id,
+      isActive: hasPassword,
     });
+    if (hasPassword) {
+      (user as any).password = await bcrypt.hash(data.password!, 10);
+    }
     await user.save();
     team.members.push(user._id);
     await team.save();
@@ -242,5 +280,5 @@ export async function createUserFromInvite(
     }
   }
 
-  return { user, teamCode };
+  return { user, teamCode, isPreCreated: false as const };
 }

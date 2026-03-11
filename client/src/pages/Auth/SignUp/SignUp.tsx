@@ -8,61 +8,44 @@ import { Link } from 'react-router-dom';
 export interface SignUpFormData {
   name: string;
   email: string;
-  designation: string;
   mobile: string;
-  signupType: 'boss' | 'manager' | 'employee';
-  orgCode?: string;
-  teamCode?: string;
+  password: string;
+  confirmPassword: string;
+  orgName: string;
+  orgSize: string;
 }
 
-interface SignUpProps {
-  onSubmit?: (data: SignUpFormData) => void | Promise<void>;
-}
+const ORG_SIZE_OPTIONS = ['1-10', '11-50', '51-200', '200+'] as const;
 
-function SignUp({ onSubmit }: SignUpProps) {
+function SignUp() {
   const navigate = useNavigate();
-  const handleBack = () => {
-    navigate(-1);
-  };
+  const handleBack = () => navigate(-1);
+
   const [formData, setFormData] = useState<SignUpFormData>({
     name: '',
     email: '',
-    designation: '',
     mobile: '',
-    signupType: 'boss',
-    orgCode: '',
-    teamCode: '',
+    password: '',
+    confirmPassword: '',
+    orgName: '',
+    orgSize: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof SignUpFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState<{
-    orgCode?: string;
-    teamCode?: string;
-  } | null>(null);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof SignUpFormData, string>> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-
-    // Designation is required for all users
-    if (!formData.designation.trim()) {
-      newErrors.designation = 'Designation is required';
-    }
-
-    if (!formData.mobile.trim()) {
-      newErrors.mobile = 'Mobile number is required';
-    } else if (!/^[0-9]{10}$/.test(formData.mobile.replace(/\D/g, ''))) {
-      newErrors.mobile = 'Invalid mobile number (10 digits required)';
-    }
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format';
+    if (!formData.mobile.trim()) newErrors.mobile = 'Mobile number is required';
+    else if (!/^[0-9]{10}$/.test(formData.mobile.replace(/\D/g, ''))) newErrors.mobile = 'Invalid mobile number (10 digits required)';
+    if (!formData.password) newErrors.password = 'Password is required';
+    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.orgName.trim()) newErrors.orgName = 'Organization name is required';
+    if (!formData.orgSize) newErrors.orgSize = 'Please select organization size';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -70,55 +53,27 @@ function SignUp({ onSubmit }: SignUpProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
-      // Get organization profile data from localStorage if available
-      const orgProfileStr = localStorage.getItem('organizationProfile');
-      let orgProfile = null;
-      if (orgProfileStr) {
-        try {
-          orgProfile = JSON.parse(orgProfileStr);
-        } catch (e) {
-          console.error('Failed to parse organization profile:', e);
-        }
-      }
-
-      // Normalize mobile number (remove any non-digit characters)
       const normalizedMobile = formData.mobile.replace(/\D/g, '');
-
-      // Clean up form data - remove empty strings for optional fields
-      const cleanedFormData = {
-        ...formData,
-        mobile: normalizedMobile,
-        signupType: 'boss' as const,
-        orgCode: undefined,
-        teamCode: undefined,
-      };
-
-      // Merge organization profile data with signup data
-      const signupData = {
-        ...cleanedFormData,
-        ...(orgProfile && {
-          companyName: orgProfile.organizationName || '',
-          industry: orgProfile.organizationType || 'Other',
-        }),
-      };
 
       const response = await fetch(apiUrl('/api/auth/signup'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(signupData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
+          mobile: normalizedMobile,
+          password: formData.password,
+          orgName: formData.orgName.trim(),
+          orgSize: formData.orgSize,
+        }),
       });
 
       interface SignupResponse {
-        data?: { userId?: string; orgCode?: string; teamCode?: string; mobileOTP?: string };
+        data?: { userId?: string; orgCode?: string; role?: string };
         message?: string;
         errors?: Array<{ field: string; message: string }>;
         issues?: Array<{ path?: string[]; message: string }>;
@@ -136,62 +91,24 @@ function SignUp({ onSubmit }: SignUpProps) {
       }
 
       if (response.ok) {
-        // Save userId for dashboard access
-        if (data.data?.userId) {
-          localStorage.setItem('userId', data.data.userId);
-        }
-        // Store generated codes if any
-        if (data.data?.orgCode || data.data?.teamCode) {
-          setGeneratedCode({
-            orgCode: data.data.orgCode,
-            teamCode: data.data.teamCode,
-          });
-        }
-        // Store OTP for easy testing (only available in development mode)
-        if (data.data?.mobileOTP) {
-          localStorage.setItem('dev_mobileOTP', data.data.mobileOTP);
-        }
-        if (onSubmit) {
-          await onSubmit(formData);
-        }
-        navigate('/auth/otp-verify', {
-          state: {
-            email: formData.email,
-            mobile: formData.mobile,
-            orgCode: data.data?.orgCode,
-            teamCode: data.data?.teamCode,
-          },
-        });
+        if (data.data?.userId) localStorage.setItem('userId', data.data.userId);
+        if (data.data?.role) localStorage.setItem('userRole', data.data.role);
+        navigate('/onboarding');
       } else {
-        console.error('Signup failed:', data);
-        // Handle validation errors from backend (Zod format)
         const newErrors: Partial<Record<keyof SignUpFormData, string>> = {};
-
-        // Handle Zod validation errors
         if (data.issues && Array.isArray(data.issues)) {
-          data.issues.forEach((issue: any) => {
+          data.issues.forEach((issue: { path?: string[]; message: string }) => {
             const field = issue.path?.[0] as keyof SignUpFormData;
-            if (field && field in formData) {
-              newErrors[field] = issue.message;
-            }
+            if (field && field in formData) newErrors[field] = issue.message;
           });
         }
-
-        // Handle custom error format
         if (data.errors && Array.isArray(data.errors)) {
-          data.errors.forEach((error: { field: string; message: string }) => {
-            const field = error.field as keyof SignUpFormData;
-            if (field in formData) {
-              newErrors[field] = error.message;
-            }
+          data.errors.forEach((err: { field: string; message: string }) => {
+            const field = err.field as keyof SignUpFormData;
+            if (field in formData) newErrors[field] = err.message;
           });
         }
-
-        // If no specific field errors, show general message
-        if (Object.keys(newErrors).length === 0) {
-          newErrors.email = data.message || 'Sign up failed. Please try again.';
-        }
-
+        if (Object.keys(newErrors).length === 0) newErrors.email = data.message || 'Sign up failed. Please try again.';
         setErrors(newErrors);
       }
     } catch (error) {
@@ -206,9 +123,7 @@ function SignUp({ onSubmit }: SignUpProps) {
 
   const handleInputChange = (field: keyof SignUpFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
   return (
@@ -218,12 +133,7 @@ function SignUp({ onSubmit }: SignUpProps) {
       <div className={styles.accentGrid} />
       <div className={styles.content}>
         <div className={styles.formCard}>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={handleBack}
-            aria-label="Go back"
-          >
+          <button type="button" className={styles.backButton} onClick={handleBack} aria-label="Go back">
             ←
           </button>
           <div className={styles.logo}>
@@ -231,28 +141,7 @@ function SignUp({ onSubmit }: SignUpProps) {
             <span className={styles.logoText}>4DPMS</span>
           </div>
           <h2 className={styles.greeting}>Create your workspace</h2>
-          <p className={styles.subGreeting}>
-            Sign up to start managing performance with your team.
-          </p>
-
-          {generatedCode && (
-            <div className={styles.codeDisplay}>
-              {generatedCode.orgCode && (
-                <div className={styles.codeBox}>
-                  <p className={styles.codeLabel}>Your Organization Code:</p>
-                  <p className={styles.codeValue}>{generatedCode.orgCode}</p>
-                  <p className={styles.codeHint}>Share this code with your Supervisors</p>
-                </div>
-              )}
-              {generatedCode.teamCode && (
-                <div className={styles.codeBox}>
-                  <p className={styles.codeLabel}>Your Team Code:</p>
-                  <p className={styles.codeValue}>{generatedCode.teamCode}</p>
-                  <p className={styles.codeHint}>Share this code with your team members</p>
-                </div>
-              )}
-            </div>
-          )}
+          <p className={styles.subGreeting}>Sign up to start managing performance with your team.</p>
 
           <form onSubmit={handleSubmit} className={styles.form} noValidate>
             <div className={styles.inputGroup}>
@@ -264,16 +153,9 @@ function SignUp({ onSubmit }: SignUpProps) {
                 onChange={e => handleInputChange('name', e.target.value)}
                 placeholder=" "
                 aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? 'name-error' : undefined}
               />
-              <label htmlFor="name" className={styles.label}>
-                Your name
-              </label>
-              {errors.name && (
-                <span id="name-error" className={styles.errorText} role="alert">
-                  {errors.name}
-                </span>
-              )}
+              <label htmlFor="name" className={styles.label}>Your name</label>
+              {errors.name && <span className={styles.errorText} role="alert">{errors.name}</span>}
             </div>
 
             <div className={styles.inputGroup}>
@@ -285,37 +167,9 @@ function SignUp({ onSubmit }: SignUpProps) {
                 onChange={e => handleInputChange('email', e.target.value)}
                 placeholder=" "
                 aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
               />
-              <label htmlFor="email" className={styles.label}>
-                Email
-              </label>
-              {errors.email && (
-                <span id="email-error" className={styles.errorText} role="alert">
-                  {errors.email}
-                </span>
-              )}
-            </div>
-
-            <div className={styles.inputGroup}>
-              <input
-                id="designation"
-                type="text"
-                className={`${styles.input} ${errors.designation ? styles.inputError : ''}`}
-                value={formData.designation}
-                onChange={e => handleInputChange('designation', e.target.value)}
-                placeholder=" "
-                aria-invalid={!!errors.designation}
-                aria-describedby={errors.designation ? 'designation-error' : undefined}
-              />
-              <label htmlFor="designation" className={styles.label}>
-                Designation
-              </label>
-              {errors.designation && (
-                <span id="designation-error" className={styles.errorText} role="alert">
-                  {errors.designation}
-                </span>
-              )}
+              <label htmlFor="email" className={styles.label}>Email</label>
+              {errors.email && <span className={styles.errorText} role="alert">{errors.email}</span>}
             </div>
 
             <div className={styles.inputGroup}>
@@ -328,36 +182,78 @@ function SignUp({ onSubmit }: SignUpProps) {
                 maxLength={10}
                 placeholder=" "
                 aria-invalid={!!errors.mobile}
-                aria-describedby={errors.mobile ? 'mobile-error' : undefined}
               />
-              <label htmlFor="mobile" className={styles.label}>
-                Mobile
-              </label>
-              {errors.mobile && (
-                <span id="mobile-error" className={styles.errorText} role="alert">
-                  {errors.mobile}
-                </span>
-              )}
+              <label htmlFor="mobile" className={styles.label}>Mobile</label>
+              {errors.mobile && <span className={styles.errorText} role="alert">{errors.mobile}</span>}
             </div>
 
-            <button
-              type="submit"
-              className={styles.primaryButton}
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
-            >
+            <div className={styles.inputGroup}>
+              <input
+                id="password"
+                type="password"
+                className={`${styles.input} ${errors.password ? styles.inputError : ''}`}
+                value={formData.password}
+                onChange={e => handleInputChange('password', e.target.value)}
+                placeholder=" "
+                aria-invalid={!!errors.password}
+              />
+              <label htmlFor="password" className={styles.label}>Password</label>
+              {errors.password && <span className={styles.errorText} role="alert">{errors.password}</span>}
+            </div>
+
+            <div className={styles.inputGroup}>
+              <input
+                id="confirmPassword"
+                type="password"
+                className={`${styles.input} ${errors.confirmPassword ? styles.inputError : ''}`}
+                value={formData.confirmPassword}
+                onChange={e => handleInputChange('confirmPassword', e.target.value)}
+                placeholder=" "
+                aria-invalid={!!errors.confirmPassword}
+              />
+              <label htmlFor="confirmPassword" className={styles.label}>Confirm Password</label>
+              {errors.confirmPassword && <span className={styles.errorText} role="alert">{errors.confirmPassword}</span>}
+            </div>
+
+            <div className={styles.inputGroup}>
+              <input
+                id="orgName"
+                type="text"
+                className={`${styles.input} ${errors.orgName ? styles.inputError : ''}`}
+                value={formData.orgName}
+                onChange={e => handleInputChange('orgName', e.target.value)}
+                placeholder=" "
+                aria-invalid={!!errors.orgName}
+              />
+              <label htmlFor="orgName" className={styles.label}>Organization Name</label>
+              {errors.orgName && <span className={styles.errorText} role="alert">{errors.orgName}</span>}
+            </div>
+
+            <div className={styles.selectGroup}>
+              <label htmlFor="orgSize" className={styles.selectLabel}>Organization Size</label>
+              <select
+                id="orgSize"
+                className={`${styles.select} ${errors.orgSize ? styles.inputError : ''}`}
+                value={formData.orgSize}
+                onChange={e => handleInputChange('orgSize', e.target.value)}
+                aria-invalid={!!errors.orgSize}
+              >
+                <option value="">-- Select organization size --</option>
+                {ORG_SIZE_OPTIONS.map(size => (
+                  <option key={size} value={size}>{size} employees</option>
+                ))}
+              </select>
+              {errors.orgSize && <span className={styles.errorText} role="alert">{errors.orgSize}</span>}
+            </div>
+
+            <button type="submit" className={styles.primaryButton} disabled={isSubmitting} aria-busy={isSubmitting}>
               {isSubmitting ? 'Signing up...' : 'Sign up'}
             </button>
 
             <p className={styles.linkRow}>
-              Have an invite?{' '}
-              <Link to="/auth/join" className={styles.link}>
-                Join with invite
-              </Link>
+              Have an invite? <Link to="/auth/join" className={styles.link}>Join with invite</Link>
             </p>
-            <Link to="/auth/login" className={styles.link}>
-              Already signed up? Enter access code
-            </Link>
+            <Link to="/auth/login" className={styles.link}>Already have an account? Log in</Link>
           </form>
         </div>
       </div>

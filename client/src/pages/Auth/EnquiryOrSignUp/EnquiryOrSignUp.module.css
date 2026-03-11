@@ -3,10 +3,16 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: clamp(1.5rem, 4vw, 3rem);
+  min-height: 100dvh;
+  padding: clamp(1rem, 4vw, 3rem);
+  padding-left: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-right));
+  padding-bottom: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-bottom));
   background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .content {
@@ -21,17 +27,48 @@
 }
 
 .formCard {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  border-radius: 20px;
-  padding: clamp(2.5rem, 2vw, 3rem);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  padding: clamp(2rem, 2vw, 2.5rem);
   width: 100%;
-  max-width: 660px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  max-width: 400px;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   position: relative;
   overflow: hidden;
   z-index: 1;
+}
+
+.backButton {
+  position: absolute;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+  background: transparent;
+  border: none;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-24);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-main-black-60);
+  cursor: pointer;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.2s,
+    transform 0.2s;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backButton:hover {
+  color: var(--color-main-black-100);
+  transform: translateX(-2px);
 }
 
 .logo {
@@ -43,7 +80,7 @@
 }
 
 .logoImage {
-  width: 96px;
+  width: 72px;
   height: auto;
   display: block;
 }
@@ -114,126 +151,164 @@
 
 .greeting {
   font-family: var(--font-inter);
-  font-size: var(--font-size-36);
+  font-size: var(--font-size-26, 26px);
   font-weight: var(--font-weight-semibold);
   color: var(--color-main-black-100);
   text-align: center;
-  margin: 0 0 var(--spacing-sm);
+  margin: 0 0 var(--spacing-xs);
 }
 
 .subGreeting {
   font-family: var(--font-inter);
-  font-size: var(--font-size-16);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
   color: var(--color-main-grey-60);
   text-align: center;
-  margin: 0 0 var(--spacing-xl);
+  margin: 0 0 var(--spacing-lg);
+  line-height: 1.5;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 
 .inputGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  position: relative;
+  padding-top: 0.5rem;
 }
 
 .label {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: var(--font-inter);
   font-size: var(--font-size-14);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-main-black-80);
-  margin-bottom: var(--spacing-xs);
+  font-weight: var(--font-weight-regular);
+  color: rgba(80, 80, 80, 0.6);
+  pointer-events: none;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.input:focus ~ .label,
+.input:not(:placeholder-shown) ~ .label {
+  top: -0.25rem;
+  transform: translateY(-50%);
+  font-size: var(--font-size-13);
+  color: rgba(33, 150, 243, 0.7);
+}
+
+.inputError ~ .label {
+  color: var(--color-error-100);
 }
 
 .input {
   width: 100%;
-  padding: var(--spacing-md);
-  border: 1px solid rgba(33, 150, 243, 0.18);
-  border-radius: var(--radius-sm);
-  background: var(--color-core-white);
+  min-height: 44px;
+  padding: 1rem 0.875rem 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
   font-family: var(--font-inter);
-  font-size: var(--font-size-16);
+  font-size: 16px;
   font-weight: var(--font-weight-regular);
   color: var(--color-main-black-100);
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.input:focus {
-  border-color: var(--color-primary-main-blue);
-  box-shadow: 0 10px 30px rgba(33, 150, 243, 0.12), 0 0 0 3px rgba(33, 150, 243, 0.18);
+  transition: all 0.25s ease;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .input::placeholder {
-  color: var(--color-main-grey-60);
+  color: transparent;
+}
+
+.input:focus {
+  border-color: rgba(33, 150, 243, 0.4);
+  background: var(--color-core-white);
+  box-shadow:
+    0 0 0 3px rgba(33, 150, 243, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .inputError {
-  border-color: var(--color-error-100);
+  border-color: rgba(211, 47, 47, 0.4);
 }
 
 .errorText {
+  display: block;
   font-family: var(--font-inter);
-  font-size: var(--font-size-14);
+  font-size: var(--font-size-11);
   font-weight: var(--font-weight-regular);
   color: var(--color-error-100);
-  margin-top: calc(var(--spacing-xs) * -1);
+  margin-top: 4px;
+  padding-left: 0.25rem;
 }
 
-.buttonGroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-sm);
-}
-
-.enquiryButton {
+.primaryButton {
   width: 100%;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, var(--color-primary-main-blue), var(--color-primary-deep1-blue));
+  min-height: 48px;
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-main-blue),
+    var(--color-primary-deep1-blue)
+  );
   color: var(--color-core-white);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   font-family: var(--font-inter);
-  font-size: var(--font-size-16);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-15);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 10px rgba(33, 150, 243, 0.2);
+  margin-top: var(--spacing-sm);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.enquiryButton:hover:not(:disabled) {
-  transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 12px 30px rgba(33, 150, 243, 0.25);
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(33, 150, 243, 0.3);
 }
 
-.enquiryButton:disabled {
+.primaryButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.signUpButton {
-  width: 100%;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-core-white);
-  color: var(--color-primary-main-blue);
-  border: 2px solid var(--color-primary-main-blue);
-  border-radius: var(--radius-md);
-  font-family: var(--font-inter);
-  font-size: var(--font-size-16);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition: all 0.2s;
+.linkContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: var(--spacing-sm);
 }
 
-.signUpButton:hover {
-  background: rgba(33, 150, 243, 0.05);
-  transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 8px 20px rgba(33, 150, 243, 0.15);
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14, 14px);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-primary-main-blue);
+  text-align: center;
+  cursor: pointer;
+  transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.linkButton:hover {
+  color: var(--color-primary-deep1-blue);
 }
 
 .thankYouMessage {
@@ -278,27 +353,78 @@
 
 @media (max-width: 768px) {
   .authContainer {
-    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-top: max(1.5rem, env(safe-area-inset-top));
   }
 
   .content {
-    padding: 1.5rem;
+    padding: 0.5rem;
+    width: 100%;
   }
 
   .formCard {
-    padding: 2rem;
+    padding: 1.5rem;
+    border-radius: 20px;
+    max-width: 100%;
+  }
+
+  .backButton {
+    top: max(var(--spacing-md), env(safe-area-inset-top));
+  }
+
+  .logoImage {
+    width: 56px;
+  }
+
+  .logoText {
+    font-size: 20px;
   }
 
   .greeting {
     font-size: 1.5rem;
   }
 
+  .subGreeting {
+    font-size: 14px;
+  }
+
+  .accentOne,
+  .accentTwo {
+    width: 200px;
+    height: 200px;
+    opacity: 0.4;
+  }
+
+  .thankYouIcon {
+    width: 64px;
+    height: 64px;
+    font-size: 36px;
+  }
+
   .thankYouTitle {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .thankYouText {
     font-size: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .formCard {
+    padding: 1.25rem;
+  }
+
+  .greeting {
+    font-size: 1.35rem;
+  }
+
+  .thankYouTitle {
+    font-size: 1.35rem;
   }
 }
 

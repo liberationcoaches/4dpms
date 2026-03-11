@@ -3,10 +3,16 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: clamp(1.5rem, 4vw, 3rem);
+  min-height: 100dvh;
+  padding: clamp(1rem, 4vw, 3rem);
+  padding-left: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-right));
+  padding-bottom: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-bottom));
   background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .content {
@@ -78,11 +84,17 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-main-black-60);
   cursor: pointer;
-  padding: var(--spacing-sm);
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition:
     color 0.2s,
     transform 0.2s;
   line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .backButton:hover {
@@ -191,6 +203,21 @@
   color: var(--color-error-100);
 }
 
+.selectGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+}
+
+.selectLabel {
+  font-family: var(--font-inter);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-regular);
+  color: rgba(80, 80, 80, 0.8);
+  margin: 0;
+}
+
 .input,
 .select {
   width: 100%;
@@ -240,7 +267,8 @@
 
 .primaryButton {
   width: 100%;
-  padding: 0.625rem 1.25rem;
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
   background: linear-gradient(
     135deg,
     var(--color-primary-main-blue),
@@ -250,12 +278,14 @@
   border: none;
   border-radius: 10px;
   font-family: var(--font-inter);
-  font-size: var(--font-size-15);
+  font-size: 16px;
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: all 0.25s ease;
   box-shadow: 0 2px 10px rgba(33, 150, 243, 0.2);
   margin-top: var(--spacing-sm);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .primaryButton:hover:not(:disabled) {
@@ -395,43 +425,70 @@
   margin-top: var(--spacing-xs);
 }
 
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 200px;
-    padding: 2rem 1.5rem;
-  }
-
-  .sidebarTitle {
-    font-size: 2rem;
-  }
-}
-
 @media (max-width: 768px) {
   .authContainer {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    padding: 2rem;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .sidebarTitle {
-    font-size: 1.75rem;
+    align-items: flex-start;
+    padding: 1rem;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-top: max(1.5rem, env(safe-area-inset-top));
   }
 
   .content {
-    padding: 1.5rem;
+    padding: 0.5rem;
+    width: 100%;
   }
 
   .formCard {
     padding: 1.5rem;
     border-radius: 20px;
+    max-width: 100%;
+  }
+
+  .backButton {
+    top: max(var(--spacing-md), env(safe-area-inset-top));
+  }
+
+  .logoImage {
+    width: 48px;
+  }
+
+  .logoText {
+    font-size: 20px;
   }
 
   .greeting {
-    font-size: var(--font-size-22);
+    font-size: 1.5rem;
+  }
+
+  .subGreeting {
+    font-size: 14px;
+  }
+
+  .form {
+    gap: 1.25rem;
+  }
+
+  .accentOne,
+  .accentTwo {
+    width: 200px;
+    height: 200px;
+    opacity: 0.4;
+  }
+
+  .link,
+  .linkRow {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .formCard {
+    padding: 1.25rem;
+  }
+
+  .greeting {
+    font-size: 1.35rem;
   }
 }

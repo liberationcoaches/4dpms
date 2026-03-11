@@ -99,18 +99,6 @@ interface Notification {
     isRead?: boolean;
 }
 
-interface TeamMember {
-    _id: string;
-    name: string;
-    designation?: string;
-    fourDIndex?: number;
-    kraStatus?: KraStatus;
-    functionalKRAs?: Array<{ kra: string; kpis?: Array<{ kpi: string; target?: string }>; pilotScore?: number; r1Score?: number; r2Score?: number; r3Score?: number; r4Score?: number }>;
-    organizationalKRAs?: OrgValue[];
-    selfDevelopmentKRAs?: SelfDevItem[];
-    developingOthersKRAs?: DevOthersItem[];
-}
-
 interface KraData {
     functional: KRA[];
     organizational: OrgValue[];
@@ -258,10 +246,11 @@ export default function MemberDashboard() {
     };
 
     /* ── Nav items ── */
+    const showMyTeam = user?.role === 'boss' || user?.role === 'manager';
     const navItems: { id: PageId; label: string; icon: string }[] = [
         { id: 'dashboard', label: 'Dashboard', icon: '▦' },
         { id: 'dimensions', label: 'My 4 Dimensions', icon: '◈' },
-        ...(hasDirectReports ? [{ id: 'team' as PageId, label: 'My Team', icon: '⊞' }] : []),
+        ...(showMyTeam ? [{ id: 'team' as PageId, label: 'My Team', icon: '⊞' }] : []),
         { id: 'feedback', label: 'Feedback', icon: '◎' },
         { id: 'notifications', label: 'Notifications', icon: '◒' },
         { id: 'settings', label: 'Settings', icon: '⚙' },
@@ -378,6 +367,8 @@ export default function MemberDashboard() {
                         <DashboardPage
                             userId={userId}
                             user={user}
+                            showMyTeam={showMyTeam}
+                            hasDirectReports={hasDirectReports}
                             checkPaywall={checkPaywall}
                             onNavigate={setActivePage}
                         />
@@ -385,8 +376,8 @@ export default function MemberDashboard() {
                     {activePage === 'dimensions' && (
                         <DimensionsPage userId={userId} checkPaywall={checkPaywall} />
                     )}
-                    {activePage === 'team' && hasDirectReports && (
-                        <TeamPage userId={userId} checkPaywall={checkPaywall} />
+                    {activePage === 'team' && showMyTeam && (
+                        <TeamPage userId={userId} user={user} checkPaywall={checkPaywall} />
                     )}
                     {activePage === 'feedback' && (
                         <FeedbackPage userId={userId} checkPaywall={checkPaywall} />
@@ -414,11 +405,15 @@ export default function MemberDashboard() {
 function DashboardPage({
     userId,
     user,
+    showMyTeam,
+    hasDirectReports,
     checkPaywall,
     onNavigate,
 }: {
     userId: string;
     user: UserProfile | null;
+    showMyTeam: boolean;
+    hasDirectReports: boolean;
     checkPaywall: (r: Response) => Promise<void>;
     onNavigate: (p: PageId) => void;
 }) {
@@ -505,7 +500,13 @@ function DashboardPage({
                         </button>
                     </div>
                     {kras.length === 0 ? (
-                        <EmptyState message="No KRAs assigned yet." />
+                        <div className={styles.emptyState}>
+                            <span className={styles.emptyIcon}>📋</span>
+                            <p>You haven&apos;t set your KRAs yet</p>
+                            <button className={styles.btnPrimary} onClick={() => onNavigate('dimensions')}>
+                                Set KRAs →
+                            </button>
+                        </div>
                     ) : (
                         <div className={styles.kraList}>
                             {kras.map((kra, i) => {
@@ -526,6 +527,19 @@ function DashboardPage({
                         </div>
                     )}
                 </div>
+
+                {/* Your team is empty (boss/manager only) */}
+                {showMyTeam && !hasDirectReports && (
+                    <div className={styles.card}>
+                        <div className={styles.emptyState}>
+                            <span className={styles.emptyIcon}>👥</span>
+                            <p>Your team is empty</p>
+                            <button className={styles.btnPrimary} onClick={() => onNavigate('team')}>
+                                Add your first member →
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Recent feedback */}
                 <div className={styles.card}>
@@ -1379,247 +1393,368 @@ function DimensionsPage({
 }
 
 /* ═══════════════════════════════════════════
-   PAGE 3 — MY TEAM (stub — full in Part 2)
+   PAGE 3 — MY TEAM (boss/manager only)
 ═══════════════════════════════════════════ */
+
+interface TeamMemberRow {
+    _id: string;
+    name: string;
+    email?: string;
+    designation: string;
+    role: string;
+    status: string;
+    isActive: boolean;
+    inviteCode?: string;
+    inviteLink?: string;
+}
 
 function TeamPage({
     userId,
+    user,
     checkPaywall,
 }: {
     userId: string;
+    user: UserProfile | null;
     checkPaywall: (r: Response) => Promise<void>;
 }) {
-    const [members, setMembers] = useState<TeamMember[]>([]);
+    const [members, setMembers] = useState<TeamMemberRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-    const [panelOpen, setPanelOpen] = useState(false);
-    const [treeMode, setTreeMode] = useState<'direct' | 'full'>('direct');
-    const [fullTree, setFullTree] = useState<TeamMember[]>([]);
-    const [rejectNote, setRejectNote] = useState('');
-    const [actionMsg, setActionMsg] = useState('');
+    const [addPersonOpen, setAddPersonOpen] = useState(false);
+    const [inviteDropOpen, setInviteDropOpen] = useState(false);
+    const [inviteLinkModalOpen, setInviteLinkModalOpen] = useState(false);
+    const [inviteCodeModalOpen, setInviteCodeModalOpen] = useState(false);
+    const [addSingleOpen, setAddSingleOpen] = useState(false);
+    const [copiedCode, setCopiedCode] = useState<string | null>(null);
+    const [form, setForm] = useState({ name: '', email: '', mobile: '', designation: '', department: '', reportsTo: '' });
+    const [saving, setSaving] = useState(false);
+    const [toast, setToast] = useState('');
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const res = await fetch(apiUrl(`/api/member/team?userId=${userId}`));
-                await checkPaywall(res);
-                const d = await res.json().catch(() => ({}));
-                if (d.status === 'success') {
-                    const raw = (d.data ?? []) as Array<{
-                        _id: string;
-                        name: string;
-                        designation?: string;
-                        role?: string;
-                        kraStatus?: KraStatus;
-                        functionalKRAs?: TeamMember['functionalKRAs'];
-                        organizationalKRAs?: OrgValue[];
-                        selfDevelopmentKRAs?: SelfDevItem[];
-                        developingOthersKRAs?: DevOthersItem[];
-                        scores?: { fourDIndex?: number };
-                    }>;
-                    setMembers(raw.map((m) => ({
-                        _id: m._id,
-                        name: m.name,
-                        designation: m.designation,
-                        fourDIndex: m.scores?.fourDIndex,
-                        kraStatus: m.kraStatus,
-                        functionalKRAs: m.functionalKRAs ?? [],
-                        organizationalKRAs: m.organizationalKRAs ?? [],
-                        selfDevelopmentKRAs: m.selfDevelopmentKRAs ?? [],
-                        developingOthersKRAs: m.developingOthersKRAs ?? [],
-                    })));
-                } else setError('Failed to load team data.');
-            } catch {
-                setError('Failed to load team data.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
-    }, [userId, checkPaywall]);
-
-    const loadFullTree = async () => {
+    const loadMembers = useCallback(async () => {
         try {
-            const res = await fetch(apiUrl(`/api/member/subtree?userId=${userId}`));
+            const res = await fetch(apiUrl(`/api/member/team-members?userId=${userId}`));
             await checkPaywall(res);
             const d = await res.json().catch(() => ({}));
-            if (d.status === 'success') setFullTree(d.data as TeamMember[]);
-        } catch { /* ignore */ }
+            if (d.status === 'success') setMembers(d.data ?? []);
+            else setError('Failed to load team.');
+        } catch {
+            setError('Failed to load team.');
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, checkPaywall]);
+
+    useEffect(() => { loadMembers(); }, [loadMembers]);
+
+    const handleCopyCode = (code: string) => {
+        navigator.clipboard.writeText(code);
+        setCopiedCode(code);
+        setTimeout(() => setCopiedCode(null), 2000);
     };
 
-    const handleApproveKRAs = async (memberId: string) => {
+    const handleResend = async (memberId: string) => {
         try {
-            const res = await fetch(apiUrl(`/api/member/team/${memberId}/approve?userId=${userId}`), {
+            const res = await fetch(apiUrl(`/api/org-admin/members/${memberId}/resend-invite?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
             await checkPaywall(res);
-            setActionMsg('KRAs approved!');
-            setTimeout(() => setActionMsg(''), 3000);
-        } catch { /* ignore */ }
+            const d = await res.json();
+            if (res.ok) {
+                setToast('Invite resent');
+                setTimeout(() => setToast(''), 3000);
+                loadMembers();
+            } else {
+                setToast(d.message || 'Failed');
+                setTimeout(() => setToast(''), 3000);
+            }
+        } catch {
+            setToast('Network error');
+            setTimeout(() => setToast(''), 3000);
+        }
     };
 
-    const handleRejectKRAs = async (memberId: string) => {
+    const handleAddSingle = async () => {
+        if (!form.name.trim() || !form.email.trim() || !form.mobile.trim()) {
+            setToast('Name, email, and mobile are required');
+            setTimeout(() => setToast(''), 3000);
+            return;
+        }
+        const mobileNorm = form.mobile.replace(/\D/g, '');
+        if (mobileNorm.length !== 10) {
+            setToast('Mobile must be 10 digits');
+            setTimeout(() => setToast(''), 3000);
+            return;
+        }
+        setSaving(true);
         try {
-            const res = await fetch(apiUrl(`/api/member/team/${memberId}/reject?userId=${userId}`), {
+            const res = await fetch(apiUrl(`/api/org-admin/members/invite?userId=${userId}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ note: rejectNote }),
+                body: JSON.stringify({
+                    name: form.name.trim(),
+                    email: form.email.trim().toLowerCase(),
+                    mobile: mobileNorm,
+                    designation: form.designation.trim() || undefined,
+                    department: form.department.trim() || undefined,
+                    role: 'employee',
+                    reportsTo: form.reportsTo || undefined,
+                }),
             });
             await checkPaywall(res);
-            setActionMsg('KRAs sent back for revision.');
-            setRejectNote('');
-            setTimeout(() => setActionMsg(''), 3000);
-        } catch { /* ignore */ }
+            const d = await res.json();
+            if (res.ok) {
+                setAddSingleOpen(false);
+                setForm({ name: '', email: '', mobile: '', designation: '', department: '', reportsTo: '' });
+                setToast('Member added');
+                setTimeout(() => setToast(''), 3000);
+                loadMembers();
+            } else {
+                setToast(d.message || 'Failed');
+                setTimeout(() => setToast(''), 3000);
+            }
+        } catch {
+            setToast('Network error');
+            setTimeout(() => setToast(''), 3000);
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (loading) return <PageLoader />;
     if (error) return <PageError message={error} />;
 
-    const displayMembers = treeMode === 'full' && fullTree.length > 0 ? fullTree : members;
-
     return (
         <div className={styles.teamWrap}>
-            {/* Executive toggle */}
-            <div className={styles.teamControls}>
-                <div className={styles.treeToggle}>
-                    <button
-                        className={`${styles.toggleBtn} ${treeMode === 'direct' ? styles.toggleActive : ''}`}
-                        onClick={() => setTreeMode('direct')}
-                    >
-                        Direct Reports
+            {toast && <div className={styles.successBanner} style={{ marginBottom: 12 }}>{toast}</div>}
+
+            <div className={styles.teamControls} style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative' }}>
+                    <button className={styles.btnPrimary} onClick={() => { setAddPersonOpen(!addPersonOpen); setInviteDropOpen(false); }}>
+                        Add Person ▾
                     </button>
-                    <button
-                        className={`${styles.toggleBtn} ${treeMode === 'full' ? styles.toggleActive : ''}`}
-                        onClick={() => { setTreeMode('full'); loadFullTree(); }}
-                    >
-                        Full Tree
+                    {addPersonOpen && (
+                        <>
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setAddPersonOpen(false)} />
+                            <div className={styles.dropdownMenu} style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 20, minWidth: 200 }}>
+                                <button className={styles.dropdownItem} onClick={() => { setAddPersonOpen(false); setAddSingleOpen(true); }}>Add Single Person</button>
+                                <button className={styles.dropdownItem} onClick={() => { setAddPersonOpen(false); setToast('Bulk import coming soon'); setTimeout(() => setToast(''), 3000); }}>Bulk Import via CSV</button>
+                            </div>
+                        </>
+                    )}
+                </div>
+                <div style={{ position: 'relative' }}>
+                    <button className={styles.btnOutline} onClick={() => { setInviteDropOpen(!inviteDropOpen); setAddPersonOpen(false); }}>
+                        Invite ▾
                     </button>
+                    {inviteDropOpen && (
+                        <>
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setInviteDropOpen(false)} />
+                            <div className={styles.dropdownMenu} style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 20, minWidth: 200 }}>
+                                <button className={styles.dropdownItem} onClick={() => { setInviteDropOpen(false); setInviteLinkModalOpen(true); }}>Send Invite Link</button>
+                                <button className={styles.dropdownItem} onClick={() => { setInviteDropOpen(false); setInviteCodeModalOpen(true); }}>Share Invite Code</button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {displayMembers.length === 0 ? (
-                <EmptyState message="No team members found." />
+            {members.length === 0 ? (
+                <div className={styles.emptyState}>
+                    <span className={styles.emptyIcon}>👥</span>
+                    <p>Your team is empty</p>
+                    <button className={styles.btnPrimary} onClick={() => setAddSingleOpen(true)}>Add your first member →</button>
+                </div>
             ) : (
-                <div className={styles.teamGrid}>
-                    {displayMembers.map((m) => (
-                        <div key={m._id} className={styles.teamCard}>
-                            <div className={styles.teamCardAvatar}>{getInitials(m.name)}</div>
-                            <div className={styles.teamCardInfo}>
-                                <span className={styles.teamCardName}>{m.name}</span>
-                                <span className={styles.teamCardDesg}>{m.designation || '—'}</span>
-                            </div>
-                            <div className={styles.teamCardMeta}>
-                                {m.fourDIndex != null && (
-                                    <span className={styles.teamCardScore}>{m.fourDIndex.toFixed(1)} / 5.0</span>
-                                )}
-                                <StatusBadge status={m.kraStatus} />
-                            </div>
-                            <button
-                                className={styles.btnSmPrimary}
-                                onClick={() => { setSelectedMember(m); setPanelOpen(true); }}
-                            >
-                                View KRAs
-                            </button>
-                        </div>
-                    ))}
+                <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Designation</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Invite Code</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {members.map((m) => (
+                                <tr key={m._id}>
+                                    <td>{m.name}</td>
+                                    <td>{m.designation || '—'}</td>
+                                    <td>{m.role}</td>
+                                    <td>
+                                        <span className={`${styles.badge} ${m.isActive ? styles.badge_active : styles.badge_pending_approval}`}>
+                                            {m.status}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {!m.isActive && m.inviteCode ? (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{m.inviteCode}</code>
+                                                <button className={styles.btnSmOutline} onClick={() => handleCopyCode(m.inviteCode!)}>
+                                                    {copiedCode === m.inviteCode ? '✓' : 'Copy'}
+                                                </button>
+                                            </span>
+                                        ) : '—'}
+                                    </td>
+                                    <td>
+                                        {!m.isActive && (
+                                            <button className={styles.btnSmOutline} onClick={() => handleResend(m._id)}>Resend Email</button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
 
-            {/* Slide panel */}
-            {panelOpen && selectedMember && (
+            {/* Add Single Person modal */}
+            {addSingleOpen && (
                 <>
-                    <div className={styles.panelOverlay} onClick={() => setPanelOpen(false)} />
+                    <div className={styles.panelOverlay} onClick={() => setAddSingleOpen(false)} />
                     <aside className={styles.slidePanel}>
                         <div className={styles.panelHeader}>
-                            <div>
-                                <h3 className={styles.panelTitle}>{selectedMember.name}'s KRAs</h3>
-                                <StatusBadge status={selectedMember.kraStatus} />
-                            </div>
-                            <button className={styles.panelClose} onClick={() => setPanelOpen(false)}>✕</button>
+                            <h3 className={styles.panelTitle}>Add Single Person</h3>
+                            <button className={styles.panelClose} onClick={() => setAddSingleOpen(false)}>✕</button>
                         </div>
-
-                        {actionMsg && <div className={styles.successBanner}>{actionMsg}</div>}
-
                         <div className={styles.panelBody}>
-                            {(selectedMember.functionalKRAs ?? []).length === 0 ? (
-                                <EmptyState message="No KRAs found for this member." />
-                            ) : (
-                                (selectedMember.functionalKRAs ?? []).map((kra, ki) => {
-                                    const getScore = (period: string) => {
-                                        if (period === 'pilot') return kra.pilotScore;
-                                        if (period === 'r1') return kra.r1Score;
-                                        if (period === 'r2') return kra.r2Score;
-                                        if (period === 'r3') return kra.r3Score;
-                                        if (period === 'r4') return kra.r4Score;
-                                        return undefined;
-                                    };
-                                    return (
-                                        <div key={ki} className={styles.kraCard}>
-                                            <h4 className={styles.kraCardTitle}>{kra.kra}</h4>
-                                            {(kra.kpis ?? []).length > 0 && (
-                                                <div className={styles.kpiList}>
-                                                    {(kra.kpis ?? []).map((kpi, kpii) => (
-                                                        <div key={kpii} className={styles.kpiItem}>
-                                                            <span className={styles.kpiDot} />
-                                                            <span className={styles.kpiName}>{kpi.kpi}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <div className={styles.periodTable}>
-                                                <div className={styles.periodRow + ' ' + styles.periodHeader}>
-                                                    {ALL_PERIODS.map((p) => (
-                                                        <span key={p} className={styles.periodCell}>{PERIOD_LABELS[p]}</span>
-                                                    ))}
-                                                </div>
-                                                <div className={styles.periodRow}>
-                                                    {ALL_PERIODS.map((p) => {
-                                                        const score = getScore(p);
-                                                        return (
-                                                            <span key={p} className={styles.periodCell}>
-                                                                {score != null ? score : '—'}
-                                                            </span>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        {selectedMember.kraStatus === 'pending_approval' && (
-                            <div className={styles.panelFooter}>
-                                <button
-                                    className={styles.btnPrimary}
-                                    onClick={() => handleApproveKRAs(selectedMember._id)}
-                                >
-                                    ✓ Approve KRAs
-                                </button>
-                                <div className={styles.rejectRow}>
-                                    <input
-                                        className={styles.proofInput}
-                                        placeholder="Rejection note…"
-                                        value={rejectNote}
-                                        onChange={(e) => setRejectNote(e.target.value)}
-                                    />
-                                    <button
-                                        className={styles.btnDanger}
-                                        onClick={() => handleRejectKRAs(selectedMember._id)}
-                                        disabled={!rejectNote.trim()}
-                                    >
-                                        Reject
-                                    </button>
-                                </div>
+                            <div className={styles.formField}>
+                                <label className={styles.formLabel}>Name *</label>
+                                <input className={styles.formInput} value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Full name" />
                             </div>
-                        )}
+                            <div className={styles.formField}>
+                                <label className={styles.formLabel}>Email *</label>
+                                <input className={styles.formInput} type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="email@example.com" />
+                            </div>
+                            <div className={styles.formField}>
+                                <label className={styles.formLabel}>Mobile *</label>
+                                <input className={styles.formInput} type="tel" value={form.mobile} onChange={(e) => setForm((p) => ({ ...p, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))} placeholder="10 digits" maxLength={10} />
+                            </div>
+                            <div className={styles.formField}>
+                                <label className={styles.formLabel}>Designation</label>
+                                <input className={styles.formInput} value={form.designation} onChange={(e) => setForm((p) => ({ ...p, designation: e.target.value }))} placeholder="Job title" />
+                            </div>
+                            <div className={styles.formField}>
+                                <label className={styles.formLabel}>Department</label>
+                                <input className={styles.formInput} value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} placeholder="Optional" />
+                            </div>
+                            <div className={styles.formField}>
+                                <label className={styles.formLabel}>Reports To</label>
+                                <select className={styles.formInput} value={form.reportsTo} onChange={(e) => setForm((p) => ({ ...p, reportsTo: e.target.value }))}>
+                                    <option value="">— None —</option>
+                                    {user && <option value={userId}>{user.name} (Me)</option>}
+                                    {members.filter((x) => x.isActive).map((x) => (
+                                        <option key={x._id} value={x._id}>{x.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className={styles.panelFooter}>
+                            <button className={styles.btnSecondary} onClick={() => setAddSingleOpen(false)}>Cancel</button>
+                            <button className={styles.btnPrimary} onClick={handleAddSingle} disabled={saving}>{saving ? 'Adding…' : 'Add & Send Invite'}</button>
+                        </div>
                     </aside>
                 </>
             )}
+
+            {/* Invite Link modal */}
+            {inviteLinkModalOpen && (
+                <InviteLinkModalMember userId={userId} onClose={() => setInviteLinkModalOpen(false)} checkPaywall={checkPaywall} onSuccess={() => { setInviteLinkModalOpen(false); setToast('Invite sent'); setTimeout(() => setToast(''), 3000); }} />
+            )}
+
+            {/* Share Invite Code modal */}
+            {inviteCodeModalOpen && (
+                <InviteCodeModalMember userId={userId} onClose={() => setInviteCodeModalOpen(false)} checkPaywall={checkPaywall} />
+            )}
         </div>
+    );
+}
+
+function InviteLinkModalMember({ userId, onClose, checkPaywall, onSuccess }: { userId: string; onClose: () => void; checkPaywall: (r: Response) => Promise<void>; onSuccess: () => void }) {
+    const [email, setEmail] = useState('');
+    const [sending, setSending] = useState(false);
+    const handleSend = async () => {
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+        setSending(true);
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/members/invite-link?userId=${userId}`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim() }),
+            });
+            await checkPaywall(res);
+            if (res.ok) onSuccess();
+        } finally {
+            setSending(false);
+        }
+    };
+    return (
+        <>
+            <div className={styles.panelOverlay} onClick={onClose} />
+            <aside className={styles.slidePanel}>
+                <div className={styles.panelHeader}>
+                    <h3 className={styles.panelTitle}>Send Invite Link</h3>
+                    <button className={styles.panelClose} onClick={onClose}>✕</button>
+                </div>
+                <div className={styles.panelBody}>
+                    <div className={styles.formField}>
+                        <label className={styles.formLabel}>Email</label>
+                        <input className={styles.formInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="colleague@example.com" />
+                    </div>
+                    <button className={styles.btnPrimary} onClick={handleSend} disabled={sending}>{sending ? 'Sending…' : 'Send'}</button>
+                </div>
+            </aside>
+        </>
+    );
+}
+
+function InviteCodeModalMember({ userId, onClose, checkPaywall }: { userId: string; onClose: () => void; checkPaywall: (r: Response) => Promise<void> }) {
+    const [inviteCode, setInviteCode] = useState<string | null>(null);
+    const [orgName, setOrgName] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [copied, setCopied] = useState(false);
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch(apiUrl(`/api/org-admin/invite-code?userId=${userId}`));
+                await checkPaywall(res);
+                const d = await res.json();
+                if (d.status === 'success') {
+                    setInviteCode(d.data.inviteCode);
+                    setOrgName(d.data.orgName || '');
+                }
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [userId, checkPaywall]);
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const joinUrl = `${baseUrl}/auth/join`;
+    const whatsappMsg = `You've been invited to join ${orgName} on 4DPMS. Use code: ${inviteCode || ''} at ${joinUrl}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`;
+    return (
+        <>
+            <div className={styles.panelOverlay} onClick={onClose} />
+            <aside className={styles.slidePanel}>
+                <div className={styles.panelHeader}>
+                    <h3 className={styles.panelTitle}>Share Invite Code</h3>
+                    <button className={styles.panelClose} onClick={onClose}>✕</button>
+                </div>
+                <div className={styles.panelBody}>
+                    {loading ? <p>Loading…</p> : (
+                        <>
+                            <p className={styles.formHint}>Your organization invite code</p>
+                            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 4, padding: 16, background: '#f8fafc', borderRadius: 8, margin: '12px 0' }}>{inviteCode || '—'}</div>
+                            <button className={styles.btnPrimary} onClick={() => { if (inviteCode) { navigator.clipboard.writeText(inviteCode); setCopied(true); setTimeout(() => setCopied(false), 2000); } }}>{copied ? 'Copied!' : 'Copy Code'}</button>
+                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.btnOutline} style={{ display: 'block', textAlign: 'center', marginTop: 12 }}>Share via WhatsApp</a>
+                        </>
+                    )}
+                </div>
+            </aside>
+        </>
     );
 }
 
@@ -1787,6 +1922,7 @@ function SettingsPage({
         designation: user?.designation || '',
         aboutMe: user?.aboutMe || '',
     });
+    const [reportsToName, setReportsToName] = useState<string | undefined>(undefined);
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState('');
     const [error, setError] = useState('');
@@ -1794,11 +1930,14 @@ function SettingsPage({
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(apiUrl(`/api/user/profile?userId=${userId}`));
-                await checkPaywall(res);
-                const d = await res.json().catch(() => ({}));
-                if (d.status === 'success' && d.data) {
-                    const p = d.data as UserProfile;
+                const [profileRes, memberRes] = await Promise.all([
+                    fetch(apiUrl(`/api/user/profile?userId=${userId}`)),
+                    user?.role === 'employee' ? fetch(apiUrl(`/api/member/profile?userId=${userId}`)) : null,
+                ]);
+                await checkPaywall(profileRes);
+                const pd = await profileRes.json().catch(() => ({}));
+                if (pd.status === 'success' && pd.data) {
+                    const p = pd.data as UserProfile;
                     setForm({
                         name: p.name || '',
                         email: p.email || '',
@@ -1807,10 +1946,17 @@ function SettingsPage({
                         aboutMe: p.aboutMe || '',
                     });
                 }
+                if (memberRes && user?.role === 'employee') {
+                    await checkPaywall(memberRes);
+                    const md = await memberRes.json().catch(() => ({}));
+                    if (md.status === 'success') {
+                        setReportsToName(md.data?.reportsTo ?? '—');
+                    }
+                }
             } catch { /* ignore */ }
         };
         load();
-    }, [userId, checkPaywall]);
+    }, [userId, checkPaywall, user?.role]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -1864,6 +2010,19 @@ function SettingsPage({
                             />
                         </div>
                     ))}
+
+                    {user?.role === 'employee' && reportsToName !== undefined && (
+                        <div className={styles.formField}>
+                            <label className={styles.formLabel}>Reports to</label>
+                            <input
+                                className={styles.formInput}
+                                type="text"
+                                value={reportsToName}
+                                readOnly
+                                style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                            />
+                        </div>
+                    )}
 
                     <div className={styles.formField}>
                         <label className={styles.formLabel}>About Me</label>

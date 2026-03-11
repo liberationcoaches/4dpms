@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { User } from '../models/User';
 import { Team } from '../models/Team';
+import { Invite } from '../models/Invite';
 import { Feedback } from '../models/Feedback';
 import { ReviewCycle } from '../models/ReviewCycle';
 import { Organization } from '../models/Organization';
@@ -199,6 +200,111 @@ export async function getMemberDashboard(
           delta,
         },
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getMemberProfile - Profile with reportsTo for employee
+// ---------------------------------------------------------------------------
+
+export async function getMemberProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'User ID is required' });
+      return;
+    }
+
+    const user = await User.findById(userId)
+      .populate('reportsTo', 'name')
+      .select('name email mobile designation role reportsTo')
+      .lean();
+
+    if (!user) {
+      res.status(404).json({ status: 'error', message: 'User not found' });
+      return;
+    }
+
+    const reportsTo = user.reportsTo as unknown as { _id: string; name: string } | null;
+    res.status(200).json({
+      status: 'success',
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        designation: user.designation,
+        role: user.role,
+        reportsTo: reportsTo?.name ?? null,
+        reportsToId: reportsTo?._id ?? null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getTeamMembersList - For boss/manager My Team tab: members with invite info
+// ---------------------------------------------------------------------------
+
+export async function getTeamMembersList(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'User ID is required' });
+      return;
+    }
+
+    const members = await User.find({ reportsTo: userId })
+      .select('_id name email designation role isActive')
+      .lean();
+
+    const baseUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+    const roleLabels: Record<string, string> = { boss: 'Executive', manager: 'Supervisor', employee: 'Member' };
+
+    const result = await Promise.all(
+      members.map(async (m: any) => {
+        let inviteCode: string | undefined;
+        let inviteLink: string | undefined;
+        if (!m.isActive) {
+          const invite = await Invite.findOne({ invitedUserId: m._id, usedAt: null })
+            .sort({ createdAt: -1 })
+            .lean();
+          if (invite) {
+            inviteCode = invite.shortCode;
+            inviteLink = `${baseUrl}/auth/join?invite=${invite.token}`;
+          }
+        }
+        return {
+          _id: m._id.toString(),
+          name: m.name,
+          email: m.email,
+          designation: m.designation ?? '',
+          role: roleLabels[m.role] || m.role,
+          roleValue: m.role,
+          status: m.isActive ? 'Active' : 'Pending',
+          isActive: m.isActive,
+          inviteCode,
+          inviteLink,
+        };
+      })
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: result,
     });
   } catch (error) {
     next(error);

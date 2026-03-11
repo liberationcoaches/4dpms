@@ -59,6 +59,7 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
         skills: user.skills || [],
         clientele: user.clientele || [],
         languages: user.languages || [],
+        isEmailVerified: user.isEmailVerified,
       },
     });
   } catch (error) {

@@ -59,6 +59,8 @@ export async function resolveInvite(req: Request, res: Response, next: NextFunct
         teamName: result.teamName,
         managerName: result.managerName,
         token: result.token,
+        invitedUserId: result.invitedUserId,
+        invitedUserEmail: result.invitedUserEmail,
       },
     });
   } catch (error) {

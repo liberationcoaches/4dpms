@@ -1,3 +1,4 @@
+import bcrypt from 'bcrypt';
 import { User, IUser } from '../models/User';
 import { OTP } from '../models/OTP';
 import { Organization } from '../models/Organization';
@@ -14,9 +15,53 @@ import { generateOrgCode, generateTeamCode } from '../utils/codeGenerator';
 import { SignUpInput, OTPVerificationInput } from '../utils/validation';
 
 /**
- * Create a new user account (unverified) with hierarchical organization structure
+ * Create org_admin user with organization (new signup flow) - no OTP
  */
-export async function createUser(data: SignUpInput): Promise<{ user: IUser; orgCode?: string; teamCode?: string }> {
+export async function createOrgAdminUser(data: SignUpInput): Promise<{ user: IUser; orgCode: string }> {
+  const existingUser = await User.findOne({
+    $or: [{ email: data.email }, { mobile: data.mobile }],
+  });
+  if (existingUser) {
+    throw new Error('User with this email or mobile already exists');
+  }
+
+  const hashedPassword = await bcrypt.hash(data.password, 10);
+  const orgCode = await generateOrgCode();
+
+  const org = new Organization({
+    name: data.orgName,
+    code: orgCode,
+    type: 'Other',
+    employeeSize: data.orgSize,
+    bossId: null as any,
+  });
+
+  const user = new User({
+    name: data.name,
+    email: data.email,
+    mobile: data.mobile,
+    password: hashedPassword,
+    isEmailVerified: false,
+    isMobileVerified: false,
+    isActive: true,
+    role: 'org_admin',
+    hierarchyLevel: 0.5,
+    organizationId: null as any,
+  });
+
+  await user.save();
+  org.bossId = user._id;
+  await org.save();
+  user.organizationId = org._id;
+  await user.save();
+
+  return { user, orgCode };
+}
+
+/**
+ * Create a new user account (unverified) with hierarchical organization structure (legacy)
+ */
+export async function createUser(data: SignUpInput & { signupType?: string; orgCode?: string; teamCode?: string; companyName?: string; industry?: string }): Promise<{ user: IUser; orgCode?: string; teamCode?: string }> {
   // Check if user already exists
   const existingUser = await User.findOne({
     $or: [{ email: data.email }, { mobile: data.mobile }],

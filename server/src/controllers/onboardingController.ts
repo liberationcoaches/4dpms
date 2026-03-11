@@ -41,8 +41,8 @@ export const updateOnboardingStep = async (req: Request, res: Response): Promise
             res.status(400).json({ status: 'error', message: 'userId is required' });
             return;
         }
-        if (step === undefined || step < 0 || step > 4) {
-            res.status(400).json({ status: 'error', message: 'Step must be between 0 and 4' });
+        if (step === undefined || step < 0 || step > 5) {
+            res.status(400).json({ status: 'error', message: 'Step must be between 0 and 5' });
             return;
         }
 

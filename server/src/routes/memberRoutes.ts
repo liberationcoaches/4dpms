@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   getMemberDashboard,
+  getMemberProfile,
+  getTeamMembersList,
   getDirectReports,
   getMemberKRAs,
   addFunctionalKRA,
@@ -17,6 +19,8 @@ import { checkSubscription } from '../middleware/checkSubscription';
 const router = Router();
 
 router.get('/dashboard', checkSubscription, getMemberDashboard);
+router.get('/profile', checkSubscription, getMemberProfile);
+router.get('/team-members', checkSubscription, getTeamMembersList);
 router.get('/direct-reports', checkSubscription, getDirectReports);
 router.get('/kras', checkSubscription, getMemberKRAs);
 router.post('/kras/functional', checkSubscription, addFunctionalKRA);

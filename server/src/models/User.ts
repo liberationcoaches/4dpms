@@ -4,9 +4,11 @@ export interface IUser extends Document {
   name: string;
   email: string;
   mobile: string;
+  password?: string;
   companyName?: string;
   industry?: string;
   isEmailVerified: boolean;
+  verifyEmailToken?: string;
   isMobileVerified: boolean;
   isActive: boolean;
   accessCode?: string;
@@ -83,6 +85,11 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    verifyEmailToken: {
+      type: String,
+      required: false,
+      select: false,
+    },
     isMobileVerified: {
       type: Boolean,
       default: false,
@@ -93,6 +100,11 @@ const UserSchema = new Schema<IUser>(
     },
     accessCode: {
       type: String,
+      select: false, // Don't return in queries by default
+    },
+    password: {
+      type: String,
+      required: false,
       select: false, // Don't return in queries by default
     },
     useFingerprint: {

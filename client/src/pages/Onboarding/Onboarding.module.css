@@ -763,6 +763,75 @@
   background: rgba(198, 40, 40, 0.1);
 }
 
+/* OrgSetup */
+.readOnlyInput {
+  background: var(--color-main-grey-20);
+  color: var(--color-main-grey-60);
+  cursor: default;
+}
+
+.logoUploadArea {
+  margin-top: var(--spacing-sm);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.uploadLogoBtn {
+  padding: var(--spacing-md);
+  border: 2px dashed var(--color-main-grey-40);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: var(--font-inter);
+  font-size: var(--font-size-14);
+  color: var(--color-primary-main-blue);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.uploadLogoBtn:hover {
+  border-color: var(--color-primary-main-blue);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.logoPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logoPreview img {
+  max-width: 80px;
+  max-height: 80px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.removeLogoBtn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: transparent;
+  border: 1px solid var(--color-error-100);
+  color: var(--color-error-100);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-12);
+  cursor: pointer;
+}
+
+.orgSetupActions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+  justify-content: flex-end;
+}
+
 /* ========== KRAs Step ========== */
 .kraStep {
   background: var(--color-core-white);

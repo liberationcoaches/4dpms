@@ -34,7 +34,7 @@ export default function AddKRAs({ members }: AddKRAsProps) {
                                 fontSize: '12px',
                                 color: 'var(--color-main-grey-60)',
                             }}>
-                                {member.role === 'manager' ? 'Supervisor' : 'Member'}
+                                {member.role === 'boss' ? 'Executive' : member.role === 'manager' ? 'Supervisor' : 'Member'}
                             </span>
                         </div>
                         <p style={{

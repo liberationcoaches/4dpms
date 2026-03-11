@@ -15,6 +15,7 @@ interface Member {
     mobile?: string;
     designation?: string;
     reportsTo?: string | { _id: string; name: string };
+    role?: string;
     status?: 'active' | 'invited' | 'pending';
 }
 
@@ -38,6 +39,8 @@ interface TreeNode {
     id: string;
     name: string;
     designation?: string;
+    role?: string;
+    roleLabel?: string;
     children?: TreeNode[];
 }
 
@@ -223,6 +226,11 @@ const icons = {
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
         </svg>
     ),
+    menu: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+    ),
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -236,8 +244,11 @@ export default function OrgAdminDashboard() {
     }
 
     const [page, setPage] = useState<Page>('dashboard');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [confirm, setConfirm] = useState<{ title: string; body: string; onConfirm: () => void } | null>(null);
+
+    const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
     // ── Toast helpers ──────────────────────────────────────────────────────────
     const toastId = useRef(0);
@@ -259,9 +270,11 @@ export default function OrgAdminDashboard() {
         return false;
     }, [navigate]);
 
-    // ── Org info (for sidebar) ─────────────────────────────────────────────────
     const [orgName, setOrgName] = useState('');
     const [adminName, setAdminName] = useState('Org Admin');
+    const [isEmailVerified, setIsEmailVerified] = useState(true);
+    const [userEmail, setUserEmail] = useState('');
+    const [resendingVerification, setResendingVerification] = useState(false);
 
     useEffect(() => {
         const fetchBase = async () => {
@@ -272,7 +285,11 @@ export default function OrgAdminDashboard() {
                 ]);
                 if (!await checkPaywall(profRes)) {
                     const pd = await profRes.json();
-                    if (pd.status === 'success' && pd.data) setAdminName(pd.data.name ?? 'Org Admin');
+                    if (pd.status === 'success' && pd.data) {
+                        setAdminName(pd.data.name ?? 'Org Admin');
+                        setIsEmailVerified(pd.data.isEmailVerified ?? true);
+                        setUserEmail(pd.data.email ?? '');
+                    }
                 }
                 if (!await checkPaywall(orgRes)) {
                     const od = await orgRes.json();
@@ -282,6 +299,27 @@ export default function OrgAdminDashboard() {
         };
         if (userId) fetchBase();
     }, [userId, checkPaywall]);
+
+    const handleResendVerification = async () => {
+        setResendingVerification(true);
+        try {
+            const res = await fetch(apiUrl('/api/auth/resend-verification'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'success') {
+                showToast('Verification email sent');
+            } else {
+                showToast(data.message ?? 'Failed to send', 'error');
+            }
+        } catch {
+            showToast('Network error', 'error');
+        } finally {
+            setResendingVerification(false);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.clear();
@@ -309,7 +347,10 @@ export default function OrgAdminDashboard() {
     return (
         <div className={styles.root}>
             {/* ── Sidebar ── */}
-            <aside className={styles.sidebar}>
+            {sidebarOpen && (
+                <div className={styles.sidebarOverlay} onClick={closeSidebar} aria-hidden="true" />
+            )}
+            <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
                 <div className={styles.sidebarTop}>
                     <div className={styles.logoRow}>
                         <div className={styles.logoIcon}>
@@ -325,14 +366,14 @@ export default function OrgAdminDashboard() {
                             <button
                                 key={item.id}
                                 className={`${styles.navItem} ${page === item.id ? styles.navItemActive : ''}`}
-                                onClick={() => setPage(item.id)}
+                                onClick={() => { setPage(item.id); closeSidebar(); }}
                             >
                                 {item.icon}
                                 {item.label}
                             </button>
                         ))}
                         <div className={styles.navDivider} />
-                        <button className={`${styles.navItem} ${styles.navLogout}`} onClick={handleLogout}>
+                        <button className={`${styles.navItem} ${styles.navLogout}`} onClick={() => { handleLogout(); closeSidebar(); }}>
                             {icons.logout}
                             Logout
                         </button>
@@ -350,7 +391,27 @@ export default function OrgAdminDashboard() {
 
             {/* ── Main ── */}
             <main className={styles.main}>
+                {!isEmailVerified && (
+                    <div className={styles.emailBanner}>
+                        <span>⚠️ Please verify your email address. Check your inbox at {userEmail || 'your email'}.</span>
+                        <button
+                            className={styles.resendVerifyBtn}
+                            onClick={handleResendVerification}
+                            disabled={resendingVerification}
+                        >
+                            {resendingVerification ? 'Sending...' : 'Resend verification email'}
+                        </button>
+                    </div>
+                )}
                 <header className={styles.topBar}>
+                    <button
+                        type="button"
+                        className={styles.menuBtn}
+                        onClick={() => setSidebarOpen(o => !o)}
+                        aria-label="Toggle menu"
+                    >
+                        {icons.menu}
+                    </button>
                     <h2 className={styles.topBarTitle}>{pageTitles[page]}</h2>
                     <div className={styles.topBarRight}>
                         <span style={{ fontSize: 13, color: '#64748b' }}>{adminName}</span>
@@ -366,7 +427,7 @@ export default function OrgAdminDashboard() {
                         <PeoplePage userId={userId} showToast={showToast} checkPaywall={checkPaywall} setConfirm={setConfirm} />
                     )}
                     {page === 'orgtree' && (
-                        <OrgTreePage userId={userId} checkPaywall={checkPaywall} />
+                        <OrgTreePage userId={userId} checkPaywall={checkPaywall} showToast={showToast} />
                     )}
                     {page === 'corevalues' && (
                         <CoreValuesPage userId={userId} showToast={showToast} checkPaywall={checkPaywall} setConfirm={setConfirm} />
@@ -522,22 +583,37 @@ function PeoplePage({
     setConfirm: (c: { title: string; body: string; onConfirm: () => void } | null) => void;
 }) {
     const [members, setMembers] = useState<Member[]>([]);
+    const [orgAdmin, setOrgAdmin] = useState<{ _id: string; name: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [showPanel, setShowPanel] = useState(false);
     const [editMember, setEditMember] = useState<Member | null>(null);
 
-    const [form, setForm] = useState({ name: '', email: '', mobile: '', designation: '', reportsTo: '' });
+    const [form, setForm] = useState({ name: '', email: '', mobile: '', designation: '', department: '', reportsTo: '', role: 'employee' as 'boss' | 'manager' | 'employee' });
     const [reportsSearch, setReportsSearch] = useState('');
     const [reportsDropOpen, setReportsDropOpen] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [addPersonDropOpen, setAddPersonDropOpen] = useState(false);
+    const [inviteDropOpen, setInviteDropOpen] = useState(false);
+    const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [inviteLinkModalOpen, setInviteLinkModalOpen] = useState(false);
+    const [inviteCodeModalOpen, setInviteCodeModalOpen] = useState(false);
 
     const fetchMembers = useCallback(async () => {
         try {
             const res = await fetch(apiUrl(`/api/org-admin/members?userId=${userId}`));
             if (await checkPaywall(res)) return;
             const data = await res.json();
-            if (data.status === 'success') setMembers(data.data ?? []);
+            if (data.status === 'success') {
+                const payload = data.data;
+                if (Array.isArray(payload)) {
+                    setMembers(payload);
+                    setOrgAdmin(null);
+                } else {
+                    setMembers(payload?.members ?? []);
+                    setOrgAdmin(payload?.orgAdmin ?? null);
+                }
+            }
         } catch {
             showToast('Failed to load members', 'error');
         } finally {
@@ -547,21 +623,26 @@ function PeoplePage({
 
     useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
-    const openAdd = () => {
+    const openAddSingle = () => {
+        setAddPersonDropOpen(false);
         setEditMember(null);
-        setForm({ name: '', email: '', mobile: '', designation: '', reportsTo: '' });
+        setForm({ name: '', email: '', mobile: '', designation: '', department: '', reportsTo: '', role: 'employee' });
         setReportsSearch('');
         setShowPanel(true);
     };
 
     const openEdit = (m: Member) => {
         setEditMember(m);
+        const roleVal = m.role;
+        const validRole = roleVal && ['boss', 'manager', 'employee'].includes(roleVal) ? roleVal as 'boss' | 'manager' | 'employee' : 'employee';
         setForm({
             name: m.name,
             email: m.email,
             mobile: m.mobile ?? '',
             designation: m.designation ?? '',
+            department: (m as Member & { department?: string }).department ?? '',
             reportsTo: typeof m.reportsTo === 'object' ? m.reportsTo._id : (m.reportsTo ?? ''),
+            role: validRole as 'boss' | 'manager' | 'employee',
         });
         setReportsSearch(resolveReportsTo(m) === '—' ? '' : resolveReportsTo(m));
         setShowPanel(true);
@@ -581,7 +662,7 @@ function PeoplePage({
             const res = await fetch(apiUrl(url), {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, department: form.department || undefined }),
             });
             if (await checkPaywall(res)) return;
             const data = await res.json();
@@ -638,9 +719,42 @@ function PeoplePage({
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
-                <button className={styles.btnPrimary} onClick={openAdd}>
-                    {icons.plus} Add Person
-                </button>
+                <div className={styles.buttonGroup}>
+                    <div className={styles.dropdownWrap}>
+                        <button className={styles.btnPrimary} onClick={() => { setAddPersonDropOpen(o => !o); setInviteDropOpen(false); }}>
+                            {icons.plus} Add Person
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 4 }}>
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        {addPersonDropOpen && (
+                            <>
+                                <div className={styles.dropdownBackdrop} onClick={() => setAddPersonDropOpen(false)} />
+                                <div className={styles.dropdownMenu}>
+                                    <button className={styles.dropdownItem} onClick={openAddSingle}>Add Single Person</button>
+                                    <button className={styles.dropdownItem} onClick={() => { setAddPersonDropOpen(false); setBulkModalOpen(true); }}>Bulk Import via CSV</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <div className={styles.dropdownWrap}>
+                        <button className={styles.btnSecondary} onClick={() => { setInviteDropOpen(o => !o); setAddPersonDropOpen(false); }}>
+                            Invite
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 4 }}>
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        {inviteDropOpen && (
+                            <>
+                                <div className={styles.dropdownBackdrop} onClick={() => setInviteDropOpen(false)} />
+                                <div className={styles.dropdownMenu}>
+                                    <button className={styles.dropdownItem} onClick={() => { setInviteDropOpen(false); setInviteLinkModalOpen(true); }}>Send Invite Link</button>
+                                    <button className={styles.dropdownItem} onClick={() => { setInviteDropOpen(false); setInviteCodeModalOpen(true); }}>Share Invite Code</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {loading ? (
@@ -718,9 +832,26 @@ function PeoplePage({
                                     onChange={e => setForm(p => ({ ...p, mobile: e.target.value }))} />
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Designation</label>
+                                <label className={styles.formLabel}>Designation *</label>
                                 <input className={styles.formInput} placeholder="e.g. Regional Manager" value={form.designation}
                                     onChange={e => setForm(p => ({ ...p, designation: e.target.value }))} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Department</label>
+                                <input className={styles.formInput} placeholder="e.g. Sales" value={form.department}
+                                    onChange={e => setForm(p => ({ ...p, department: e.target.value }))} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Role *</label>
+                                <select
+                                    className={styles.formInput}
+                                    value={form.role}
+                                    onChange={e => setForm(p => ({ ...p, role: e.target.value as 'boss' | 'manager' | 'employee' }))}
+                                >
+                                    <option value="boss">Executive</option>
+                                    <option value="manager">Supervisor</option>
+                                    <option value="employee">Member</option>
+                                </select>
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Reports To</label>
@@ -732,14 +863,23 @@ function PeoplePage({
                                         onChange={e => { setReportsSearch(e.target.value); setReportsDropOpen(true); }}
                                         onFocus={() => setReportsDropOpen(true)}
                                     />
-                                    {reportsDropOpen && reportsSuggestions.length > 0 && (
+                                    {reportsDropOpen && (
                                         <div className={styles.dropdownList}>
-                                            <div
-                                                className={styles.dropdownItem}
-                                                onClick={() => { setForm(p => ({ ...p, reportsTo: '' })); setReportsSearch(''); setReportsDropOpen(false); }}
-                                            >
-                                                <span style={{ color: '#94a3b8', fontSize: 12 }}>— None —</span>
-                                            </div>
+                                            {orgAdmin && (reportsSearch === '' || orgAdmin.name.toLowerCase().includes(reportsSearch.toLowerCase())) ? (
+                                                <div
+                                                    key={orgAdmin._id}
+                                                    className={styles.dropdownItem}
+                                                    onClick={() => {
+                                                        setForm(p => ({ ...p, reportsTo: orgAdmin._id }));
+                                                        setReportsSearch(`${orgAdmin.name} (Owner)`);
+                                                        setReportsDropOpen(false);
+                                                    }}
+                                                >
+                                                    <div className={styles.avatar} style={{ width: 24, height: 24, fontSize: 10 }}>{initials(orgAdmin.name)}</div>
+                                                    <span>{orgAdmin.name}</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: 12 }}>(Owner)</span>
+                                                </div>
+                                            ) : null}
                                             {reportsSuggestions.map(s => (
                                                 <div key={s._id} className={styles.dropdownItem}
                                                     onClick={() => {
@@ -752,6 +892,12 @@ function PeoplePage({
                                                     {s.designation && <span style={{ color: '#94a3b8', fontSize: 12 }}>({s.designation})</span>}
                                                 </div>
                                             ))}
+                                            <div
+                                                className={styles.dropdownItem}
+                                                onClick={() => { setForm(p => ({ ...p, reportsTo: '' })); setReportsSearch(''); setReportsDropOpen(false); }}
+                                            >
+                                                <span style={{ color: '#94a3b8', fontSize: 12 }}>— None —</span>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -766,6 +912,351 @@ function PeoplePage({
                     </div>
                 </>
             )}
+
+            {/* Bulk Import Modal */}
+            {bulkModalOpen && (
+                <BulkImportModal
+                    userId={userId}
+                    onClose={() => setBulkModalOpen(false)}
+                    onSuccess={() => { fetchMembers(); setBulkModalOpen(false); showToast('Bulk import completed'); }}
+                    checkPaywall={checkPaywall}
+                    showToast={showToast}
+                />
+            )}
+
+            {/* Invite Link Modal */}
+            {inviteLinkModalOpen && (
+                <InviteLinkModal
+                    userId={userId}
+                    onClose={() => setInviteLinkModalOpen(false)}
+                    checkPaywall={checkPaywall}
+                    showToast={showToast}
+                />
+            )}
+
+            {/* Share Invite Code Modal */}
+            {inviteCodeModalOpen && (
+                <InviteCodeModal
+                    userId={userId}
+                    onClose={() => setInviteCodeModalOpen(false)}
+                    checkPaywall={checkPaywall}
+                    showToast={showToast}
+                />
+            )}
+        </>
+    );
+}
+
+// ─── Bulk Import Modal ───────────────────────────────────────────────────────
+const CSV_TEMPLATE = 'Name,Email,Mobile,Designation,Department,Role,ReportsTo\nJohn Doe,john@example.com,9876543210,Manager,Sales,Executive,\nJane Smith,jane@example.com,9876543211,Developer,Engineering,Member,';
+const ROLE_MAP: Record<string, string> = { 'Executive': 'boss', 'Supervisor': 'manager', 'Member': 'employee', 'boss': 'boss', 'manager': 'manager', 'employee': 'employee' };
+
+function BulkImportModal({ userId, onClose, onSuccess, checkPaywall, showToast }: {
+    userId: string; onClose: () => void; onSuccess: () => void; checkPaywall: (r: Response) => Promise<boolean>; showToast: (m: string, t?: 'success' | 'error') => void;
+}) {
+    const [step, setStep] = useState(1);
+    const [file, setFile] = useState<File | null>(null);
+    const [parsed, setParsed] = useState<Array<Record<string, string>>>([]);
+    const [importing, setImporting] = useState(false);
+    const [result, setResult] = useState<{ success: number; failed: Array<{ row: number; reason: string }> } | null>(null);
+
+    const downloadTemplate = () => {
+        const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'members_template.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (!selectedFile || !selectedFile.name.endsWith('.csv')) {
+            showToast('Please select a .csv file', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const text = (ev.target?.result as string) || '';
+            const lines = text.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                showToast('CSV must have header + at least one row', 'error');
+                return;
+            }
+            const headers = lines[0].split(',').map(h => h.trim());
+            const rows: Array<Record<string, string>> = [];
+            for (let i = 1; i < lines.length; i++) {
+                const vals = lines[i].split(',').map(v => v.trim());
+                const row: Record<string, string> = {};
+                headers.forEach((h, j) => { row[h] = vals[j] || ''; });
+                rows.push(row);
+            }
+            setParsed(rows);
+            setFile(selectedFile);
+            setStep(3);
+        };
+        reader.readAsText(selectedFile);
+    };
+
+    const handleImport = async () => {
+        const members = parsed.map((row) => {
+            const name = (row.Name || row.name || '').trim();
+            const email = (row.Email || row.email || '').trim().toLowerCase();
+            const mobile = (row.Mobile || row.mobile || '').replace(/\D/g, '').slice(0, 10);
+            const designation = (row.Designation || row.designation || '').trim();
+            const department = (row.Department || row.department || '').trim();
+            const roleRaw = (row.Role || row.role || 'Member').trim();
+            const role = ROLE_MAP[roleRaw] || 'employee';
+            const reportsTo = (row.ReportsTo || row.reportsTo || '').trim();
+            return { name, email, mobile, designation, department: department || undefined, role, reportsTo: reportsTo || undefined };
+        }).filter(m => m.name && m.email && m.mobile.length === 10);
+
+        if (members.length === 0) {
+            showToast('No valid rows to import', 'error');
+            return;
+        }
+        setImporting(true);
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/members/bulk-invite?userId=${userId}`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ members }),
+            });
+            if (await checkPaywall(res)) return;
+            const data = await res.json();
+            if (res.ok && data.data) {
+                setResult({ success: data.data.success?.length ?? 0, failed: data.data.failed ?? [] });
+                setStep(4);
+            } else {
+                showToast(data.message || 'Import failed', 'error');
+            }
+        } catch {
+            showToast('Network error', 'error');
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    return (
+        <>
+            <div className={styles.overlay} onClick={onClose} />
+            <div className={styles.modal}>
+                <div className={styles.modalHeader}>
+                    <h3 className={styles.modalTitle}>Bulk Import via CSV</h3>
+                    <button className={styles.btnIconAction} onClick={onClose}>{icons.close}</button>
+                </div>
+                <div className={styles.modalBody}>
+                    {step === 1 && (
+                        <div>
+                            <p className={styles.modalSubtitle}>Download the template and fill in your member details.</p>
+                            <button className={styles.btnSecondary} onClick={downloadTemplate}>Download Template</button>
+                        </div>
+                    )}
+                    {step === 2 && (
+                        <div>
+                            <p className={styles.modalSubtitle}>Upload your CSV file (.csv only)</p>
+                            <input type="file" accept=".csv" onChange={(e) => { handleFileChange(e); e.target.value = ''; }} />
+                        </div>
+                    )}
+                    {step === 1 && (
+                        <button className={styles.btnPrimary} style={{ marginTop: 16 }} onClick={() => setStep(2)}>Next: Upload CSV</button>
+                    )}
+                    {step === 3 && !result && (
+                        <div>
+                            <p className={styles.modalSubtitle}>{file ? `${file.name} — ` : ''}Preview ({parsed.length} rows)</p>
+                            <div className={styles.tableWrap} style={{ maxHeight: 200, overflow: 'auto' }}>
+                                <table className={styles.table}>
+                                    <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th></tr></thead>
+                                    <tbody>
+                                        {parsed.slice(0, 10).map((r, i) => (
+                                            <tr key={i}>
+                                                <td>{r.Name || r.name}</td>
+                                                <td>{r.Email || r.email}</td>
+                                                <td>{r.Mobile || r.mobile}</td>
+                                                <td>{r.Role || r.role || 'Member'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {parsed.length > 10 && <p style={{ fontSize: 12, color: '#64748b' }}>… and {parsed.length - 10} more</p>}
+                            <button className={styles.btnPrimary} style={{ marginTop: 16 }} onClick={handleImport} disabled={importing}>
+                                {importing ? 'Importing…' : 'Import'}
+                            </button>
+                        </div>
+                    )}
+                    {step === 4 && result && (
+                        <div>
+                            <p className={styles.modalSubtitle}>Import complete</p>
+                            <p><strong>{result.success}</strong> succeeded</p>
+                            {result.failed.length > 0 && (
+                                <div style={{ marginTop: 12 }}>
+                                    <p><strong>{result.failed.length}</strong> failed:</p>
+                                    <ul style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>
+                                        {result.failed.slice(0, 5).map((f, i) => (
+                                            <li key={i}>Row {f.row}: {f.reason}</li>
+                                        ))}
+                                    </ul>
+                                    {result.failed.length > 5 && <p>… and {result.failed.length - 5} more</p>}
+                                </div>
+                            )}
+                            <button className={styles.btnPrimary} style={{ marginTop: 16 }} onClick={onSuccess}>Done</button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+// ─── Invite Link Modal ───────────────────────────────────────────────────────
+function InviteLinkModal({ userId, onClose, checkPaywall, showToast }: {
+    userId: string; onClose: () => void; checkPaywall: (r: Response) => Promise<boolean>; showToast: (m: string, t?: 'success' | 'error') => void;
+}) {
+    const [email, setEmail] = useState('');
+    const [sending, setSending] = useState(false);
+    const [sent, setSent] = useState(false);
+
+    const handleSend = async () => {
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showToast('Valid email required', 'error');
+            return;
+        }
+        setSending(true);
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/members/invite-link?userId=${userId}`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim() }),
+            });
+            if (await checkPaywall(res)) return;
+            const data = await res.json();
+            if (res.ok) {
+                setSent(true);
+            } else {
+                showToast(data.message || 'Failed to send', 'error');
+            }
+        } catch {
+            showToast('Network error', 'error');
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <>
+            <div className={styles.overlay} onClick={onClose} />
+            <div className={styles.modal}>
+                <div className={styles.modalHeader}>
+                    <h3 className={styles.modalTitle}>Send Invite Link</h3>
+                    <button className={styles.btnIconAction} onClick={onClose}>{icons.close}</button>
+                </div>
+                <div className={styles.modalBody}>
+                    {sent ? (
+                        <p>Invite link sent to <strong>{email}</strong></p>
+                    ) : (
+                        <>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Email</label>
+                                <input className={styles.formInput} type="email" placeholder="colleague@example.com" value={email}
+                                    onChange={e => setEmail(e.target.value)} />
+                            </div>
+                            <button className={styles.btnPrimary} onClick={handleSend} disabled={sending}>Send</button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+// ─── Share Invite Code Modal ───────────────────────────────────────────────────────
+function InviteCodeModal({ userId, onClose, checkPaywall, showToast }: {
+    userId: string; onClose: () => void; checkPaywall: (r: Response) => Promise<boolean>; showToast: (m: string, t?: 'success' | 'error') => void;
+}) {
+    const [inviteCode, setInviteCode] = useState<string | null>(null);
+    const [orgName, setOrgName] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [regenerating, setRegenerating] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(apiUrl(`/api/org-admin/invite-code?userId=${userId}`));
+                if (await checkPaywall(res)) return;
+                const data = await res.json();
+                if (!cancelled && data.status === 'success') {
+                    setInviteCode(data.data.inviteCode);
+                    setOrgName(data.data.orgName || '');
+                }
+            } catch { /* ignore */ }
+            finally { if (!cancelled) setLoading(false); }
+        })();
+        return () => { cancelled = true; };
+    }, [userId, checkPaywall]);
+
+    const handleRegenerate = async () => {
+        setRegenerating(true);
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/invite-code/regenerate?userId=${userId}`), { method: 'POST' });
+            if (await checkPaywall(res)) return;
+            const data = await res.json();
+            if (res.ok && data.data?.inviteCode) {
+                setInviteCode(data.data.inviteCode);
+                showToast('Code regenerated');
+            }
+        } catch {
+            showToast('Failed to regenerate', 'error');
+        } finally {
+            setRegenerating(false);
+        }
+    };
+
+    const handleCopy = () => {
+        if (inviteCode) {
+            navigator.clipboard.writeText(inviteCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const joinUrl = `${baseUrl}/auth/join`;
+    const whatsappMessage = `You've been invited to join ${orgName} on 4DPMS. Use code: ${inviteCode || ''} at ${joinUrl}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+
+    return (
+        <>
+            <div className={styles.overlay} onClick={onClose} />
+            <div className={styles.modal}>
+                <div className={styles.modalHeader}>
+                    <h3 className={styles.modalTitle}>Share Invite Code</h3>
+                    <button className={styles.btnIconAction} onClick={onClose}>{icons.close}</button>
+                </div>
+                <div className={styles.modalBody}>
+                    {loading ? (
+                        <p>Loading…</p>
+                    ) : (
+                        <>
+                            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                                <p className={styles.modalSubtitle}>Your organization invite code</p>
+                                <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 4, padding: 16, background: '#f8fafc', borderRadius: 8, margin: '12px 0' }}>
+                                    {inviteCode || '—'}
+                                </div>
+                                <button className={styles.btnPrimary} onClick={handleCopy}>{copied ? 'Copied!' : 'Copy Code'}</button>
+                            </div>
+                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.btnSecondary} style={{ display: 'block', textAlign: 'center', marginBottom: 8 }}>
+                                Share via WhatsApp
+                            </a>
+                            <button className={styles.btnSecondary} onClick={handleRegenerate} disabled={regenerating}>
+                                {regenerating ? 'Regenerating…' : 'Regenerate Code'}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
         </>
     );
 }
@@ -775,31 +1266,81 @@ function PeoplePage({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function OrgTreePage({
-    userId, checkPaywall,
+    userId, checkPaywall, showToast,
 }: {
     userId: string;
     checkPaywall: (r: Response) => Promise<boolean>;
+    showToast: (m: string, t?: 'success' | 'error') => void;
 }) {
     const [tree, setTree] = useState<TreeNode | null>(null);
+    const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [editNode, setEditNode] = useState<TreeNode | null>(null);
+    const [reportsToId, setReportsToId] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    const loadTree = async () => {
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/tree?userId=${userId}`));
+            if (await checkPaywall(res)) return;
+            const data = await res.json();
+            if (data.status === 'success') setTree(data.data);
+        } catch {
+            setError('Network error');
+        }
+    };
+
+    const loadMembers = async () => {
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/members?userId=${userId}`));
+            if (await checkPaywall(res)) return;
+            const data = await res.json();
+            if (data.status === 'success') {
+                const payload = data.data;
+                setMembers(Array.isArray(payload) ? payload : (payload?.members ?? []));
+            }
+        } catch { /* silent */ }
+    };
 
     useEffect(() => {
         const load = async () => {
-            try {
-                const res = await fetch(apiUrl(`/api/org-admin/tree?userId=${userId}`));
-                if (await checkPaywall(res)) return;
-                const data = await res.json();
-                if (data.status === 'success') setTree(data.data);
-                else setError('Failed to load org tree');
-            } catch {
-                setError('Network error');
-            } finally {
-                setLoading(false);
-            }
+            setLoading(true);
+            await Promise.all([loadTree(), loadMembers()]);
+            setLoading(false);
         };
         load();
     }, [userId, checkPaywall]);
+
+    const openEdit = (node: TreeNode) => {
+        setEditNode(node);
+        setReportsToId('');
+    };
+
+    const saveReportsTo = async () => {
+        if (!editNode) return;
+        setSaving(true);
+        try {
+            const res = await fetch(apiUrl(`/api/org-admin/members/${editNode.id}/reports-to?userId=${userId}`), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reportsTo: reportsToId || undefined }),
+            });
+            if (await checkPaywall(res)) return;
+            const data = await res.json();
+            if (res.ok && data.status === 'success') {
+                showToast('Updated');
+                setEditNode(null);
+                loadTree();
+            } else {
+                showToast(data.message ?? 'Failed', 'error');
+            }
+        } catch {
+            showToast('Network error', 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     if (loading) return <div className={styles.loadingState}>Loading org tree…</div>;
     if (error) return <div className={styles.errorState}>{error}</div>;
@@ -815,17 +1356,54 @@ function OrgTreePage({
 
     return (
         <div className={styles.treeContainer}>
-            <TreeNodeComponent node={tree} />
+            <TreeNodeComponent node={tree} onEdit={openEdit} />
+            {editNode && (
+                <div className={styles.modalBackdrop} onClick={() => setEditNode(null)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <h3 className={styles.modalTitle}>Change Reports To</h3>
+                        <p className={styles.modalSubtitle}>{editNode.name}</p>
+                        <div className={styles.formGroup}>
+                            <label className={styles.formLabel}>Reports To</label>
+                            <select
+                                className={styles.formInput}
+                                value={reportsToId}
+                                onChange={e => setReportsToId(e.target.value)}
+                            >
+                                <option value="">— None —</option>
+                                {members.filter(m => m._id !== editNode.id).map(m => (
+                                    <option key={m._id} value={m._id}>{m.name} ({m.designation || '—'})</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className={styles.dialogActions}>
+                            <button className={styles.btnSecondary} onClick={() => setEditNode(null)}>Cancel</button>
+                            <button className={styles.btnPrimary} onClick={saveReportsTo} disabled={saving}>
+                                {saving ? 'Saving…' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-function TreeNodeComponent({ node }: { node: TreeNode }) {
+function TreeNodeComponent({ node, onEdit }: { node: TreeNode; onEdit: (n: TreeNode) => void }) {
     return (
         <div className={styles.treeNode}>
             <div className={styles.treeNodeCard}>
-                <div className={styles.treeNodeName}>{node.name}</div>
-                {node.designation && <div className={styles.treeNodeDesig}>{node.designation}</div>}
+                <div className={styles.treeNodeHeader}>
+                    <div>
+                        <div className={styles.treeNodeName}>{node.name}</div>
+                        {node.designation && <div className={styles.treeNodeDesig}>{node.designation}</div>}
+                        {node.roleLabel && (
+                            <span className={styles.treeNodeRole}>{node.roleLabel}</span>
+                        )}
+                    </div>
+                    <button className={styles.btnIconAction} title="Edit reports to" onClick={() => onEdit(node)}>
+                        {icons.edit}
+                    </button>
+                </div>
             </div>
             {node.children && node.children.length > 0 && (
                 <>
@@ -833,7 +1411,7 @@ function TreeNodeComponent({ node }: { node: TreeNode }) {
                     <div className={styles.treeChildren}>
                         {node.children.map(child => (
                             <div key={child.id} className={styles.treeChildWrapper}>
-                                <TreeNodeComponent node={child} />
+                                <TreeNodeComponent node={child} onEdit={onEdit} />
                             </div>
                         ))}
                     </div>

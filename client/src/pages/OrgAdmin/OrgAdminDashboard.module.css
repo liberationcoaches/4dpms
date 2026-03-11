@@ -7,12 +7,17 @@
 .root {
     display: flex;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: #f6f7f8;
 }
 
 /* ---------- Sidebar ---------- */
+.sidebarOverlay {
+    display: none;
+}
+
 .sidebar {
     width: 240px;
     flex-shrink: 0;
@@ -21,7 +26,13 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.menuBtn {
+    display: none;
 }
 
 .sidebarTop {
@@ -164,13 +175,48 @@
 }
 
 /* ---------- Top Bar ---------- */
+.emailBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 24px;
+    background: #fef3c7;
+    border-bottom: 1px solid #f59e0b;
+    font-size: 14px;
+    color: #92400e;
+}
+
+.resendVerifyBtn {
+    padding: 6px 14px;
+    background: #f59e0b;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.resendVerifyBtn:hover:not(:disabled) {
+    background: #d97706;
+}
+
+.resendVerifyBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 .topBar {
     height: 60px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 0 28px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
     background: #ffffff;
     border-bottom: 1px solid #e2e8f0;
     position: sticky;
@@ -194,7 +240,12 @@
 .pageArea {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 28px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ---------- Stat Cards ---------- */
@@ -616,6 +667,7 @@
     top: 0;
     right: 0;
     height: 100vh;
+    height: 100dvh;
     width: 420px;
     max-width: 100vw;
     background: #fff;
@@ -848,20 +900,85 @@
 }
 
 .modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 201;
     background: #fff;
     border-radius: 12px;
     padding: 28px 32px;
     width: 440px;
     max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
     animation: dialogPop 0.2s ease;
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
 }
 
 .modalTitle {
     font-size: 17px;
     font-weight: 700;
     color: #0f172a;
-    margin: 0 0 20px;
+    margin: 0;
+}
+
+.modalBody {
+    min-height: 60px;
+}
+
+.buttonGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dropdownWrap {
+    position: relative;
+}
+
+.dropdownBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 198;
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 200px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    z-index: 199;
+    overflow: hidden;
+}
+
+.dropdownMenu .dropdownItem {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 14px;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.dropdownMenu .dropdownItem:hover {
+    background: #f8fafc;
 }
 
 /* ---------- Org Tree ---------- */
@@ -905,6 +1022,31 @@
     font-size: 11px;
     color: #94a3b8;
     margin: 0;
+}
+
+.treeNodeHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+}
+
+.treeNodeRole {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.modalSubtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: -8px 0 16px;
 }
 
 .treeConnector {
@@ -1194,4 +1336,156 @@
     font-size: 13px;
     color: #16a34a;
     font-weight: 500;
+}
+
+/* ---------- Mobile Responsive ---------- */
+@media (max-width: 768px) {
+    .root {
+        flex-direction: column;
+    }
+
+    .sidebarOverlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        z-index: 199;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 200;
+        transform: translateX(-100%);
+        box-shadow: none;
+    }
+
+    .sidebar.sidebarOpen {
+        transform: translateX(0);
+        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.15);
+    }
+
+    .menuBtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0;
+        border: none;
+        background: none;
+        color: #64748b;
+        cursor: pointer;
+        border-radius: 8px;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .menuBtn:hover {
+        background: #f1f5f9;
+        color: #1b2c4b;
+    }
+
+    .topBar {
+        padding: 0 16px;
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    .topBarTitle {
+        font-size: 16px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .topBarRight span {
+        display: none;
+    }
+
+    .pageArea {
+        padding: 16px;
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    .pageControls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .searchBar {
+        width: 100%;
+    }
+
+    .tableWrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table {
+        min-width: 560px;
+    }
+
+    .slidePanel {
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    .slidePanelBody {
+        padding: 16px;
+    }
+
+    .slidePanelHeader,
+    .slidePanelFooter {
+        padding: 16px;
+    }
+
+    .emailBanner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+
+    .treeContainer {
+        padding: 16px;
+        overflow-x: auto;
+    }
+
+    .treeNodeCard {
+        min-width: 120px;
+    }
+
+    .dialog,
+    .modal {
+        margin: 16px;
+        max-width: calc(100vw - 32px);
+    }
+}
+
+@media (max-width: 480px) {
+    .statCard {
+        padding: 16px;
+    }
+
+    .statValue {
+        font-size: 24px;
+    }
+
+    .panelHeader {
+        padding: 14px 16px;
+    }
+
+    .panelTitle {
+        font-size: 15px;
+    }
 }

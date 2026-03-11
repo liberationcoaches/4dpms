@@ -11,6 +11,7 @@ export interface IDimensionWeights {
 export interface IOrganization extends Document {
   name: string;
   code: string; // Organization code (given to managers)
+  inviteCode?: string; // Org-level invite code for joining (shareable)
   type: string;
   employeeSize: string;
   bossId?: mongoose.Types.ObjectId; // The boss who owns this organization (optional)
@@ -39,6 +40,15 @@ const OrganizationSchema = new Schema<IOrganization>(
       trim: true,
       uppercase: true,
       match: [/^[A-Z0-9]{6,8}$/, 'Organization code must be 6-8 alphanumeric characters'],
+      index: true,
+    },
+    inviteCode: {
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
       index: true,
     },
     type: {

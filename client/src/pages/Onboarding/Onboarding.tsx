@@ -5,6 +5,7 @@ import { apiUrl } from '@/utils/api';
 import styles from './Onboarding.module.css';
 import logo from '@/assets/logo.png';
 import IntroVideos from './IntroVideos';
+import OrgSetup from './OrgSetup';
 import PlanYourGoals from './PlanYourGoals';
 import AddTeamMembers, { TeamMember } from './AddTeamMembers';
 import AddKRAs from './AddKRAs';
@@ -22,12 +23,23 @@ interface Goal {
     breakdowns: GoalBreakdown[];
 }
 
-// Boss gets the full wizard; everyone else just watches the intro video
-const BOSS_STEPS = [
+const ORG_ADMIN_STEPS = [
     { label: 'Introduction', number: 1 },
-    { label: 'Plan Goals', number: 2 },
-    { label: 'Add Team', number: 3 },
-    { label: 'Set KRAs', number: 4 },
+    { label: 'Org Setup', number: 2 },
+    { label: 'Plan Goals', number: 3 },
+    { label: 'Add Members', number: 4 },
+    { label: 'Set KRAs', number: 5 },
+];
+
+const BOSS_MANAGER_STEPS = [
+    { label: 'Introduction', number: 1 },
+    { label: 'Set KRAs', number: 2 },
+    { label: 'Add Team Members', number: 3 },
+];
+
+const EMPLOYEE_STEPS = [
+    { label: 'Introduction', number: 1 },
+    { label: 'Set KRAs', number: 2 },
 ];
 
 export default function Onboarding() {
@@ -36,18 +48,25 @@ export default function Onboarding() {
     const userRole = localStorage.getItem('userRole') || 'employee';
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [orgName, setOrgName] = useState('');
+    const [orgSize, setOrgSize] = useState('');
+    const [userName, setUserName] = useState('');
 
-    // State for boss-only steps
     const [goals, setGoals] = useState<Goal[]>([]);
     const [members, setMembers] = useState<TeamMember[]>([]);
 
-    const isBoss = userRole === 'boss';
-    const STEPS = isBoss ? BOSS_STEPS : [{ label: 'Introduction', number: 1 }];
+    const isOrgAdmin = userRole === 'org_admin';
+    const isBossOrManager = userRole === 'boss' || userRole === 'manager';
+    const isEmployee = userRole === 'employee';
 
-    // Get the correct dashboard path for the user's role (uses imported getDashboardPath)
+    const STEPS = isOrgAdmin
+        ? ORG_ADMIN_STEPS
+        : isBossOrManager
+            ? BOSS_MANAGER_STEPS
+            : EMPLOYEE_STEPS;
+
     const getRoleDashboardPath = () => getDashboardPath(userRole as UserRole);
 
-    // Check onboarding status on mount
     useEffect(() => {
         const checkStatus = async () => {
             if (!userId) {
@@ -62,9 +81,15 @@ export default function Onboarding() {
                         navigate(getRoleDashboardPath());
                         return;
                     }
-                    // For boss, restore their saved step; for others, always start at 0
-                    if (isBoss) {
-                        setCurrentStep(data.data.onboardingStep || 0);
+                    setCurrentStep(data.data.onboardingStep || 0);
+                    if (data.data.userName) setUserName(data.data.userName);
+                }
+                if (isOrgAdmin) {
+                    const orgRes = await fetch(apiUrl(`/api/organizations/me?userId=${userId}`));
+                    const orgData = await orgRes.json();
+                    if (orgData.status === 'success' && orgData.data) {
+                        setOrgName(orgData.data.name || '');
+                        setOrgSize(orgData.data.employeeSize || '');
                     }
                 }
             } catch (err) {
@@ -74,9 +99,8 @@ export default function Onboarding() {
             }
         };
         checkStatus();
-    }, [userId, navigate, isBoss]);
+    }, [userId, navigate, isOrgAdmin]);
 
-    // Save current step to backend (boss only)
     const saveStep = async (step: number) => {
         try {
             await fetch(apiUrl(`/api/onboarding/step?userId=${userId}`), {
@@ -89,7 +113,6 @@ export default function Onboarding() {
         }
     };
 
-    // Save PYG data (boss only)
     const savePYG = async () => {
         if (goals.length === 0) return;
         try {
@@ -106,18 +129,23 @@ export default function Onboarding() {
         }
     };
 
-    // Save team members to backend (boss only)
     const saveMembers = async () => {
         if (members.length === 0) return;
         try {
             for (const member of members) {
-                await fetch(apiUrl(`/api/team/members?userId=${userId}`), {
+                if (member._id) continue;
+                await fetch(apiUrl(`/api/org-admin/members/invite?userId=${userId}`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: member.name,
-                        role: member.role === 'manager' ? 'Supervisor' : 'Team Member',
+                        email: member.email,
                         mobile: member.mobile,
+                        designation: member.designation || '',
+                        department: member.department || '',
+                        role: member.role,
+                        reportsTo: member.reportsTo,
+                        userId,
                     }),
                 });
             }
@@ -126,7 +154,6 @@ export default function Onboarding() {
         }
     };
 
-    // Complete onboarding
     const completeOnboarding = async () => {
         try {
             await fetch(apiUrl(`/api/onboarding/complete?userId=${userId}`), {
@@ -140,23 +167,30 @@ export default function Onboarding() {
         }
     };
 
-    // For non-boss: intro video complete → mark onboarding done → go to dashboard
     const handleIntroComplete = async () => {
-        if (!isBoss) {
-            await completeOnboarding();
-        } else {
-            // Boss: advance to next step
+        if (isEmployee) {
             const nextStep = 1;
             setCurrentStep(nextStep);
             await saveStep(nextStep);
+        } else if (isBossOrManager) {
+            const nextStep = 1;
+            setCurrentStep(nextStep);
+            await saveStep(nextStep);
+        } else if (isOrgAdmin) {
+            const nextStep = 1;
+            setCurrentStep(nextStep);
+            await saveStep(nextStep);
+        } else {
+            await completeOnboarding();
         }
     };
 
     const handleNext = async () => {
-        if (currentStep === 1) {
-            await savePYG();
-        } else if (currentStep === 2) {
-            await saveMembers();
+        if (isOrgAdmin) {
+            if (currentStep === 2) await savePYG();
+            else if (currentStep === 3) await saveMembers();
+        } else if (isBossOrManager) {
+            if (currentStep === 2) await saveMembers();
         }
 
         if (currentStep < STEPS.length - 1) {
@@ -171,6 +205,7 @@ export default function Onboarding() {
     const handleBack = () => {
         if (currentStep > 0) {
             setCurrentStep(currentStep - 1);
+            saveStep(currentStep - 1);
         }
     };
 
@@ -184,6 +219,9 @@ export default function Onboarding() {
         }
     };
 
+    const showProgress = isOrgAdmin || isBossOrManager || isEmployee;
+    const skippableSteps = isOrgAdmin ? [2, 3, 4] : isBossOrManager ? [1, 2] : [1];
+
     if (loading) {
         return (
             <div className={styles.onboarding}>
@@ -196,7 +234,6 @@ export default function Onboarding() {
 
     return (
         <div className={styles.onboarding}>
-            {/* Header */}
             <div className={styles.header}>
                 <div className={styles.headerLeft}>
                     <img src={logo} alt="4DPMS" className={styles.logo} />
@@ -204,8 +241,7 @@ export default function Onboarding() {
                 </div>
             </div>
 
-            {/* Progress Steps — only show for boss (multi-step flow) */}
-            {isBoss && (
+            {showProgress && (
                 <div className={styles.progressContainer}>
                     <div className={styles.progressSteps}>
                         {STEPS.map((step, index) => (
@@ -240,26 +276,51 @@ export default function Onboarding() {
                 </div>
             )}
 
-            {/* Step Content */}
             <div className={styles.content}>
                 <div className={styles.stepContent}>
                     {currentStep === 0 && (
                         <IntroVideos onComplete={handleIntroComplete} />
                     )}
-                    {isBoss && currentStep === 1 && (
+                    {isOrgAdmin && currentStep === 1 && (
+                        <OrgSetup
+                            orgName={orgName}
+                            orgSize={orgSize}
+                            onComplete={() => { setCurrentStep(2); saveStep(2); }}
+                            onSkip={() => { setCurrentStep(2); saveStep(2); }}
+                        />
+                    )}
+                    {isOrgAdmin && currentStep === 2 && (
                         <PlanYourGoals goals={goals} onGoalsChange={setGoals} />
                     )}
-                    {isBoss && currentStep === 2 && (
-                        <AddTeamMembers members={members} onMembersChange={setMembers} />
+                    {isOrgAdmin && currentStep === 3 && (
+                        <AddTeamMembers members={members} onMembersChange={setMembers} userId={userId} />
                     )}
-                    {isBoss && currentStep === 3 && (
+                    {isOrgAdmin && currentStep === 4 && (
                         <AddKRAs members={members} />
+                    )}
+
+                    {/* Boss/Manager: Set KRAs (step 1), Add Team Members (step 2) */}
+                    {isBossOrManager && currentStep === 1 && (
+                        <AddKRAs members={members} />
+                    )}
+                    {isBossOrManager && currentStep === 2 && (
+                        <AddTeamMembers
+                            members={members}
+                            onMembersChange={setMembers}
+                            userId={userId}
+                            roleRestriction="employee_only"
+                            selfAsReportsTo={userId && userName ? { id: userId, name: userName } : undefined}
+                        />
+                    )}
+
+                    {/* Employee: Set KRAs (step 1) */}
+                    {isEmployee && currentStep === 1 && (
+                        <AddKRAs members={[]} />
                     )}
                 </div>
             </div>
 
-            {/* Footer Navigation — only for boss steps beyond intro (intro has its own nav) */}
-            {isBoss && currentStep > 0 && (
+            {showProgress && currentStep > 0 && !(isOrgAdmin && currentStep === 1) && (
                 <div className={styles.footer}>
                     <div className={styles.footerLeft}>
                         <button className={styles.btnSecondary} onClick={handleBack}>
@@ -267,7 +328,7 @@ export default function Onboarding() {
                         </button>
                     </div>
                     <div className={styles.footerRight}>
-                        {(currentStep === 2 || currentStep === 3) && (
+                        {skippableSteps.includes(currentStep) && (
                             <button className={styles.btnSkip} onClick={handleSkip}>
                                 Skip for now
                             </button>

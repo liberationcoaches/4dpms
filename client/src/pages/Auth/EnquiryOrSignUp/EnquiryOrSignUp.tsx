@@ -53,21 +53,7 @@ function EnquiryOrSignUp() {
     }
   };
 
-  const handleSignUp = (e: FormEvent) => {
-    e.preventDefault();
-
-    if (!email.trim()) {
-      setError('Email is required');
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      setError('Invalid email format');
-      return;
-    }
-
-    setError('');
-    // Navigate to signup page
+  const handleSignUp = () => {
     navigate('/auth/signup');
   };
 
@@ -86,6 +72,14 @@ function EnquiryOrSignUp() {
         <div className={styles.accentGrid} />
         <div className={styles.content}>
           <div className={styles.formCard}>
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+            >
+              ←
+            </button>
             <div className={styles.logo}>
               <img src={logo} alt="Company logo" className={styles.logoImage} />
               <span className={styles.logoText}>4DPMS</span>
@@ -108,27 +102,34 @@ function EnquiryOrSignUp() {
       <div className={styles.accentGrid} />
       <div className={styles.content}>
         <div className={styles.formCard}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+          >
+            ←
+          </button>
           <div className={styles.logo}>
             <img src={logo} alt="Company logo" className={styles.logoImage} />
+            <span className={styles.logoText}>4DPMS</span>
           </div>
           <h2 className={styles.greeting}>Get Started</h2>
           <p className={styles.subGreeting}>Enter your email to continue</p>
 
           <form onSubmit={handleEnquiry} className={styles.form} noValidate>
             <div className={styles.inputGroup}>
-              <label htmlFor="email" className={styles.label}>
-                Email
-              </label>
               <input
                 id="email"
                 type="email"
                 className={`${styles.input} ${error ? styles.inputError : ''}`}
                 value={email}
                 onChange={handleEmailChange}
-                placeholder="Enter your email"
+                placeholder=" "
                 aria-invalid={!!error}
                 aria-describedby={error ? 'email-error' : undefined}
               />
+              <label htmlFor="email" className={styles.label}>Email</label>
               {error && (
                 <span id="email-error" className={styles.errorText} role="alert">
                   {error}
@@ -136,21 +137,22 @@ function EnquiryOrSignUp() {
               )}
             </div>
 
-            <div className={styles.buttonGroup}>
-              <button
-                type="submit"
-                className={styles.enquiryButton}
-                disabled={isSubmitting}
-                aria-busy={isSubmitting}
-              >
-                {isSubmitting ? 'Submitting...' : 'Enquiry'}
-              </button>
+            <button
+              type="submit"
+              className={styles.primaryButton}
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+            >
+              {isSubmitting ? 'Submitting...' : 'Enquiry'}
+            </button>
+
+            <div className={styles.linkContainer}>
               <button
                 type="button"
+                className={styles.linkButton}
                 onClick={handleSignUp}
-                className={styles.signUpButton}
               >
-                Sign Up
+                Sign Up instead
               </button>
             </div>
           </form>

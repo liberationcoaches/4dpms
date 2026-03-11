@@ -3,10 +3,16 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: clamp(1.5rem, 4vw, 3rem);
+  min-height: 100dvh;
+  padding: clamp(1rem, 4vw, 3rem);
+  padding-left: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-right));
+  padding-bottom: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-bottom));
   background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 30%, #fdf7ff 70%, #f9fffc 100%);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .content {
@@ -173,16 +179,23 @@
 
 .input {
   width: 100%;
+  min-height: 44px;
   padding: 1rem 0.875rem 0.5rem;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.9);
   font-family: var(--font-inter);
-  font-size: var(--font-size-15);
+  font-size: 16px;
   font-weight: var(--font-weight-regular);
   color: var(--color-main-black-100);
   outline: none;
   transition: all 0.25s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input::placeholder {
+  color: transparent;
 }
 
 .input:focus {
@@ -248,14 +261,19 @@
 .linkButton {
   background: none;
   border: none;
-  padding: 0;
+  padding: 0.5rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-inter);
-  font-size: var(--font-size-13);
+  font-size: var(--font-size-14, 14px);
   font-weight: var(--font-weight-regular);
   color: var(--color-primary-main-blue);
   text-align: center;
   cursor: pointer;
   transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .linkButton:hover {
@@ -263,12 +281,67 @@
 }
 
 @media (max-width: 768px) {
+  .authContainer {
+    padding: 1rem;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    align-items: flex-start;
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+  }
+
+  .content {
+    padding: 0.5rem;
+    width: 100%;
+  }
+
   .formCard {
-    padding: var(--spacing-lg);
+    padding: 1.5rem;
     border-radius: 20px;
+    max-width: 100%;
+  }
+
+  .backButton {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.5rem;
+    top: max(var(--spacing-md), env(safe-area-inset-top));
+  }
+
+  .logoImage {
+    width: 56px;
+  }
+
+  .logoText {
+    font-size: 20px;
   }
 
   .greeting {
-    font-size: var(--font-size-22);
+    font-size: 1.5rem;
+  }
+
+  .subGreeting {
+    font-size: 14px;
+  }
+
+  .form {
+    gap: 1.25rem;
+  }
+
+  .accentOne,
+  .accentTwo {
+    width: 200px;
+    height: 200px;
+    opacity: 0.4;
+  }
+}
+
+@media (max-width: 380px) {
+  .formCard {
+    padding: 1.25rem;
+  }
+
+  .greeting {
+    font-size: 1.35rem;
   }
 }

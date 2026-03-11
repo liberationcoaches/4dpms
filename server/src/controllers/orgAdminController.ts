@@ -35,6 +35,26 @@ async function ensureUniqueShortCode(): Promise<string> {
   return shortCode;
 }
 
+async function ensureUniqueOrgInviteCode(): Promise<string> {
+  let code = generateShortCode();
+  let exists = await Organization.findOne({ inviteCode: code });
+  let attempts = 0;
+  while (exists && attempts < 20) {
+    code = generateShortCode();
+    exists = await Organization.findOne({ inviteCode: code });
+    attempts++;
+  }
+  if (exists) throw new Error('Could not generate unique org invite code');
+  return code;
+}
+
+function mapRoleToBackend(role: string): 'boss' | 'manager' | 'employee' {
+  const r = (role || '').trim().toLowerCase();
+  if (r === 'executive' || r === 'boss') return 'boss';
+  if (r === 'supervisor' || r === 'manager') return 'manager';
+  return 'employee';
+}
+
 /**
  * Ensure the caller is org_admin with an organization
  */
@@ -54,6 +74,26 @@ async function getOrgAdminContext(userId: string): Promise<{ orgAdmin: mongoose.
 }
 
 /**
+ * Ensure the caller is org_admin, boss, or manager with an organization (for invite flows)
+ */
+async function getOrgContextForInvite(userId: string): Promise<{ orgAdmin: mongoose.Document | null; org: mongoose.Document; caller: mongoose.Document }> {
+  const caller = await User.findById(userId);
+  if (!caller || !caller.organizationId) {
+    throw new Error('User must be associated with an organization');
+  }
+  const allowedRoles = ['org_admin', 'boss', 'manager'];
+  if (!allowedRoles.includes(caller.role || '')) {
+    throw new Error('Only Org Admin, Executive, or Supervisor can invite members');
+  }
+  const org = await Organization.findById(caller.organizationId);
+  if (!org) {
+    throw new Error('Organization not found');
+  }
+  const orgAdmin = caller.role === 'org_admin' ? caller : await User.findOne({ organizationId: org._id, role: 'org_admin' });
+  return { orgAdmin: orgAdmin as mongoose.Document, org: org as mongoose.Document, caller: caller as mongoose.Document };
+}
+
+/**
  * GET /api/org-admin/members
  */
 export async function getMembers(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -63,15 +103,16 @@ export async function getMembers(req: Request, res: Response, next: NextFunction
       res.status(400).json({ status: 'error', message: 'userId is required' });
       return;
     }
-    const { org } = await getOrgAdminContext(userId);
+    const { orgAdmin, org } = await getOrgAdminContext(userId);
     const orgId = (org as any)._id;
+    const orgAdminObj = orgAdmin as any;
 
     const users = await User.find({
       organizationId: orgId,
       role: { $in: ['boss', 'manager', 'employee'] },
     })
       .populate('reportsTo', 'name')
-      .select('name email mobile designation reportsTo isActive createdAt')
+      .select('name email mobile designation reportsTo role isActive createdAt')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -82,10 +123,17 @@ export async function getMembers(req: Request, res: Response, next: NextFunction
       mobile: u.mobile,
       designation: u.designation,
       reportsTo: u.reportsTo,
+      role: u.role || 'employee',
       status: u.isActive ? 'active' : 'invited',
     }));
 
-    res.status(200).json({ status: 'success', data: members });
+    res.status(200).json({
+      status: 'success',
+      data: {
+        members,
+        orgAdmin: { _id: orgAdminObj._id.toString(), name: orgAdminObj.name },
+      },
+    });
   } catch (error) {
     if ((error as Error).message?.includes('Only org admins')) {
       res.status(403).json({ status: 'error', message: (error as Error).message });
@@ -107,7 +155,7 @@ export async function addMember(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const { name, email, mobile, designation, reportsTo } = req.body;
+    const { name, email, mobile, designation, reportsTo, role } = req.body;
     if (!name?.trim() || !email?.trim()) {
       res.status(400).json({ status: 'error', message: 'Name and email are required' });
       return;
@@ -118,6 +166,10 @@ export async function addMember(req: Request, res: Response, next: NextFunction)
       res.status(400).json({ status: 'error', message: 'Valid 10-digit mobile number is required' });
       return;
     }
+
+    const validRoles = ['boss', 'manager', 'employee'];
+    const validatedRole = role && validRoles.includes(role) ? role : 'employee';
+    const hierarchyLevel = validatedRole === 'boss' ? 1 : validatedRole === 'manager' ? 2 : 3;
 
     const { orgAdmin, org } = await getOrgAdminContext(userId);
     const orgId = (org as any)._id;
@@ -139,8 +191,8 @@ export async function addMember(req: Request, res: Response, next: NextFunction)
       email: email.toLowerCase().trim(),
       mobile: mobileTrimmed,
       designation: designation?.trim() || undefined,
-      role: 'employee',
-      hierarchyLevel: 3,
+      role: validatedRole,
+      hierarchyLevel,
       organizationId: orgId,
       reportsTo: reportsTo && mongoose.Types.ObjectId.isValid(reportsTo) ? reportsTo : undefined,
       createdBy: orgAdminId,
@@ -158,7 +210,7 @@ export async function addMember(req: Request, res: Response, next: NextFunction)
     const invite = new Invite({
       token,
       shortCode,
-      role: 'employee',
+      role: validatedRole,
       organizationId: orgId,
       createdBy: orgAdminId,
       expiresAt,
@@ -176,6 +228,7 @@ export async function addMember(req: Request, res: Response, next: NextFunction)
         orgName: (org as any).name,
         inviterName: (orgAdmin as any).name,
         inviteLink,
+        shortCode,
       });
     } catch (emailErr) {
       console.error('[orgAdminController] Failed to send invite email:', emailErr);
@@ -205,6 +258,421 @@ export async function addMember(req: Request, res: Response, next: NextFunction)
 }
 
 /**
+ * POST /api/org-admin/members/invite
+ * Create member, send invite email, return inviteCode and inviteLink
+ */
+export async function inviteMember(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'userId is required' });
+      return;
+    }
+
+    const { name, email, mobile, designation, department, role, reportsTo } = req.body;
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ status: 'error', message: 'Name and email are required' });
+      return;
+    }
+
+    const mobileTrimmed = typeof mobile === 'string' ? mobile.replace(/\D/g, '').slice(0, 10) : '';
+    if (mobileTrimmed.length !== 10) {
+      res.status(400).json({ status: 'error', message: 'Valid 10-digit mobile number is required' });
+      return;
+    }
+
+    const { org, caller } = await getOrgContextForInvite(userId);
+    const orgId = (org as any)._id;
+    const creatorId = (caller as any)._id;
+
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { mobile: mobileTrimmed },
+      ],
+    });
+    if (existingUser) {
+      res.status(400).json({ status: 'error', message: 'User with this email or mobile already exists' });
+      return;
+    }
+
+    const memberRole = role && ['boss', 'manager', 'employee'].includes(role) ? role : 'employee';
+    const hierarchyLevel = memberRole === 'boss' ? 1 : memberRole === 'manager' ? 2 : 3;
+
+    const newUser = new User({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      mobile: mobileTrimmed,
+      designation: designation?.trim() || undefined,
+      role: memberRole,
+      hierarchyLevel,
+      organizationId: orgId,
+      reportsTo: reportsTo && mongoose.Types.ObjectId.isValid(reportsTo) ? reportsTo : undefined,
+      createdBy: creatorId,
+      isActive: false,
+      isMobileVerified: false,
+    });
+    await newUser.save();
+
+    const token = generateInviteToken();
+    const shortCode = await ensureUniqueShortCode();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
+
+    const invite = new Invite({
+      token,
+      shortCode,
+      role: memberRole,
+      organizationId: orgId,
+      invitedUserId: newUser._id,
+      createdBy: creatorId,
+      expiresAt,
+    });
+    await invite.save();
+
+    const baseUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+    const inviteLink = `${baseUrl}/auth/join?invite=${token}`;
+
+    try {
+      await sendInviteEmail({
+        to: newUser.email,
+        recipientName: newUser.name,
+        orgName: (org as any).name,
+        inviterName: (caller as any).name,
+        inviteLink,
+        shortCode,
+      });
+    } catch (emailErr) {
+      console.error('[orgAdminController] Failed to send invite email:', emailErr);
+    }
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Member added successfully',
+      data: {
+        _id: newUser._id.toString(),
+        name: newUser.name,
+        email: newUser.email,
+        mobile: newUser.mobile,
+        designation: newUser.designation,
+        reportsTo: newUser.reportsTo,
+        status: 'invited',
+        inviteCode: shortCode,
+        inviteLink,
+      },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only org admins')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * POST /api/org-admin/members/bulk-invite
+ * Bulk add members from CSV data
+ */
+export async function bulkInviteMembers(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'userId is required' });
+      return;
+    }
+    const { members } = req.body;
+    if (!Array.isArray(members) || members.length === 0) {
+      res.status(400).json({ status: 'error', message: 'members array is required' });
+      return;
+    }
+
+    const { orgAdmin, org } = await getOrgAdminContext(userId);
+    const orgId = (org as any)._id;
+    const orgAdminId = (orgAdmin as any)._id;
+    const baseUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+
+    const success: { name: string; email: string; inviteCode: string }[] = [];
+    const failed: { row: number; reason: string }[] = [];
+
+    for (let i = 0; i < members.length; i++) {
+      const row = i + 1;
+      const m = members[i];
+      const name = (m?.name || '').trim();
+      const email = (m?.email || '').trim().toLowerCase();
+      const mobile = typeof m?.mobile === 'string' ? m.mobile.replace(/\D/g, '').slice(0, 10) : '';
+
+      if (!name || !email) {
+        failed.push({ row, reason: 'Name and email are required' });
+        continue;
+      }
+      if (mobile.length !== 10) {
+        failed.push({ row, reason: 'Valid 10-digit mobile is required' });
+        continue;
+      }
+
+      const validatedRole = mapRoleToBackend(m?.role || '');
+      const reportsTo = m?.reportsTo && mongoose.Types.ObjectId.isValid(m.reportsTo) ? m.reportsTo : undefined;
+
+      const existingUser = await User.findOne({
+        $or: [{ email }, { mobile }],
+      });
+      if (existingUser) {
+        failed.push({ row, reason: 'User with this email or mobile already exists' });
+        continue;
+      }
+
+      try {
+        const newUser = new User({
+          name,
+          email,
+          mobile,
+          designation: (m?.designation || '').trim() || undefined,
+          role: validatedRole,
+          hierarchyLevel: validatedRole === 'boss' ? 1 : validatedRole === 'manager' ? 2 : 3,
+          organizationId: orgId,
+          reportsTo,
+          createdBy: orgAdminId,
+          isActive: false,
+          isMobileVerified: false,
+        });
+        await newUser.save();
+
+        const token = generateInviteToken();
+        const shortCode = await ensureUniqueShortCode();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
+
+        const invite = new Invite({
+          token,
+          shortCode,
+          role: validatedRole,
+          organizationId: orgId,
+          createdBy: orgAdminId,
+          expiresAt,
+        });
+        await invite.save();
+
+        const inviteLink = `${baseUrl}/auth/join/${token}`;
+        try {
+          await sendInviteEmail({
+            to: newUser.email,
+            recipientName: newUser.name,
+            orgName: (org as any).name,
+            inviterName: (orgAdmin as any).name,
+            inviteLink,
+            shortCode,
+          });
+        } catch (emailErr) {
+          console.error('[orgAdminController] Bulk invite email failed:', emailErr);
+        }
+
+        success.push({ name: newUser.name, email: newUser.email, inviteCode: shortCode });
+      } catch (err) {
+        failed.push({ row, reason: (err as Error).message || 'Failed to create member' });
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: { success, failed },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only org admins')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * POST /api/org-admin/members/invite-link
+ * Send invite link to email (uses org invite code)
+ */
+export async function sendInviteLink(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const { email } = req.body;
+    if (!userId || !email?.trim()) {
+      res.status(400).json({ status: 'error', message: 'userId and email are required' });
+      return;
+    }
+
+    const { org, caller } = await getOrgContextForInvite(userId);
+    const orgObj = org as any;
+    const baseUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    let inviteCode = orgObj.inviteCode;
+    if (!inviteCode) {
+      inviteCode = await ensureUniqueOrgInviteCode();
+      await Organization.findByIdAndUpdate(orgObj._id, { inviteCode });
+    }
+
+    const inviteLink = `${baseUrl}/auth/join?code=${inviteCode}`;
+    try {
+      await sendInviteEmail({
+        to: normalizedEmail,
+        recipientName: normalizedEmail.split('@')[0],
+        orgName: orgObj.name,
+        inviterName: (caller as any).name,
+        inviteLink,
+        shortCode: inviteCode,
+      });
+    } catch (emailErr) {
+      console.error('[orgAdminController] Invite link email failed:', emailErr);
+      res.status(500).json({ status: 'error', message: 'Failed to send email' });
+      return;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Invite link sent',
+      data: { email: normalizedEmail },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only org admins')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * GET /api/org-admin/invite-code?userId=USERID
+ * Returns org's invite code (generates if not exists)
+ */
+export async function getInviteCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'userId is required' });
+      return;
+    }
+
+    const { org } = await getOrgContextForInvite(userId);
+    const orgObj = org as any;
+
+    if (!orgObj.inviteCode) {
+      const newCode = await ensureUniqueOrgInviteCode();
+      await Organization.findByIdAndUpdate(orgObj._id, { inviteCode: newCode });
+      orgObj.inviteCode = newCode;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: { inviteCode: orgObj.inviteCode, orgName: orgObj.name },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only org admins')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * POST /api/org-admin/invite-code/regenerate?userId=USERID
+ * Generates new org invite code
+ */
+export async function regenerateInviteCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ status: 'error', message: 'userId is required' });
+      return;
+    }
+
+    const { org } = await getOrgContextForInvite(userId);
+    const newCode = await ensureUniqueOrgInviteCode();
+    await Organization.findByIdAndUpdate((org as any)._id, { inviteCode: newCode });
+
+    res.status(200).json({
+      status: 'success',
+      data: { inviteCode: newCode },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only org admins')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * POST /api/org-admin/members/:memberId/resend-invite
+ * Resend invite email to a pending member
+ */
+export async function resendInvite(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const { memberId } = req.params;
+    if (!userId || !memberId) {
+      res.status(400).json({ status: 'error', message: 'userId and memberId are required' });
+      return;
+    }
+
+    const { org, caller } = await getOrgContextForInvite(userId);
+    const orgId = (org as any)._id;
+
+    const member = await User.findOne({ _id: memberId, organizationId: orgId });
+    if (!member) {
+      res.status(404).json({ status: 'error', message: 'Member not found' });
+      return;
+    }
+    if (member.isActive) {
+      res.status(400).json({ status: 'error', message: 'Member is already active' });
+      return;
+    }
+
+    const invite = await Invite.findOne({ invitedUserId: memberId }).sort({ createdAt: -1 });
+    if (!invite || invite.usedAt) {
+      res.status(400).json({ status: 'error', message: 'No pending invite found for this member' });
+      return;
+    }
+    if (new Date() > invite.expiresAt) {
+      res.status(400).json({ status: 'error', message: 'Invite has expired' });
+      return;
+    }
+
+    const baseUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+    const inviteLink = `${baseUrl}/auth/join?invite=${invite.token}`;
+
+    try {
+      await sendInviteEmail({
+        to: member.email,
+        recipientName: member.name,
+        orgName: (org as any).name,
+        inviterName: (caller as any).name,
+        inviteLink,
+        shortCode: invite.shortCode,
+      });
+    } catch (emailErr) {
+      console.error('[orgAdminController] Resend invite email failed:', emailErr);
+      res.status(500).json({ status: 'error', message: 'Failed to send email' });
+      return;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Invite email resent',
+      data: { inviteCode: invite.shortCode, inviteLink },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only Org Admin')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
  * PUT /api/org-admin/members/:id
  */
 export async function updateMember(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -225,7 +693,7 @@ export async function updateMember(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const { name, email, mobile, designation, reportsTo } = req.body;
+    const { name, email, mobile, designation, reportsTo, role } = req.body;
     if (name?.trim()) user.name = name.trim();
     if (email?.trim()) user.email = email.toLowerCase().trim();
     if (mobile !== undefined) {
@@ -236,11 +704,63 @@ export async function updateMember(req: Request, res: Response, next: NextFuncti
     if (reportsTo !== undefined) {
       user.reportsTo = reportsTo && mongoose.Types.ObjectId.isValid(reportsTo) ? reportsTo : undefined;
     }
+    if (role && ['boss', 'manager', 'employee'].includes(role)) {
+      user.role = role;
+      user.hierarchyLevel = role === 'boss' ? 1 : role === 'manager' ? 2 : 3;
+    }
     await user.save();
 
     res.status(200).json({
       status: 'success',
       message: 'Member updated',
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        designation: user.designation,
+        reportsTo: user.reportsTo,
+        status: user.isActive ? 'active' : 'invited',
+      },
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes('Only org admins')) {
+      res.status(403).json({ status: 'error', message: (error as Error).message });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * PATCH /api/org-admin/members/:memberId/reports-to
+ */
+export async function updateMemberReportsTo(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.query.userId as string;
+    const { memberId } = req.params;
+    const { reportsTo } = req.body;
+
+    if (!userId || !memberId) {
+      res.status(400).json({ status: 'error', message: 'userId and memberId are required' });
+      return;
+    }
+
+    const { org } = await getOrgAdminContext(userId);
+    const orgId = (org as any)._id;
+
+    const user = await User.findOne({ _id: memberId, organizationId: orgId });
+    if (!user) {
+      res.status(404).json({ status: 'error', message: 'Member not found' });
+      return;
+    }
+
+    user.reportsTo = reportsTo && mongoose.Types.ObjectId.isValid(reportsTo) ? reportsTo : undefined;
+    await user.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Reports to updated',
       data: {
         _id: user._id,
         name: user.name,
@@ -391,23 +911,27 @@ export async function getTree(req: Request, res: Response, next: NextFunction): 
       res.status(400).json({ status: 'error', message: 'userId is required' });
       return;
     }
-    const { org } = await getOrgAdminContext(userId);
+    const { orgAdmin, org } = await getOrgAdminContext(userId);
     const orgId = (org as any)._id;
+    const orgAdminObj = orgAdmin as any;
 
     const users = await User.find({
       organizationId: orgId,
       role: { $in: ['boss', 'manager', 'employee'] },
     })
       .populate('reportsTo', 'name')
-      .select('name designation reportsTo')
+      .select('name designation role reportsTo')
       .lean();
 
-    const idToNode: Record<string, { id: string; name: string; designation?: string; children: any[] }> = {};
+    const roleLabels: Record<string, string> = { boss: 'Executive', manager: 'Supervisor', employee: 'Member' };
+    const idToNode: Record<string, { id: string; name: string; designation?: string; role?: string; roleLabel?: string; children: any[] }> = {};
     users.forEach((u: any) => {
       idToNode[u._id.toString()] = {
         id: u._id.toString(),
         name: u.name,
         designation: u.designation,
+        role: u.role,
+        roleLabel: roleLabels[u.role] || u.role,
         children: [],
       };
     });

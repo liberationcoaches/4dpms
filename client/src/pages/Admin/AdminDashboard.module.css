@@ -509,6 +509,22 @@
   color: var(--color-main-black-100);
 }
 
+.orgCodeBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: all;
+}
+
+.orgCodeBadge:hover {
+  background: #e2e8f0;
+}
+
 .loading {
   text-align: center;
   padding: var(--spacing-2xl);

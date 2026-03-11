@@ -4,6 +4,7 @@ import SignUp from './pages/Auth/SignUp/SignUp';
 import Join from './pages/Auth/Join/Join';
 import Login from './pages/Auth/Login/Login';
 import OTPVerify from './pages/Auth/OTPVerify/OTPVerify';
+import VerifyEmail from './pages/Auth/VerifyEmail/VerifyEmail';
 import AccessCode from './pages/Auth/AccessCode/AccessCode';
 import EnquiryOrSignUp from './pages/Auth/EnquiryOrSignUp/EnquiryOrSignUp';
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -28,6 +29,7 @@ function App() {
       <Route path="/auth/join/:token" element={<Join />} />
       <Route path="/auth/login" element={<Login />} />
       <Route path="/auth/otp-verify" element={<OTPVerify />} />
+      <Route path="/auth/verify-email" element={<VerifyEmail />} />
       <Route path="/auth/access-code" element={<AccessCode />} />
       <Route path="/auth/enquiry-or-signup" element={<EnquiryOrSignUp />} />
       <Route path="/onboarding" element={<Onboarding />} />
