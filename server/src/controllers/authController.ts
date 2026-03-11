@@ -574,7 +574,7 @@ export async function setPassword(req: Request, res: Response, next: NextFunctio
 export async function testEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     await sendInviteEmail({
-      to: 'no.reply4dpms@gmail.com',
+      to: 'sumedh.m@liberationcoaches.com',
       recipientName: 'Test User',
       orgName: 'Test Org',
       inviterName: 'Admin',
