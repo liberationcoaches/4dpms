@@ -1,6 +1,26 @@
+/**
+ * Email service using Resend.
+ *
+ * Required env vars:
+ *   - RESEND_API_KEY
+ *
+ * Optional env vars:
+ *   - RESEND_FROM_EMAIL  (default: 'onboarding@resend.dev' — free tier default sender;
+ *                         use custom domain e.g. '4DPMS <noreply@4dmps.com>' when domain is verified)
+ */
+
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+
+function getResend(): Resend {
+    if (!resendClient) {
+        resendClient = new Resend(process.env.RESEND_API_KEY);
+    }
+    return resendClient;
+}
+
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -174,13 +194,17 @@ export async function sendInviteEmail({
   `.trim();
 
     try {
-        await resend.emails.send({
-            from: '4DPMS <noreply@4dmps.com>',
+        const { data, error } = await getResend().emails.send({
+            from: FROM_EMAIL,
             to,
             subject,
             html,
         });
-        console.log(`[emailService] Invite email sent to ${to}`);
+        if (error) {
+            console.error('[emailService] Resend error:', JSON.stringify(error));
+        } else {
+            console.log('[emailService] Resend success, id:', data?.id);
+        }
     } catch (error) {
         // A failed email must never crash the main request flow — log and continue.
         console.error(`[emailService] Failed to send invite email to ${to}:`, error);
@@ -234,14 +258,19 @@ export async function sendVerificationEmail({
   `.trim();
 
     try {
-        await resend.emails.send({
-            from: '4DPMS <noreply@4dmps.com>',
+        const { data, error } = await getResend().emails.send({
+            from: FROM_EMAIL,
             to,
             subject,
             html,
         });
-        console.log(`[emailService] Verification email sent to ${to}`);
+        if (error) {
+            console.error('[emailService] Resend error:', JSON.stringify(error));
+        } else {
+            console.log('[emailService] Resend success, id:', data?.id);
+        }
     } catch (error) {
+        // A failed email must never crash the main request flow — log and continue.
         console.error(`[emailService] Failed to send verification email to ${to}:`, error);
     }
 }
@@ -257,7 +286,7 @@ export async function sendPasswordResetEmail({
     // TODO: Implement password-reset email template.
     //       Follow the same pattern as sendInviteEmail above:
     //       1. Build HTML + text payloads with the resetLink and recipientName.
-    //       2. Call transporter.sendMail() inside a try/catch.
+    //       2. Call getResend().emails.send() inside a try/catch.
     //       3. Log success or error — never throw.
     console.log(`[emailService] sendPasswordResetEmail is not yet implemented (to: ${to})`);
 }

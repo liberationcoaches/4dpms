@@ -879,7 +879,7 @@ export async function resendVerification(req: Request, res: Response, next: Next
     }
 
     const verifyEmailToken = crypto.randomBytes(32).toString('hex');
-    await User.findByIdAndUpdate(userId, { verifyEmailToken });
+    await User.findByIdAndUpdate(user._id, { verifyEmailToken });
 
     const baseUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
     const verifyLink = `${baseUrl}/auth/verify-email?token=${verifyEmailToken}`;
